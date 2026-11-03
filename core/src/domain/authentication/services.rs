@@ -122,7 +122,7 @@ use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 type OrgScopedRoles = HashMap<Uuid, (Vec<String>, HashMap<String, Vec<String>>)>;
 
 pub(crate) fn sso_token_hash(token: &str) -> String {
-    format!("{:x}", Sha256::digest(token.as_bytes()))
+    hex::encode(Sha256::digest(token.as_bytes()))
 }
 
 fn with_issuer(mut url: String, issuer: Option<&str>) -> String {
@@ -2459,7 +2459,7 @@ where
 
         // Enforce immediate revocation: of this token, or of all the user's tokens.
         if token_data.claims.typ == ClaimsTyp::Bearer {
-            let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
+            let token_hash = hex::encode(Sha256::digest(token.as_bytes()));
             if self
                 .access_token_repository
                 .is_revoked(
@@ -5753,7 +5753,7 @@ where
             return self.introspect_opaque_refresh_token(&opaque, &scope).await;
         }
 
-        let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
+        let token_hash = hex::encode(Sha256::digest(token.as_bytes()));
 
         // Opaque token support: prefer DB lookup by hash. This also enables immediate revocation.
         let stored = self
@@ -5880,7 +5880,7 @@ where
                     .map_err(|_| CoreError::InternalServerError)?;
             }
             ClaimsTyp::Bearer => {
-                let token_hash = format!("{:x}", Sha256::digest(input.token.as_bytes()));
+                let token_hash = hex::encode(Sha256::digest(input.token.as_bytes()));
                 let expires_at = claims
                     .exp
                     .and_then(|exp| Utc.timestamp_opt(exp, 0).single());
@@ -6331,6 +6331,14 @@ fn token_generation_error(error: impl ToString) -> CoreError {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn sso_token_hash_is_lowercase_sha256_hex() {
+        assert_eq!(
+            super::sso_token_hash("abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
     #[tokio::test]
     async fn an_offloaded_signature_equals_the_library_encoding_and_verifies() {
         use ferriskey_security::jwt::entities::JwtKeyPair;

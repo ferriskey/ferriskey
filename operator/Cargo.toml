@@ -12,8 +12,8 @@ name = "ferriskey-operator"
 
 
 [dependencies]
-kube = { version = "2.0.1", features = ["derive", "runtime", "client"] }
-k8s-openapi = { version = "0.26.0", features = ["latest"] }
+kube = { version = "4.2.0", features = ["derive", "runtime", "client"] }
+k8s-openapi = { version = "0.28.0", features = ["latest"] }
 # Explicit rustls dependency to select the aws-lc-rs crypto provider at startup.
 # Required because rustls 0.23 compiles both aws-lc-rs and ring backends via
 # kube-client, and panics unless one is installed as the default before TLS runs.
@@ -29,9 +29,9 @@ serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "2.0.12"
 schemars = {version = "1.0.4", features = ["derive"]}
 serde_yaml = "0.9.34"
-kube-derive = "2.0.1"
+kube-derive = "4.2.0"
 futures = "0.3.31"
-reqwest = "0.12.23"
+reqwest = "0.13.2"
 rand = "0.10.3"
 
 

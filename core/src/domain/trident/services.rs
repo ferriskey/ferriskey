@@ -14,7 +14,7 @@ use ferriskey_domain::elevation::ports::ElevationRepository;
 use ferriskey_domain::elevation::{self, Claim};
 use ferriskey_domain::generate_uuid_v7;
 use futures::future::try_join_all;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use rand::RngExt;
 use sha1::Sha1;
 use tracing::{debug, error, warn};
@@ -2687,6 +2687,21 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn totp_codes_match_the_rfc_6238_sha1_vectors() {
+        let secret = b"12345678901234567890";
+        for (time, expected) in [
+            (59_u64, 94_287_082_u32),
+            (1_111_111_109, 7_081_804),
+            (1_111_111_111, 14_050_471),
+            (1_234_567_890, 89_005_924),
+            (2_000_000_000, 69_279_037),
+            (20_000_000_000, 65_353_130),
+        ] {
+            assert_eq!(generate_totp_code(secret, time / 30, 8).unwrap(), expected);
+        }
+    }
     use crate::domain::{
         authentication::{
             entities::{AuthProtocol, AuthenticationError},
@@ -5707,7 +5722,7 @@ mod tests {
     }
 
     fn webauthn_credential_for(credential_id: &[u8], key: &SigningKey) -> WebAuthnCredential {
-        let point = key.verifying_key().to_encoded_point(false);
+        let point = key.verifying_key().to_sec1_point(false);
 
         WebAuthnCredential {
             cred_id: credential_id.to_vec().into(),

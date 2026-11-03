@@ -38,6 +38,9 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: eslint-plugin-react-hooks
+        versions: [">=7.1"]
 
   - package-ecosystem: npm
     directory: /tools/pnpm

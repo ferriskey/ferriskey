@@ -1,7 +1,7 @@
 //! HMAC-SHA256 signing for outbound webhook deliveries and the per-webhook secrets that back it.
 
 use hex::encode;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use rand::Rng;
 use rand::rand_core::UnwrapErr;
 use rand::rngs::SysRng;
@@ -48,6 +48,14 @@ pub fn sign(secret: &str, timestamp: i64, body: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sign_matches_an_independent_hmac_sha256_implementation() {
+        assert_eq!(
+            sign("a-secret", 1_700_000_000, b"{\"event\":\"user.created\"}"),
+            "2f4dc2daabe94fe62ccc966f1649f0c78e521b4d54314bc0713a873e61cd3305"
+        );
+    }
 
     #[test]
     fn sign_is_stable_for_fixed_inputs() {

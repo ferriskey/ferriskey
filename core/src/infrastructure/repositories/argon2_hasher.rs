@@ -1,6 +1,6 @@
 use argon2::{
     Algorithm, Argon2, Params, Version,
-    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
+    password_hash::{PasswordHasher, PasswordVerifier, phc::PasswordHash},
 };
 use std::sync::Arc;
 
@@ -64,17 +64,20 @@ pub fn hash_argon2_password(
     password: &str,
     cost: PasswordHashingCost,
 ) -> Result<HashResult, SecurityError> {
-    let salt = SaltString::generate(&mut OsRng);
     let params = argon2_params(cost)?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params.clone());
     let password_hash = argon2
-        .hash_password(password.as_bytes(), &salt)
-        .map_err(|e| SecurityError::HashingError(e.to_string()))?
-        .to_string();
+        .hash_password(password.as_bytes())
+        .map_err(|e| SecurityError::HashingError(e.to_string()))?;
+    let salt = password_hash
+        .salt
+        .as_ref()
+        .map(ToString::to_string)
+        .ok_or_else(|| SecurityError::HashingError("argon2 hash carries no salt".to_string()))?;
 
     Ok(HashResult::new(
-        password_hash,
-        salt.to_string(),
+        password_hash.to_string(),
+        salt,
         params.t_cost(),
         Algorithm::Argon2id.to_string(),
     ))
@@ -231,6 +234,38 @@ mod tests {
     use std::time::Duration;
 
     use super::*;
+
+    const LEGACY_SALT: &[u8] = b"somesaltsomesalt";
+    const LEGACY_PASSWORD: &str = "correct horse battery staple";
+    const LEGACY_HASH: &str = "$argon2id$v=19$m=7168,t=5,p=1$c29tZXNhbHRzb21lc2FsdA$4IBHBCGZwZG/751s+60VA1hVA7CPbz6GXoB7rCaEEqw";
+    const LEGACY_HASH_OWASP: &str = "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHRzb21lc2FsdA$leF08Fu/gOi7XGf5NvDjbfR9GY+siUuPd+cKkq57H/c";
+
+    #[test]
+    fn a_hash_stored_before_the_argon2_0_6_upgrade_still_verifies() {
+        assert!(verify_argon2_password(LEGACY_PASSWORD, LEGACY_HASH, "argon2id").unwrap());
+        assert!(!verify_argon2_password("another password", LEGACY_HASH, "argon2id").unwrap());
+        assert!(verify_argon2_password("hunter2", LEGACY_HASH_OWASP, "argon2id").unwrap());
+    }
+
+    #[test]
+    fn hashing_with_a_fixed_salt_reproduces_the_stored_encoding_byte_for_byte() {
+        let argon2 = Argon2::new(
+            Algorithm::Argon2id,
+            Version::V0x13,
+            Params::new(7168, 5, 1, Some(32)).unwrap(),
+        );
+        let hash = argon2
+            .hash_password_with_salt(LEGACY_PASSWORD.as_bytes(), LEGACY_SALT)
+            .unwrap();
+        assert_eq!(hash.to_string(), LEGACY_HASH);
+    }
+
+    #[test]
+    fn a_fresh_hash_keeps_the_legacy_salt_shape() {
+        let hashed = hash_argon2_password(LEGACY_PASSWORD, PasswordHashingCost::default()).unwrap();
+        assert_eq!(hashed.salt.len(), 22);
+        assert!(hashed.hash.contains(&format!("${}$", hashed.salt)));
+    }
 
     #[tokio::test]
     async fn test_hash_password_success() {

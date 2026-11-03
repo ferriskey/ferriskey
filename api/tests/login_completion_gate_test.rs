@@ -2,7 +2,7 @@ mod common;
 
 use axum::http::HeaderValue;
 use common::{ClientSpec, SeededClient, SeededUser, TestApp, app, authorize, query_param, rt};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use serde_json::{Value, json};
 use sha1::Sha1;
 use uuid::Uuid;

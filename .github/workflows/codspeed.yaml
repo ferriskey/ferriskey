@@ -42,7 +42,7 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: install cargo-codspeed
-        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91
+        uses: taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68
         with:
           tool: cargo-codspeed
 
@@ -50,7 +50,7 @@ jobs:
         run: cargo codspeed build -p ferriskey-benchmarks
 
       - name: run the benchmarks
-        uses: CodSpeedHQ/action@78102a468f96d8e0ccb92d0ec49425753fc42062
+        uses: CodSpeedHQ/action@61efe07e57e55bedeab750c434504de272a56e8c
         with:
           mode: simulation
           run: cargo codspeed run -p ferriskey-benchmarks

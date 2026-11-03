@@ -26,7 +26,7 @@ use super::ports::*;
 fn generate_token_hash(token: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(token.as_bytes());
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 #[cfg(not(test))]
@@ -615,6 +615,14 @@ mod tests {
         let hash1 = generate_token_hash("token-a");
         let hash2 = generate_token_hash("token-b");
         assert_ne!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_generate_token_hash_is_lowercase_sha256_hex() {
+        assert_eq!(
+            generate_token_hash("abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
     }
 
     #[tokio::test]

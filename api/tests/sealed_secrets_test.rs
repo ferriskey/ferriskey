@@ -1,7 +1,7 @@
 mod common;
 
 use common::{ADMIN_CLIENT_ID, ClientSpec, TestApp, authorize, password_grant, rt, sealed_app};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use serde_json::{Value, json};
 use sha1::Sha1;
 use uuid::Uuid;
