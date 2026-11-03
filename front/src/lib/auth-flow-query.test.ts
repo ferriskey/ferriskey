@@ -30,8 +30,10 @@ test('a link keeps its path and gains the sign-in query', () => {
   assert.equal(withAuthFlow('/realms/tenant/authentication/login', ''), '/realms/tenant/authentication/login')
 })
 
-test('a sign-in is for a client only when client_id is present', () => {
+test('a sign-in is for a client only with both client_id and redirect_uri', () => {
   assert.equal(hasAuthFlowClient(fromApp), true)
+  assert.equal(hasAuthFlowClient('?client_id=app-web'), false)
+  assert.equal(hasAuthFlowClient('?redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb'), false)
   assert.equal(hasAuthFlowClient('?state=s-1'), false)
   assert.equal(hasAuthFlowClient(''), false)
 })

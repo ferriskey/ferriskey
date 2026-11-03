@@ -27,6 +27,12 @@ export const authFlowSearch = (currentSearch: string): string => {
 export const withAuthFlow = (path: string, currentSearch: string): string =>
   `${path}${authFlowSearch(currentSearch)}`
 
-/** Whether `currentSearch` names the client the sign-in is for. */
-export const hasAuthFlowClient = (currentSearch: string): boolean =>
-  Boolean(new URLSearchParams(currentSearch).get('client_id'))
+/**
+ * Whether `currentSearch` carries enough to sign in to an application: its `client_id` and the
+ * `redirect_uri` to return to. With `client_id` alone the sign-in page would use the console's
+ * callback as the redirect URI, which the application's client does not accept.
+ */
+export const hasAuthFlowClient = (currentSearch: string): boolean => {
+  const current = new URLSearchParams(currentSearch)
+  return Boolean(current.get('client_id') && current.get('redirect_uri'))
+}
