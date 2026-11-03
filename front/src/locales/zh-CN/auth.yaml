@@ -208,6 +208,7 @@ email_verified:
   title: 邮箱已验证
   description: 您的邮箱地址已确认。您现在可以登录您的账户了。
   action: 继续登录
+  return_to_app: 您的邮箱地址已确认。您可以关闭此页面，返回应用程序登录。
 
 device:
   title: 设备验证

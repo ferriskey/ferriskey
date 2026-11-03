@@ -181,6 +181,7 @@ email_verified:
   title: Email verified
   description: Your email address has been confirmed. You can now sign in to your account.
   action: Continue to sign in
+  return_to_app: Your email address has been confirmed. You can close this page and return to the application to sign in.
 
 device:
   title: Device verification

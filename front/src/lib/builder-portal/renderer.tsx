@@ -16,6 +16,7 @@ import ProviderIcon, {
   isProviderIconKey,
 } from '@/components/provider-icon'
 import type { BuilderNode } from '../builder-core'
+import { withAuthFlow } from '@/lib/auth-flow-query'
 import { PortalInput } from './components/portal-input'
 
 type RenderOptions = {
@@ -443,7 +444,7 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
         <a
           key={node.id}
           {...idAttr}
-          href='./forgot-password'
+          href={withAuthFlow('./forgot-password', window.location.search)}
           onClick={options.runtime ? undefined : (e) => e.preventDefault()}
           style={forgotPasswordLinkStyle(node)}
         >
@@ -462,7 +463,7 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
         <a
           key={node.id}
           {...idAttr}
-          href='./login'
+          href={withAuthFlow('./login', window.location.search)}
           onClick={options.runtime ? undefined : (e) => e.preventDefault()}
           style={forgotPasswordLinkStyle(node)}
         >
@@ -477,7 +478,7 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
         <a
           key={node.id}
           {...idAttr}
-          href='./register'
+          href={withAuthFlow('./register', window.location.search)}
           onClick={options.runtime ? undefined : (e) => e.preventDefault()}
           style={forgotPasswordLinkStyle(node)}
         >
