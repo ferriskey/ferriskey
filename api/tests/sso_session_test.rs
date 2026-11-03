@@ -318,6 +318,18 @@ mod tests {
             .expect("update admin enabled");
     }
 
+    async fn set_user_registration(enabled: bool) {
+        sqlx::query(
+            "UPDATE realm_settings SET user_registration_enabled = $1 \
+             WHERE realm_id = (SELECT id FROM realms WHERE name = $2)",
+        )
+        .bind(enabled)
+        .bind(realm())
+        .execute(&shared_ctx().pool)
+        .await
+        .expect("update user registration");
+    }
+
     async fn count_sso_login_events() -> i64 {
         sqlx::query_scalar::<_, i64>(
             "SELECT COUNT(*) FROM security_events \
@@ -1225,6 +1237,37 @@ mod tests {
             assert!(
                 location_of(&with_new).starts_with(SURVEY_REDIRECT_URI),
                 "the rotated secret must sign in"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn prompt_create_opens_the_register_page_even_with_a_live_session() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            set_user_registration(true).await;
+            let server = make_server();
+            let sso = sign_in(&server).await;
+
+            let survey = survey_authorize_with(&server, Some(&sso), &[("prompt", "create")]).await;
+            let location = location_of(&survey);
+
+            assert!(
+                location.starts_with(&format!(
+                    "{WEBAPP_URL}/realms/{}/authentication/register?",
+                    realm()
+                )),
+                "prompt=create must not sign in from the session: {location}"
+            );
+            assert!(
+                !clears_the_sso_cookie(&survey),
+                "an abandoned registration must not sign the other applications out"
+            );
+            assert!(
+                survey.maybe_cookie("FERRISKEY_SESSION").is_some(),
+                "the register page needs the authorization session"
             );
         });
     }

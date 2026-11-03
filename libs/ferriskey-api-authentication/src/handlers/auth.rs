@@ -14,6 +14,7 @@ use ferriskey_core::domain::authentication::entities::{
 use ferriskey_core::domain::authentication::ports::AuthService;
 use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
+use ferriskey_core::domain::realm::ports::RealmService;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 use utoipa::{IntoParams, ToSchema};
@@ -43,11 +44,40 @@ fn mark_session_expired(login_url: &str) -> String {
     format!("{login_url}{separator}{SESSION_EXPIRED_MARKER}")
 }
 
-fn webapp_login_url(webapp_url: &str, realm_name: &str, login_url: &str) -> String {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EntryPage {
+    Login,
+    Register,
+}
+
+impl EntryPage {
+    fn for_prompt(prompt: &Prompt, registration_enabled: bool) -> Self {
+        if prompt.create && registration_enabled {
+            Self::Register
+        } else {
+            Self::Login
+        }
+    }
+
+    fn segment(self) -> &'static str {
+        match self {
+            Self::Login => "login",
+            Self::Register => "register",
+        }
+    }
+}
+
+fn webapp_entry_url(
+    webapp_url: &str,
+    realm_name: &str,
+    page: EntryPage,
+    login_url: &str,
+) -> String {
     format!(
-        "{}/realms/{}/authentication/login{}",
+        "{}/realms/{}/authentication/{}{}",
         webapp_url.trim_end_matches('/'),
         realm_name,
+        page.segment(),
         login_url
     )
 }
@@ -137,6 +167,7 @@ struct Prompt {
     none: bool,
     login: bool,
     consent: bool,
+    create: bool,
 }
 
 impl Prompt {
@@ -152,6 +183,7 @@ impl Prompt {
             none,
             login: values.contains(&"login"),
             consent: values.contains(&"consent"),
+            create: values.contains(&"create"),
         })
     }
 }
@@ -300,7 +332,7 @@ pub async fn auth_handler(
     let flow_base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
 
     // `max_age=0` asks for a fresh authentication, like `prompt=login`.
-    let reauthenticate = prompt.login || params.max_age == Some(0);
+    let reauthenticate = prompt.login || prompt.create || params.max_age == Some(0);
 
     let sso_cookie = cookie
         .get(SSO_SESSION_COOKIE)
@@ -381,7 +413,26 @@ pub async fn auth_handler(
         None => false,
     };
 
-    let mut full_url = webapp_login_url(&webapp_url, &realm_name, &result.login_url);
+    let registration_enabled = if prompt.create {
+        state
+            .service
+            .get_login_settings(realm_name.clone())
+            .await
+            .map(|settings| settings.user_registration_enabled)
+            .unwrap_or_else(|e| {
+                warn!(error = ?e, "Failed to read the registration setting, opening the login page");
+                false
+            })
+    } else {
+        false
+    };
+
+    let mut full_url = webapp_entry_url(
+        &webapp_url,
+        &realm_name,
+        EntryPage::for_prompt(&prompt, registration_enabled),
+        &result.login_url,
+    );
 
     let stale_sso_cookie = cookie.get(SSO_SESSION_COOKIE).is_some() && !keeps_live_session;
     // No longer honoured since the SSO session replaced it; cleared from the
@@ -438,8 +489,8 @@ pub async fn auth_handler(
 #[cfg(test)]
 mod tests {
     use super::{
-        Prompt, SsoFastPathOutcome, authorization_error_response, mark_session_expired,
-        sso_fast_path_outcome, webapp_login_url,
+        EntryPage, Prompt, SsoFastPathOutcome, authorization_error_response, mark_session_expired,
+        sso_fast_path_outcome, webapp_entry_url,
     };
     use axum::http::{StatusCode, header::LOCATION};
     use ferriskey_core::domain::authentication::entities::{
@@ -490,9 +541,10 @@ mod tests {
 
     #[test]
     fn joins_webapp_login_url_without_double_slashes() {
-        let full_url = webapp_login_url(
+        let full_url = webapp_entry_url(
             "https://login.example.com/",
             "demo",
+            EntryPage::Login,
             "?client_id=test-client&redirect_uri=https://app.example.com/callback&state=test",
         );
 
@@ -504,15 +556,31 @@ mod tests {
 
     #[test]
     fn preserves_login_url_when_webapp_has_no_trailing_slash() {
-        let full_url = webapp_login_url(
+        let full_url = webapp_entry_url(
             "https://login.example.com",
             "demo",
+            EntryPage::Login,
             "?client_id=test-client",
         );
 
         assert_eq!(
             full_url,
             "https://login.example.com/realms/demo/authentication/login?client_id=test-client"
+        );
+    }
+
+    #[test]
+    fn the_register_page_keeps_the_same_query_as_the_login_page() {
+        let full_url = webapp_entry_url(
+            "https://login.example.com/",
+            "demo",
+            EntryPage::Register,
+            "?client_id=test-client&state=s1",
+        );
+
+        assert_eq!(
+            full_url,
+            "https://login.example.com/realms/demo/authentication/register?client_id=test-client&state=s1"
         );
     }
 
@@ -525,6 +593,7 @@ mod tests {
                 none: true,
                 login: false,
                 consent: false,
+                create: false,
             })
         );
         assert_eq!(
@@ -533,6 +602,16 @@ mod tests {
                 none: false,
                 login: true,
                 consent: true,
+                create: false,
+            })
+        );
+        assert_eq!(
+            Prompt::parse(Some("create")),
+            Some(Prompt {
+                none: false,
+                login: false,
+                consent: false,
+                create: true,
             })
         );
     }
@@ -541,6 +620,31 @@ mod tests {
     fn prompt_none_cannot_be_combined_with_another_value() {
         assert_eq!(Prompt::parse(Some("none login")), None);
         assert_eq!(Prompt::parse(Some("consent none")), None);
+        assert_eq!(Prompt::parse(Some("none create")), None);
+        assert_eq!(Prompt::parse(Some("create none")), None);
+    }
+
+    #[test]
+    fn prompt_create_opens_the_register_page_when_the_realm_allows_registration() {
+        let prompt = Prompt::parse(Some("create")).expect("create alone is valid");
+
+        assert_eq!(EntryPage::for_prompt(&prompt, true), EntryPage::Register);
+    }
+
+    #[test]
+    fn prompt_create_falls_back_to_the_login_page_when_registration_is_disabled() {
+        let prompt = Prompt::parse(Some("create")).expect("create alone is valid");
+
+        assert_eq!(EntryPage::for_prompt(&prompt, false), EntryPage::Login);
+    }
+
+    #[test]
+    fn without_prompt_create_the_login_page_opens_whatever_the_realm_allows() {
+        for value in [None, Some("login"), Some("consent"), Some("login consent")] {
+            let prompt = Prompt::parse(value).expect("valid prompt");
+
+            assert_eq!(EntryPage::for_prompt(&prompt, true), EntryPage::Login);
+        }
     }
 
     #[test]
