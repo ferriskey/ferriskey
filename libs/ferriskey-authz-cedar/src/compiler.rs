@@ -14,6 +14,7 @@ use ferriskey_domain::common::app_errors::{CoreError, PolicyIssue};
 use uuid::Uuid;
 
 use crate::builtin::builtin_fragment;
+use crate::extension::{Shapes, extend_builtin};
 use crate::issues::{issue, issues_from, plain};
 
 #[derive(Debug, Default)]
@@ -35,6 +36,10 @@ pub(crate) fn cedar_id(id: Uuid) -> PolicyId {
 }
 
 pub(crate) fn compile_schema(schema: &AuthzSchema) -> Result<Schema, Vec<PolicyIssue>> {
+    compile_merged(schema).map(|(schema, _)| schema)
+}
+
+pub(crate) fn compile_merged(schema: &AuthzSchema) -> Result<(Schema, Shapes), Vec<PolicyIssue>> {
     let (fragment, _warnings) = SchemaFragment::from_cedarschema_str(&schema.source)
         .map_err(|e| issues_from(None, &e, &schema.source))?;
 
@@ -61,7 +66,25 @@ pub(crate) fn compile_schema(schema: &AuthzSchema) -> Result<Schema, Vec<PolicyI
         return Err(foreign);
     }
 
-    Schema::from_schema_fragments([builtin_fragment()?, fragment])
+    let mut builtin = builtin_fragment()?
+        .to_json_value()
+        .map_err(|e| issues_from(None, &e, &schema.source))?;
+    let realm = fragment
+        .clone()
+        .to_json_value()
+        .map_err(|e| issues_from(None, &e, &schema.source))?;
+    extend_builtin(&mut builtin, &realm, schema.namespace.as_str())
+        .map_err(|message| vec![plain(None, message)])?;
+    let mut known = builtin.clone();
+    if let (Some(all), Some(declared)) = (known.as_object_mut(), realm.as_object()) {
+        all.extend(declared.iter().map(|(k, v)| (k.clone(), v.clone())));
+    }
+    let shapes = Shapes::from_json(&known);
+    let extended = SchemaFragment::from_json_value(builtin)
+        .map_err(|e| issues_from(None, &e, &schema.source))?;
+
+    Schema::from_schema_fragments([extended, fragment])
+        .map(|merged| (merged, shapes))
         .map_err(|e| issues_from(None, &e, &schema.source))
 }
 
