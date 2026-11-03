@@ -1697,6 +1697,30 @@ mod tests {
         }
 
         #[tokio::test]
+        async fn fails_closed_when_the_service_account_lookup_fails() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = client_with_secret(&realm);
+            expect_client(&mut mocks, &client);
+            mocks
+                .user
+                .expect_get_by_client_id()
+                .returning(|_| Box::pin(async { Err(CoreError::InternalServerError) }));
+            mocks.security_event.expect_store_event().never();
+
+            let result = mocks
+                .build()
+                .reveal_client_secret(identity, input(&client))
+                .await;
+
+            assert!(
+                matches!(result, Err(CoreError::InternalServerError)),
+                "got {result:?}"
+            );
+        }
+
+        #[tokio::test]
         async fn reveals_the_secret_of_a_client_without_a_service_account() {
             let realm = create_test_realm_with_name("acme");
             let identity = create_test_user_identity_with_realm(&realm);
