@@ -48,7 +48,7 @@ use crate::domain::{
     },
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
     user::{
-        ports::{UserRepository, UserRoleRepository},
+        ports::{UserPolicy, UserRepository, UserRoleRepository},
         value_objects::CreateUserRequest,
     },
     webhook::{
@@ -57,6 +57,7 @@ use crate::domain::{
     },
 };
 use ferriskey_aegis::ports::{ClientScopeMappingRepository, ClientScopeRepository};
+use tracing::warn;
 
 #[derive(Clone, Debug)]
 pub struct ClientServiceImpl<R, U, C, UR, W, RU, PLRU, WO, SA, RO, SE, CS, CSM>
@@ -880,6 +881,31 @@ where
             .map_err(|_| CoreError::NotFound)?
             .in_realm(&scope)?;
 
+        // The secret is the credential of the client's service account, so
+        // revealing it hands that account over: the subject must hold what
+        // the account holds, as for a password reset.
+        let service_account = match self.user_repository.get_by_client_id(client.get().id).await {
+            Ok(user) => Some(user.across_realms()),
+            Err(CoreError::NotFound) => None,
+            Err(error) => return Err(error),
+        };
+
+        if let Some(service_account) = service_account
+            && !self
+                .policy
+                .can_manage_user(&identity, &realm, &service_account)
+                .await?
+        {
+            warn!(
+                client_id = %client.get().id,
+                "Refused to reveal the secret of a client whose service account holds permissions the subject does not hold"
+            );
+            return Err(CoreError::Forbidden(
+                "cannot reveal the secret of a client holding permissions you do not hold"
+                    .to_string(),
+            ));
+        }
+
         self.security_event_repository
             .store_event(
                 SecurityEvent::new(
@@ -1286,6 +1312,7 @@ mod tests {
     struct Mocks {
         realm: MockRealmRepository,
         client: MockClientRepository,
+        user: MockUserRepository,
         user_role: MockUserRoleRepository,
         webhook: MockWebhookRepository,
         security_event: MockSecurityEventRepository,
@@ -1331,6 +1358,7 @@ mod tests {
             Self {
                 realm: realm_repo,
                 client: MockClientRepository::new(),
+                user: MockUserRepository::new(),
                 user_role,
                 webhook,
                 security_event: MockSecurityEventRepository::new(),
@@ -1339,7 +1367,7 @@ mod tests {
         }
 
         fn build(self) -> TestClientService {
-            let user = Arc::new(MockUserRepository::new());
+            let user = Arc::new(self.user);
             let client = Arc::new(self.client);
             let user_role = Arc::new(self.user_role);
             let policy = Arc::new(FerriskeyPolicy::new(
@@ -1557,5 +1585,165 @@ mod tests {
 
         assert_eq!(page.metadata().total, 1);
         assert_eq!(page.data()[0].id, expected_id);
+    }
+
+    mod reveal_client_secret {
+        use super::*;
+        use crate::domain::common::services::tests::create_test_user_with_realm;
+        use maskass::Masked;
+
+        const SECRET: &str = "s3cret";
+
+        fn client_with_secret(realm: &Realm) -> Client {
+            let mut client = stored_client(realm, false);
+            client.secret = Some(Masked::new(SECRET.to_string()));
+            client
+        }
+
+        fn role_with(realm: &Realm, permission: Permissions) -> Role {
+            Role {
+                id: Uuid::new_v4(),
+                name: "held".to_string(),
+                description: None,
+                permissions: vec![permission.name()],
+                realm_id: realm.id,
+                client_id: None,
+                client: None,
+                require_mfa: false,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            }
+        }
+
+        fn input(client: &Client) -> GetClientInput {
+            GetClientInput {
+                realm_name: "acme".to_string(),
+                client_id: client.id,
+            }
+        }
+
+        fn expect_client(mocks: &mut Mocks, client: &Client) {
+            let client = client.clone();
+            mocks.client.expect_get_by_id().returning(move |_, _| {
+                let client = client.clone();
+                Box::pin(async move { Ok(Unscoped::new(client)) })
+            });
+        }
+
+        fn expect_service_account_holding(
+            mocks: &mut Mocks,
+            realm: &Realm,
+            permission: Permissions,
+        ) {
+            let service_account = create_test_user_with_realm(realm);
+            let account_id = service_account.id;
+            mocks.user.expect_get_by_client_id().returning(move |_| {
+                let account = service_account.clone();
+                Box::pin(async move { Ok(Unscoped::new(account)) })
+            });
+            let role = role_with(realm, permission);
+            mocks
+                .user_role
+                .expect_get_user_roles()
+                .withf(move |id| *id == account_id)
+                .returning(move |_| {
+                    let roles = vec![role.clone()];
+                    Box::pin(async move { Ok(roles) })
+                });
+        }
+
+        #[tokio::test]
+        async fn refuses_a_service_account_that_holds_more_than_the_caller() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = client_with_secret(&realm);
+            expect_client(&mut mocks, &client);
+            expect_service_account_holding(&mut mocks, &realm, Permissions::ManageRealm);
+            mocks.security_event.expect_store_event().never();
+
+            let result = mocks
+                .build()
+                .reveal_client_secret(identity, input(&client))
+                .await;
+
+            assert!(
+                matches!(result, Err(CoreError::Forbidden(_))),
+                "got {result:?}"
+            );
+        }
+
+        #[tokio::test]
+        async fn reveals_the_secret_of_a_service_account_the_caller_covers() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = client_with_secret(&realm);
+            expect_client(&mut mocks, &client);
+            expect_service_account_holding(&mut mocks, &realm, Permissions::ManageClients);
+            mocks
+                .security_event
+                .expect_store_event()
+                .times(1)
+                .returning(|_| Box::pin(async { Ok(()) }));
+
+            let secret = mocks
+                .build()
+                .reveal_client_secret(identity, input(&client))
+                .await
+                .expect("the caller holds what the service account holds");
+
+            assert_eq!(secret.as_deref(), Some(SECRET));
+        }
+
+        #[tokio::test]
+        async fn fails_closed_when_the_service_account_lookup_fails() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = client_with_secret(&realm);
+            expect_client(&mut mocks, &client);
+            mocks
+                .user
+                .expect_get_by_client_id()
+                .returning(|_| Box::pin(async { Err(CoreError::InternalServerError) }));
+            mocks.security_event.expect_store_event().never();
+
+            let result = mocks
+                .build()
+                .reveal_client_secret(identity, input(&client))
+                .await;
+
+            assert!(
+                matches!(result, Err(CoreError::InternalServerError)),
+                "got {result:?}"
+            );
+        }
+
+        #[tokio::test]
+        async fn reveals_the_secret_of_a_client_without_a_service_account() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = client_with_secret(&realm);
+            expect_client(&mut mocks, &client);
+            mocks
+                .user
+                .expect_get_by_client_id()
+                .returning(|_| Box::pin(async { Err(CoreError::NotFound) }));
+            mocks
+                .security_event
+                .expect_store_event()
+                .times(1)
+                .returning(|_| Box::pin(async { Ok(()) }));
+
+            let secret = mocks
+                .build()
+                .reveal_client_secret(identity, input(&client))
+                .await
+                .expect("there is no account to hand over");
+
+            assert_eq!(secret.as_deref(), Some(SECRET));
+        }
     }
 }
