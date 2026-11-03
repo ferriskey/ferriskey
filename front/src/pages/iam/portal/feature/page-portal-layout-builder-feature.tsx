@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type CSSProperties } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router'
 import {
   useCreatePortalLayout,
   useGetPortalLayout,

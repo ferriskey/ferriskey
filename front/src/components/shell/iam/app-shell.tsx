@@ -1,6 +1,6 @@
 import { useEffect, useState, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Outlet, useParams } from 'react-router-dom'
+import { Outlet, useParams } from 'react-router'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useLayoutTier } from '@/hooks/use-media-query'
 import type { RouterParams } from '@/routes/router'
