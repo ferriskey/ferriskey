@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Save } from 'lucide-react'
 import { Button } from '@/components/kit/button'

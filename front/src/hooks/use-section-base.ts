@@ -1,4 +1,4 @@
-import { useLocation, useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router'
 import type { RouterParams } from '@/routes/router'
 import { CONSOLE_URL, REALM_URL } from '@/routes/router'
 
