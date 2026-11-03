@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { navSections, navSectionKey, navSegmentKey, type NavItem } from './iam/nav'

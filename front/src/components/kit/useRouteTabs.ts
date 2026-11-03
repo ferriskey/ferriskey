@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router'
 import type { TabItem } from './Tabs'
 
 export function useRouteTabs<T extends readonly TabItem[]>(

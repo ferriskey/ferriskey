@@ -1,6 +1,6 @@
 import { ArrowLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import SaveBar from '@/components/kit/save-bar'

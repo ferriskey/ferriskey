@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { AlertTriangle, Check, Download, Palette, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/kit/button'
