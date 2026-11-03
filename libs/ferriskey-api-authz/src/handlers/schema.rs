@@ -77,7 +77,7 @@ pub async fn put_schema(
     path = "/authz/schema/builtin",
     tag = "authz",
     summary = "Get the built-in Cedar schema",
-    description = "The FerrisKey namespace every realm schema is merged with: users, groups, roles, organizations, and the agent types and actions (call_tool, read_resource, get_prompt). Validate policies client-side against this plus the realm schema. Requires view_authorization.",
+    description = "The FerrisKey namespace every realm schema is merged with: users, groups, roles, organizations, and the agent types and actions (call_tool, read_resource, get_prompt). Validate policies client-side against this plus the realm schema. A realm extends the agent types with the reserved common types ContextExtension, UserExtension, AgentExtension, ClientExtension, ToolExtension, ResourceExtension and PromptExtension in its own namespace. Requires view_authorization.",
     params(("realm_name" = String, Path, description = "Realm name")),
     responses(
         (status = 200, description = "Built-in schema", body = BuiltinSchemaBody),

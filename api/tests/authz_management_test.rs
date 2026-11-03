@@ -905,4 +905,184 @@ mod tests {
             assert_eq!(decisions, [true, false]);
         });
     }
+
+    const MCP_SCHEMA: &str = r#"namespace App {
+  type UserExtension = { on_call: Bool, on_call_schedules: Set<String> };
+  type ToolExtension = { access: String, destructive: Bool, organisation?: String };
+  type ContextExtension = {
+    target: { service?: String },
+    time: { iso?: String, minute: Long, timezone: String, iso_utc: String },
+  };
+}"#;
+
+    const ON_CALL_POLICY: &str = r#"permit (
+  principal is FerrisKey::User,
+  action == FerrisKey::Action::"call_tool",
+  resource is FerrisKey::Tool
+) when {
+  principal.on_call &&
+  principal.on_call_schedules.contains("primary") &&
+  resource.access == "write" &&
+  !resource.destructive &&
+  context.target has service &&
+  context.target.service == "billing" &&
+  context.time.minute < 30 &&
+  context.time.timezone == "Europe/Paris"
+};"#;
+
+    fn gateway_call(on_call: bool, access: &str, minute: u32) -> Value {
+        json!({
+            "subject": {
+                "type": "user",
+                "id": "9b4c7a52-0000-4000-8000-000000000002",
+                "properties": {
+                    "roles": ["dev"],
+                    "on_call": on_call,
+                    "on_call_schedules": ["primary"],
+                },
+            },
+            "action": { "name": "call_tool" },
+            "resource": {
+                "type": "tool",
+                "id": "billing/refund",
+                "properties": { "access": access, "destructive": false, "organisation": "acme" },
+            },
+            "context": {
+                "agent": "gateway",
+                "delegated": true,
+                "arguments": { "amount": 12 },
+                "target": { "service": "billing", "region": "eu" },
+                "time": {
+                    "weekday": 3,
+                    "hour": 10,
+                    "minute": minute,
+                    "timezone": "Europe/Paris",
+                    "iso_utc": "2026-11-03T09:05:00Z",
+                },
+            },
+        })
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_realm_schema_extends_the_agent_attributes_its_policies_are_decided_with() {
+        let ctx = ctx();
+        rt().block_on(async {
+            let server = ctx.server();
+            let realm = create_realm(ctx, &server).await;
+            let token = &ctx.admin_token;
+
+            let schema = server
+                .put(&format!("{}/schema", base(&realm)))
+                .authorization_bearer(token)
+                .json(&json!({ "source": MCP_SCHEMA }))
+                .await;
+            assert_eq!(schema.status_code(), 200, "{}", schema.text());
+
+            let undeclared = server
+                .post(&format!("{}/policies/validate", base(&realm)))
+                .authorization_bearer(token)
+                .json(&json!({ "policies": [static_policy(
+                    "undeclared",
+                    "permit (principal is FerrisKey::User, action, resource) when { principal.pager == \"x\" };"
+                )] }))
+                .await;
+            assert_eq!(undeclared.json::<Value>()["valid"], json!(false));
+
+            let created = server
+                .post(&format!("{}/policies", base(&realm)))
+                .authorization_bearer(token)
+                .json(&static_policy("on-call-writes", ON_CALL_POLICY))
+                .await;
+            assert_eq!(created.status_code(), 201, "{}", created.text());
+            let enabled = server
+                .put(&format!("{}/state", base(&realm)))
+                .authorization_bearer(token)
+                .json(&json!({ "enabled": true }))
+                .await;
+            assert_eq!(enabled.status_code(), 200, "{}", enabled.text());
+
+            let pep = create_pep(ctx, &server, &realm, &["evaluate_authorization"]).await;
+            let url = format!("/realms/{}/authzen/access/v1/evaluation", realm.name);
+
+            for (label, body, expected) in [
+                ("on call", gateway_call(true, "write", 5), true),
+                ("off call", gateway_call(false, "write", 5), false),
+                ("read access", gateway_call(true, "read", 5), false),
+                ("late minute", gateway_call(true, "write", 45), false),
+            ] {
+                let response = server
+                    .post(&url)
+                    .authorization_bearer(&pep.token)
+                    .json(&body)
+                    .await;
+                assert_eq!(response.status_code(), 200, "{label}: {}", response.text());
+                assert_eq!(response.json::<Value>()["decision"], json!(expected), "{label}");
+            }
+
+            let batch = server
+                .post(&format!(
+                    "/realms/{}/authzen/access/v1/evaluations",
+                    realm.name
+                ))
+                .authorization_bearer(&pep.token)
+                .json(&json!({
+                    "subject": gateway_call(true, "write", 5)["subject"],
+                    "action": { "name": "call_tool" },
+                    "context": gateway_call(true, "write", 5)["context"],
+                    "evaluations": [
+                        { "resource": gateway_call(true, "write", 5)["resource"] },
+                        { "resource": gateway_call(true, "read", 5)["resource"] },
+                    ],
+                }))
+                .await;
+            assert_eq!(batch.status_code(), 200, "{}", batch.text());
+            let decisions: Vec<bool> = batch.json::<Value>()["evaluations"]
+                .as_array()
+                .expect("evaluations")
+                .iter()
+                .map(|item| item["decision"].as_bool().expect("decision"))
+                .collect();
+            assert_eq!(decisions, [true, false]);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_realm_without_a_schema_decides_with_every_property_and_context_key() {
+        let ctx = ctx();
+        rt().block_on(async {
+            let server = ctx.server();
+            let realm = create_realm(ctx, &server).await;
+            let token = &ctx.admin_token;
+
+            let created = server
+                .post(&format!("{}/policies", base(&realm)))
+                .authorization_bearer(token)
+                .json(&static_policy("on-call-writes", ON_CALL_POLICY))
+                .await;
+            assert_eq!(created.status_code(), 201, "{}", created.text());
+            let enabled = server
+                .put(&format!("{}/state", base(&realm)))
+                .authorization_bearer(token)
+                .json(&json!({ "enabled": true }))
+                .await;
+            assert_eq!(enabled.status_code(), 200, "{}", enabled.text());
+
+            let pep = create_pep(ctx, &server, &realm, &["evaluate_authorization"]).await;
+            let url = format!("/realms/{}/authzen/access/v1/evaluation", realm.name);
+            for (body, expected) in [
+                (gateway_call(true, "write", 5), true),
+                (gateway_call(false, "write", 5), false),
+            ] {
+                let response = server
+                    .post(&url)
+                    .authorization_bearer(&pep.token)
+                    .json(&body)
+                    .await;
+                assert_eq!(response.status_code(), 200, "{}", response.text());
+                assert_eq!(response.json::<Value>()["decision"], json!(expected));
+            }
+        });
+    }
 }
