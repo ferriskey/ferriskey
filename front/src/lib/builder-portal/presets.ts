@@ -427,12 +427,18 @@ function emailVerifiedCard(): BuilderNode[] {
           props: { textAlign: 'center', gap: '6px' },
           children: [
             node('heading', { content: 'Email verified' }),
-            // No sign-in link: the verification link carries no client, so a link to the
-            // sign-in page would start the console's sign-in, not the application's.
             node('text', {
               content:
                 'Your email address has been confirmed. You can close this page and return to the application to sign in.',
             }),
+          ],
+        }),
+        // Shown only when the page knows the client to sign in to (`hideSignInLink` in the
+        // renderer); the link in a verification email carries none, so usually it is hidden.
+        node('card-content', {
+          props: { gap: '12px' },
+          children: [
+            node('back_to_login_link', { content: 'Continue to sign in' }),
           ],
         }),
       ],

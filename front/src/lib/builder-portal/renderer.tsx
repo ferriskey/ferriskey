@@ -75,6 +75,18 @@ type RenderOptions = {
    * take. Computed by `treeToReactNode`; callers never pass it.
    */
   fillPath?: Set<string>
+  /**
+   * The current page's query string (`useLocation().search`). The inline links between sign-in
+   * pages keep its `client_id`, `redirect_uri` and `state`, so a sign-in started by an
+   * application stays that application's.
+   */
+  authFlowSearch?: string
+  /**
+   * Drops `back_to_login_link` from the live portal. Set by a page that cannot tell which client a
+   * sign-in would be for ("Email verified" reached from the email link): the link would start the
+   * console's sign-in instead of the application's. The builder preview still shows the block.
+   */
+  hideSignInLink?: boolean
 }
 
 export function treeToReactNode(tree: BuilderNode[], options: RenderOptions = {}): ReactNode {
@@ -444,7 +456,7 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
         <a
           key={node.id}
           {...idAttr}
-          href={withAuthFlow('./forgot-password', window.location.search)}
+          href={withAuthFlow('./forgot-password', options.authFlowSearch ?? '')}
           onClick={options.runtime ? undefined : (e) => e.preventDefault()}
           style={forgotPasswordLinkStyle(node)}
         >
@@ -459,11 +471,12 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
     // auth-flow navigation hints, same visual weight makes them feel like a
     // pair when both appear on the same page.
     case 'back_to_login_link':
+      if (options.runtime && options.hideSignInLink) return null
       return (
         <a
           key={node.id}
           {...idAttr}
-          href={withAuthFlow('./login', window.location.search)}
+          href={withAuthFlow('./login', options.authFlowSearch ?? '')}
           onClick={options.runtime ? undefined : (e) => e.preventDefault()}
           style={forgotPasswordLinkStyle(node)}
         >
@@ -478,7 +491,7 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
         <a
           key={node.id}
           {...idAttr}
-          href={withAuthFlow('./register', window.location.search)}
+          href={withAuthFlow('./register', options.authFlowSearch ?? '')}
           onClick={options.runtime ? undefined : (e) => e.preventDefault()}
           style={forgotPasswordLinkStyle(node)}
         >
