@@ -64,7 +64,7 @@ use crate::domain::{
             EvaluateClientScopesInput, EvaluateClientScopesResult, EvaluatedMapper, EvaluatedRoles,
             EvaluatedScope, GenerateTokenInput, GenerateTokensForUserInput, GetUserInfoInput,
             GrantTypeParams, Identity, IntrospectTokenInput, RegisterUserInput, RegisterUserOutput,
-            RegisterUserUrlContext, RevokeTokenInput, UserInfoResponse,
+            RegisterUserUrlContext, RegistrationSsoCookie, RevokeTokenInput, UserInfoResponse,
         },
     },
     client::{
@@ -5612,6 +5612,8 @@ where
             .map_err(|err| warn!("Failed to notify UserCreated webhook: {}", err))
             .ok();
 
+        let pending_step = self.resolve_pending_auth_step(&user, &scope).await?.0;
+
         // If the registration happened inside an active OIDC authorization flow
         // (a FERRISKEY_SESSION cookie was present), resume that flow by
         // finalizing the auth session and returning the redirect URL back to
@@ -5623,9 +5625,13 @@ where
                 .await
             && let Ok(scoped_session) = unscoped_session.in_realm(&scope)
             && auth_session_can_resume(scoped_session.get(), realm.id, Utc::now())
+            && pending_step.is_none()
         {
             let auth_session = scoped_session.into_inner();
             let client = self.client_of_session(&scope, &auth_session).await?;
+
+            self.enforce_maintenance_mode(scope.id(), &client, user.id, &user.username)
+                .await?;
 
             let output = match self
                 .consent_gate(
@@ -5652,10 +5658,17 @@ where
                 }
             };
             let redirect_url = output.redirect_url.ok_or(CoreError::InternalServerError)?;
-            return Ok(RegisterUserOutput::Redirect { url: redirect_url });
+            let sso_cookie = output.sso_cookie.map(|secret| RegistrationSsoCookie {
+                secret,
+                max_age_secs: output.sso_session_max_age_secs,
+            });
+            return Ok(RegisterUserOutput::Redirect {
+                url: redirect_url,
+                sso_cookie,
+            });
         }
 
-        if let Some(step) = self.resolve_pending_auth_step(&user, &scope).await?.0 {
+        if let Some(step) = pending_step {
             return Ok(RegisterUserOutput::PendingAction {
                 message: pending_step_message(&step),
                 user_id: user.id,

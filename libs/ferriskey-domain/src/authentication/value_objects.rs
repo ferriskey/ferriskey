@@ -103,6 +103,20 @@ pub struct RegisterUserUrlContext {
     pub verification_base_url: String,
 }
 
+#[derive(Clone, PartialEq, Eq)]
+pub struct RegistrationSsoCookie {
+    pub secret: String,
+    pub max_age_secs: Option<i64>,
+}
+
+impl std::fmt::Debug for RegistrationSsoCookie {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RegistrationSsoCookie")
+            .field("max_age_secs", &self.max_age_secs)
+            .finish_non_exhaustive()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "status", content = "data", rename_all = "snake_case")]
 pub enum RegisterUserOutput {
@@ -111,6 +125,8 @@ pub enum RegisterUserOutput {
     /// Registration completed inside an OIDC flow - redirect to the original client
     Redirect {
         url: String,
+        #[serde(skip)]
+        sso_cookie: Option<RegistrationSsoCookie>,
     },
     PendingAction {
         message: String,
