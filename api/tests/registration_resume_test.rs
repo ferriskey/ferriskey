@@ -11,10 +11,15 @@ mod tests {
 
     static REALM_SETTINGS: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
+    fn fresh_email() -> String {
+        format!("resumed-{}@example.com", uuid::Uuid::new_v4().simple())
+    }
+
     async fn register_inside_the_flow(
         server: &TestServer,
         app: &TestApp,
         client: &SeededClient,
+        email: &str,
     ) -> TestResponse {
         let authorized = authorize(
             server,
@@ -25,16 +30,24 @@ mod tests {
         .await;
         assert_eq!(authorized.status_code(), 302, "{}", authorized.text());
 
-        let suffix = uuid::Uuid::new_v4().simple().to_string();
         server
             .post(&app.oidc("registrations"))
             .add_cookie(authorized.cookie("FERRISKEY_SESSION"))
             .json(&json!({
-                "username": format!("resumed-{suffix}"),
-                "email": format!("resumed-{suffix}@example.com"),
+                "username": email.trim_end_matches("@example.com"),
+                "email": email,
                 "password": PASSWORD,
             }))
             .await
+    }
+
+    async fn users_registered_with(app: &TestApp, email: &str) -> i64 {
+        sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE email = $1 AND realm_id = $2")
+            .bind(email)
+            .bind(app.realm_id)
+            .fetch_one(&app.pool)
+            .await
+            .expect("count users")
     }
 
     async fn set_require_mfa(app: &TestApp, required: bool) {
@@ -56,7 +69,7 @@ mod tests {
             let client = app.client(ClientSpec::public()).await;
             app.set_user_registration(true).await;
 
-            let registered = register_inside_the_flow(&server, app, &client).await;
+            let registered = register_inside_the_flow(&server, app, &client, &fresh_email()).await;
 
             assert_eq!(registered.status_code(), 201, "{}", registered.text());
             let body: Value = registered.json();
@@ -74,7 +87,7 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL"]
-    fn a_registration_for_a_client_in_maintenance_does_not_resume_the_flow() {
+    fn a_registration_for_a_client_in_maintenance_is_refused_and_creates_no_account() {
         rt().block_on(async {
             let _settings = REALM_SETTINGS.lock().await;
             let app = app();
@@ -87,12 +100,18 @@ mod tests {
                 .await
                 .expect("enable maintenance");
 
-            let registered = register_inside_the_flow(&server, app, &client).await;
+            let email = fresh_email();
+            let registered = register_inside_the_flow(&server, app, &client, &email).await;
 
             let body = registered.text();
-            assert_ne!(registered.status_code(), 201, "{body}");
+            assert_eq!(registered.status_code(), 503, "{body}");
             assert!(!body.contains("code="), "{body}");
             assert!(!body.contains(CALLBACK), "{body}");
+            assert_eq!(
+                users_registered_with(app, &email).await,
+                0,
+                "a refused registration must leave no account behind"
+            );
         });
     }
 
@@ -107,7 +126,7 @@ mod tests {
             app.set_user_registration(true).await;
             set_require_mfa(app, true).await;
 
-            let registered = register_inside_the_flow(&server, app, &client).await;
+            let registered = register_inside_the_flow(&server, app, &client, &fresh_email()).await;
 
             set_require_mfa(app, false).await;
             assert_eq!(registered.status_code(), 201, "{}", registered.text());

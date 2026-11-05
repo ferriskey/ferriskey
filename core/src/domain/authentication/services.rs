@@ -2016,16 +2016,34 @@ where
             return Ok(());
         }
 
-        let reason = client
-            .maintenance_reason
-            .clone()
-            .unwrap_or_else(|| "This service is currently under maintenance".to_string());
         warn!(
             "User {} denied access to client {} (maintenance mode)",
             username, client.name
         );
 
-        Err(CoreError::ClientUnderMaintenance(reason))
+        Err(Self::maintenance_denial(client))
+    }
+
+    fn maintenance_denial(client: &Client) -> CoreError {
+        let reason = client
+            .maintenance_reason
+            .clone()
+            .unwrap_or_else(|| "This service is currently under maintenance".to_string());
+
+        CoreError::ClientUnderMaintenance(reason)
+    }
+
+    fn refuse_registration_in_maintenance(client: &Client) -> Result<(), CoreError> {
+        if !client.maintenance_enabled {
+            return Ok(());
+        }
+
+        warn!(
+            "Registration refused for client {} (maintenance mode)",
+            client.name
+        );
+
+        Err(Self::maintenance_denial(client))
     }
 
     /// The SSO session an authorization code was minted against, if any.
@@ -3078,6 +3096,37 @@ where
             .in_realm(scope)
             .map_err(|_| CoreError::InvalidClient)
             .map(|client| client.into_inner())
+    }
+
+    async fn resumable_registration_flow(
+        &self,
+        scope: &RealmScope,
+        session_code: Option<Uuid>,
+    ) -> Result<Option<(AuthSession, Client)>, CoreError> {
+        let Some(session_code) = session_code else {
+            return Ok(None);
+        };
+
+        let Ok(unscoped_session) = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+        else {
+            return Ok(None);
+        };
+
+        let Ok(scoped_session) = unscoped_session.in_realm(scope) else {
+            return Ok(None);
+        };
+
+        if !auth_session_can_resume(scoped_session.get(), scope.id(), Utc::now()) {
+            return Ok(None);
+        }
+
+        let auth_session = scoped_session.into_inner();
+        let client = self.client_of_session(scope, &auth_session).await?;
+
+        Ok(Some((auth_session, client)))
     }
 
     async fn realm_settings_of<'s>(
@@ -5486,6 +5535,14 @@ where
             .map(|s| s.email_verification_enabled)
             .unwrap_or(false);
 
+        let resumable = self
+            .resumable_registration_flow(&scope, input.session_code)
+            .await?;
+
+        if let Some((_, client)) = &resumable {
+            Self::refuse_registration_in_maintenance(client)?;
+        }
+
         self.refuse_login_identifier_collision(&realm, &username, &email)
             .await?;
 
@@ -5619,20 +5676,9 @@ where
         // finalizing the auth session and returning the redirect URL back to
         // the original client, mirroring the behavior of the login handler.
         if let Some(session_code) = input.session_code
-            && let Ok(unscoped_session) = self
-                .auth_session_repository
-                .get_by_session_code(session_code)
-                .await
-            && let Ok(scoped_session) = unscoped_session.in_realm(&scope)
-            && auth_session_can_resume(scoped_session.get(), realm.id, Utc::now())
+            && let Some((auth_session, client)) = resumable
             && pending_step.is_none()
         {
-            let auth_session = scoped_session.into_inner();
-            let client = self.client_of_session(&scope, &auth_session).await?;
-
-            self.enforce_maintenance_mode(scope.id(), &client, user.id, &user.username)
-                .await?;
-
             let output = match self
                 .consent_gate(
                     user.id,
