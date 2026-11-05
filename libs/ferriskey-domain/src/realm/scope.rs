@@ -43,6 +43,11 @@ impl RealmScope {
     pub fn settings(&self) -> Option<&RealmSetting> {
         self.0.settings.as_ref()
     }
+
+    pub fn user_registration_enabled(&self) -> bool {
+        self.settings()
+            .is_some_and(|settings| settings.user_registration_enabled)
+    }
 }
 
 pub trait RealmOwned {

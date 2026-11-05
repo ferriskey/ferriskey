@@ -5011,7 +5011,11 @@ where
             urlencoding::encode(&input.state.unwrap_or_default())
         );
 
-        Ok(AuthOutput { login_url, session })
+        Ok(AuthOutput {
+            login_url,
+            session,
+            registration_enabled: scope.user_registration_enabled(),
+        })
     }
 
     async fn get_certs(&self, realm_name: String) -> Result<Vec<JwkKey>, CoreError> {

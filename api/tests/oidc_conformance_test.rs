@@ -18,6 +18,8 @@ mod tests {
 
     const PASSWORD: &str = "Conformance-Passw0rd!";
 
+    static REGISTRATION_SETTING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
     async fn tokens(app: &TestApp, client: &SeededClient, extra: &[(&str, &str)]) -> Value {
         let server = app.server();
         let user = app.user(&server, PASSWORD).await;
@@ -603,6 +605,7 @@ mod tests {
     #[ignore = "requires PostgreSQL"]
     fn prompt_create_opens_the_register_page_and_the_registration_returns_to_the_client() {
         rt().block_on(async {
+            let _setting = REGISTRATION_SETTING.lock().await;
             let app = app();
             let server = app.server();
             let client = app.client(ClientSpec::public()).await;
@@ -659,6 +662,7 @@ mod tests {
     #[ignore = "requires PostgreSQL"]
     fn prompt_create_opens_the_login_page_when_the_realm_refuses_registration() {
         rt().block_on(async {
+            let _setting = REGISTRATION_SETTING.lock().await;
             let app = app();
             let server = app.server();
             let client = app.client(ClientSpec::public()).await;

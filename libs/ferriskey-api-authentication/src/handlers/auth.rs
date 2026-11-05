@@ -14,7 +14,6 @@ use ferriskey_core::domain::authentication::entities::{
 use ferriskey_core::domain::authentication::ports::AuthService;
 use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
-use ferriskey_core::domain::realm::ports::RealmService;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 use utoipa::{IntoParams, ToSchema};
@@ -413,24 +412,10 @@ pub async fn auth_handler(
         None => false,
     };
 
-    let registration_enabled = if prompt.create {
-        state
-            .service
-            .get_login_settings(realm_name.clone())
-            .await
-            .map(|settings| settings.user_registration_enabled)
-            .unwrap_or_else(|e| {
-                warn!(error = ?e, "Failed to read the registration setting, opening the login page");
-                false
-            })
-    } else {
-        false
-    };
-
     let mut full_url = webapp_entry_url(
         &webapp_url,
         &realm_name,
-        EntryPage::for_prompt(&prompt, registration_enabled),
+        EntryPage::for_prompt(&prompt, result.registration_enabled),
         &result.login_url,
     );
 

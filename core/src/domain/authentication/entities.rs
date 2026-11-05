@@ -132,6 +132,7 @@ impl AuthSession {
 pub struct AuthOutput {
     pub login_url: String,
     pub session: AuthSession,
+    pub registration_enabled: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
