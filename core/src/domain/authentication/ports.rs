@@ -266,7 +266,17 @@ pub struct ListAccountsInput {
     pub session_code: Option<Uuid>,
 }
 
+pub struct AuthorizeAccounts {
+    pub chooser_enabled: bool,
+    pub entries: Vec<AccountEntry>,
+}
+
 pub trait AccountSelectionService: Send + Sync {
+    fn authorize_accounts(
+        &self,
+        input: ListAccountsInput,
+    ) -> impl Future<Output = Result<AuthorizeAccounts, CoreError>> + Send;
+
     fn select_account(
         &self,
         input: SelectAccountInput,

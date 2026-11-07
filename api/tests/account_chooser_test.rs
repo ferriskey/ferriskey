@@ -90,34 +90,6 @@ async fn begin(
     begin_with(server, app, client, browser, extra).await
 }
 
-async fn begin_with(
-    server: &TestServer,
-    app: &TestApp,
-    client: &SeededClient,
-    browser: &Browser,
-    extra: &[(&str, &str)],
-) -> String {
-    let mut request = server
-        .get(&app.oidc("auth"))
-        .add_query_param("response_type", "code")
-        .add_query_param("client_id", &client.client_id)
-        .add_query_param("redirect_uri", common::CALLBACK)
-        .add_query_param("scope", "openid")
-        .add_query_param("state", "chooser-state")
-        .add_header("Cookie", browser.cookies(None));
-    for (key, value) in extra {
-        request = request.add_query_param(key, value);
-    }
-    let response = request.await;
-    assert_eq!(
-        response.status_code(),
-        302,
-        "authorize: {}",
-        response.text()
-    );
-    response.cookie("FERRISKEY_SESSION").value().to_string()
-}
-
 async fn login_as(
     server: &TestServer,
     app: &TestApp,
@@ -791,6 +763,373 @@ fn turning_the_chooser_off_stops_select_and_remove() {
         assert_eq!(listed.json::<Value>(), json!({ "data": [] }));
         assert!(sso_hash(app, alice_session).await.is_some());
     });
+}
+
+async fn authorize_with(
+    server: &TestServer,
+    app: &TestApp,
+    client: &SeededClient,
+    browser: &Browser,
+    extra: &[(&str, &str)],
+) -> TestResponse {
+    let mut request = server
+        .get(&app.oidc("auth"))
+        .add_query_param("response_type", "code")
+        .add_query_param("client_id", &client.client_id)
+        .add_query_param("redirect_uri", common::CALLBACK)
+        .add_query_param("scope", "openid")
+        .add_query_param("state", "xyz")
+        .add_header("Cookie", browser.cookies(None));
+    for (key, value) in extra {
+        request = request.add_query_param(key, value);
+    }
+    request.await
+}
+
+fn location_of(response: &TestResponse) -> String {
+    assert_eq!(response.status_code(), 302, "{}", response.text());
+    response
+        .headers()
+        .get("location")
+        .expect("location")
+        .to_str()
+        .expect("ascii")
+        .to_string()
+}
+
+fn path_of(location: &str) -> String {
+    let without_query = location.split('?').next().unwrap_or(location);
+    without_query
+        .split_once("://")
+        .and_then(|(_, rest)| rest.split_once('/'))
+        .map(|(_, path)| path.to_string())
+        .unwrap_or_default()
+}
+
+fn query_names(location: &str) -> Vec<String> {
+    let mut names: Vec<String> = location
+        .split_once('?')
+        .map(|(_, query)| {
+            query
+                .split('&')
+                .filter_map(|pair| pair.split('=').next())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    names.sort();
+    names
+}
+
+async fn alice_only(app: &'static TestApp) -> (TestServer, SeededClient, SeededUser, Browser) {
+    let server = app.server();
+    let client = app.client(ClientSpec::public()).await;
+    let alice = app.user(&server, PASSWORD).await;
+    let mut browser = Browser::default();
+    login_as(&server, app, &client, &alice, &mut browser, None).await;
+    (server, client, alice, browser)
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn prompt_select_account_shows_the_chooser_even_with_one_live_session() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let (server, client, _alice, browser) = alice_only(app).await;
+
+        let response = authorize_with(
+            &server,
+            app,
+            &client,
+            &browser,
+            &[("prompt", "select_account")],
+        )
+        .await;
+        let location = location_of(&response);
+
+        assert!(
+            path_of(&location).ends_with("/authentication/account-chooser"),
+            "{location}"
+        );
+        assert!(query_param(&location, "code").is_none(), "{location}");
+        assert_eq!(
+            query_param(&location, "client_id").as_deref(),
+            Some(client.client_id.as_str())
+        );
+        assert!(set_cookie_value(&response, "FERRISKEY_SESSION").is_some());
+        assert!(set_cookie_raw(&response, "FERRISKEY_SSO").is_none());
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn prompt_select_account_without_any_entry_falls_back_to_the_login_page() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let server = app.server();
+        let client = app.client(ClientSpec::public()).await;
+
+        let response = authorize_with(
+            &server,
+            app,
+            &client,
+            &Browser::default(),
+            &[("prompt", "select_account")],
+        )
+        .await;
+
+        assert!(path_of(&location_of(&response)).ends_with("/authentication/login"));
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn prompt_none_with_two_accounts_and_none_active_needs_a_selection() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let f = alice_then_bob(app).await;
+        let mut browser = f.browser.clone();
+        browser.sso = None;
+
+        let response =
+            authorize_with(&f.server, app, &f.client, &browser, &[("prompt", "none")]).await;
+        let location = location_of(&response);
+
+        assert!(location.starts_with(common::CALLBACK), "{location}");
+        assert_eq!(
+            query_param(&location, "error").as_deref(),
+            Some("account_selection_required")
+        );
+        assert_eq!(query_param(&location, "state").as_deref(), Some("xyz"));
+        assert!(query_param(&location, "code").is_none());
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn prompt_none_with_one_account_owing_mfa_is_interaction_required() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let (server, client, _alice, browser) = alice_only(app).await;
+
+        sqlx::query("UPDATE realm_settings SET require_mfa = true WHERE realm_id = $1")
+            .bind(app.realm_id)
+            .execute(&app.pool)
+            .await
+            .expect("require mfa");
+        let with_cookie =
+            authorize_with(&server, app, &client, &browser, &[("prompt", "none")]).await;
+        let mut cookieless = browser.clone();
+        cookieless.sso = None;
+        let without_cookie =
+            authorize_with(&server, app, &client, &cookieless, &[("prompt", "none")]).await;
+        sqlx::query("UPDATE realm_settings SET require_mfa = false WHERE realm_id = $1")
+            .bind(app.realm_id)
+            .execute(&app.pool)
+            .await
+            .expect("restore mfa");
+
+        for response in [with_cookie, without_cookie] {
+            let location = location_of(&response);
+            assert_eq!(
+                query_param(&location, "error").as_deref(),
+                Some("interaction_required"),
+                "{location}"
+            );
+            assert!(query_param(&location, "code").is_none());
+        }
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn prompt_none_without_any_entry_is_login_required() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let server = app.server();
+        let client = app.client(ClientSpec::public()).await;
+
+        let response = authorize_with(
+            &server,
+            app,
+            &client,
+            &Browser::default(),
+            &[("prompt", "none")],
+        )
+        .await;
+        let location = location_of(&response);
+
+        assert_eq!(
+            query_param(&location, "error").as_deref(),
+            Some("login_required")
+        );
+        assert_eq!(query_param(&location, "state").as_deref(), Some("xyz"));
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn prompt_none_with_one_resumable_entry_and_no_cookie_resumes_it() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let (server, client, alice, mut browser) = alice_only(app).await;
+        let session = session_of_user(app, &alice).await;
+        let before_hash = sso_hash(app, session).await;
+        let before_authenticated = authenticated_at(app, session).await;
+        let before_secret = browser.sso.take();
+
+        let response = authorize_with(&server, app, &client, &browser, &[("prompt", "none")]).await;
+        let location = location_of(&response);
+
+        assert!(location.starts_with(common::CALLBACK), "{location}");
+        assert!(query_param(&location, "code").is_some(), "{location}");
+        assert!(query_param(&location, "error").is_none(), "{location}");
+        let fresh = set_cookie_value(&response, "FERRISKEY_SSO").expect("a fresh SSO cookie");
+        assert_ne!(Some(fresh), before_secret);
+        assert_ne!(sso_hash(app, session).await, before_hash);
+        assert_eq!(authenticated_at(app, session).await, before_authenticated);
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn prompt_none_with_several_entries_resumes_the_active_one() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let f = alice_then_bob(app).await;
+
+        let response =
+            authorize_with(&f.server, app, &f.client, &f.browser, &[("prompt", "none")]).await;
+        let location = location_of(&response);
+
+        assert!(location.starts_with(common::CALLBACK), "{location}");
+        assert!(query_param(&location, "code").is_some(), "{location}");
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn a_login_hint_is_not_an_existence_oracle() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let server = app.server();
+        let client = app.client(ClientSpec::public()).await;
+        let existing = app.user(&server, PASSWORD).await;
+        let known = format!("{}@example.com", existing.username);
+        let browser = Browser::default();
+
+        let exists =
+            authorize_with(&server, app, &client, &browser, &[("login_hint", &known)]).await;
+        let absent = authorize_with(
+            &server,
+            app,
+            &client,
+            &browser,
+            &[("login_hint", "absent@example.com")],
+        )
+        .await;
+        let (exists, absent) = (location_of(&exists), location_of(&absent));
+
+        assert_eq!(path_of(&exists), path_of(&absent));
+        assert_eq!(query_names(&exists), query_names(&absent));
+        assert!(query_names(&exists).contains(&"login_hint".to_string()));
+        assert_eq!(
+            query_param(&exists, "login_hint").as_deref(),
+            Some(known.as_str())
+        );
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn with_the_chooser_off_select_account_redirects_to_the_login_page_as_before() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let f = alice_then_bob(app).await;
+        let mut browser = f.browser.clone();
+        browser.sso = None;
+
+        set_chooser(app, app.realm_id, false).await;
+        let plain = authorize_with(&f.server, app, &f.client, &browser, &[]).await;
+        let selecting = authorize_with(
+            &f.server,
+            app,
+            &f.client,
+            &browser,
+            &[("prompt", "select_account")],
+        )
+        .await;
+        let none = authorize_with(&f.server, app, &f.client, &browser, &[("prompt", "none")]).await;
+        set_chooser(app, app.realm_id, true).await;
+
+        let selecting_location = location_of(&selecting);
+        assert!(path_of(&selecting_location).ends_with("/authentication/login"));
+        assert_eq!(selecting_location, location_of(&plain));
+
+        let none_location = location_of(&none);
+        assert_eq!(
+            query_param(&none_location, "error").as_deref(),
+            Some("login_required")
+        );
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn prompt_none_with_a_live_session_owing_mfa_and_no_device_cookie_is_interaction_required() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let (server, client, _alice, mut browser) = alice_only(app).await;
+        browser.device = None;
+
+        sqlx::query("UPDATE realm_settings SET require_mfa = true WHERE realm_id = $1")
+            .bind(app.realm_id)
+            .execute(&app.pool)
+            .await
+            .expect("require mfa");
+        let response = authorize_with(&server, app, &client, &browser, &[("prompt", "none")]).await;
+        sqlx::query("UPDATE realm_settings SET require_mfa = false WHERE realm_id = $1")
+            .bind(app.realm_id)
+            .execute(&app.pool)
+            .await
+            .expect("restore mfa");
+
+        let location = location_of(&response);
+        assert_eq!(
+            query_param(&location, "error").as_deref(),
+            Some("interaction_required"),
+            "{location}"
+        );
+        assert!(query_param(&location, "code").is_none());
+    });
+}
+
+async fn begin_with(
+    server: &TestServer,
+    app: &TestApp,
+    client: &SeededClient,
+    browser: &Browser,
+    extra: &[(&str, &str)],
+) -> String {
+    let mut request = server
+        .get(&app.oidc("auth"))
+        .add_query_param("response_type", "code")
+        .add_query_param("client_id", &client.client_id)
+        .add_query_param("redirect_uri", common::CALLBACK)
+        .add_query_param("scope", "openid")
+        .add_query_param("state", "chooser-state")
+        .add_header("Cookie", browser.cookies(None));
+    for (key, value) in extra {
+        request = request.add_query_param(key, value);
+    }
+    let response = request.await;
+    assert_eq!(
+        response.status_code(),
+        302,
+        "authorize: {}",
+        response.text()
+    );
+    response.cookie("FERRISKEY_SESSION").value().to_string()
 }
 
 async fn age_session(app: &TestApp, session_id: Uuid, seconds: i64) {
