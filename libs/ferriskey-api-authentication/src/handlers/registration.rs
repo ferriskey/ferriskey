@@ -1,4 +1,5 @@
 use axum::extract::{Path, State};
+use axum::http::{HeaderMap, header::SET_COOKIE};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::{
     authentication::{
@@ -103,7 +104,7 @@ pub async fn registration_handler(
     request_context: RequestContext,
     cookie: CookieManager,
     ValidateJson(req): ValidateJson<RegistrationRequest>,
-) -> Result<Response<RegistrationResponse>, ApiError> {
+) -> Result<(HeaderMap, Response<RegistrationResponse>), ApiError> {
     let settings = state.service.get_login_settings(realm_name.clone()).await?;
 
     if !settings.user_registration_enabled {
@@ -147,14 +148,37 @@ pub async fn registration_handler(
         .await?;
 
     match output {
-        RegisterUserOutput::Authenticated(token) => Ok(Response::Created(
-            RegistrationResponse::Authenticated(token),
+        RegisterUserOutput::Authenticated(token) => Ok((
+            HeaderMap::new(),
+            Response::Created(RegistrationResponse::Authenticated(token)),
         )),
-        RegisterUserOutput::Redirect { url } => Ok(Response::Created(
-            RegistrationResponse::Redirect(RedirectRegistrationResponse { url }),
-        )),
-        RegisterUserOutput::PendingAction { message, user_id } => Ok(Response::Created(
-            RegistrationResponse::PendingAction(PendingActionResponse { message, user_id }),
+        RegisterUserOutput::Redirect { url, sso_cookie } => {
+            let mut headers = HeaderMap::new();
+
+            if let Some(cookie) = sso_cookie {
+                headers.append(
+                    SET_COOKIE,
+                    crate::sso_cookie::set(
+                        cookie.secret,
+                        cookie.max_age_secs,
+                        base_url.starts_with("https"),
+                    )?,
+                );
+            }
+
+            Ok((
+                headers,
+                Response::Created(RegistrationResponse::Redirect(
+                    RedirectRegistrationResponse { url },
+                )),
+            ))
+        }
+        RegisterUserOutput::PendingAction { message, user_id } => Ok((
+            HeaderMap::new(),
+            Response::Created(RegistrationResponse::PendingAction(PendingActionResponse {
+                message,
+                user_id,
+            })),
         )),
     }
 }

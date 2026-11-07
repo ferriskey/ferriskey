@@ -18,6 +18,8 @@ mod tests {
 
     const PASSWORD: &str = "Conformance-Passw0rd!";
 
+    static REGISTRATION_SETTING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
     async fn tokens(app: &TestApp, client: &SeededClient, extra: &[(&str, &str)]) -> Value {
         let server = app.server();
         let user = app.user(&server, PASSWORD).await;
@@ -568,6 +570,136 @@ mod tests {
                 app,
                 &client.client_id,
                 &[("prompt", "none login"), ("state", "s1")],
+            )
+            .await;
+            assert_eq!(response.status_code(), 302, "{}", response.text());
+            let location = response.header("location");
+            let location = location.to_str().expect("location header");
+            assert!(location.starts_with(CALLBACK), "{location}");
+            assert_eq!(
+                query_param(location, "error").as_deref(),
+                Some("invalid_request")
+            );
+            assert_eq!(query_param(location, "state").as_deref(), Some("s1"));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn discovery_lists_the_prompt_values_the_authorize_endpoint_honours() {
+        rt().block_on(async {
+            let app = app();
+            let doc: Value = app
+                .server()
+                .get(&app.path("/.well-known/openid-configuration"))
+                .await
+                .json();
+            assert_eq!(
+                doc["prompt_values_supported"],
+                json!(["none", "login", "consent", "create"])
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn prompt_create_opens_the_register_page_and_the_registration_returns_to_the_client() {
+        rt().block_on(async {
+            let _setting = REGISTRATION_SETTING.lock().await;
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::public()).await;
+            app.set_user_registration(true).await;
+
+            let response = authorize(
+                &server,
+                app,
+                &client.client_id,
+                &[("prompt", "create"), ("state", "s-create")],
+            )
+            .await;
+            assert_eq!(response.status_code(), 302, "{}", response.text());
+            let location = response.header("location");
+            let location = location.to_str().expect("location header");
+            assert!(
+                location.starts_with(&format!(
+                    "http://localhost:5555/realms/{}/authentication/register?",
+                    app.realm
+                )),
+                "{location}"
+            );
+            assert_eq!(
+                query_param(location, "client_id").as_deref(),
+                Some(client.client_id.as_str())
+            );
+            assert_eq!(
+                query_param(location, "redirect_uri").as_deref(),
+                Some(CALLBACK)
+            );
+            assert_eq!(query_param(location, "state").as_deref(), Some("s-create"));
+
+            let suffix = uuid::Uuid::new_v4().simple().to_string();
+            let registered = server
+                .post(&app.oidc("registrations"))
+                .add_cookie(response.cookie("FERRISKEY_SESSION"))
+                .json(&json!({
+                    "username": format!("created-{suffix}"),
+                    "email": format!("created-{suffix}@example.com"),
+                    "password": PASSWORD,
+                }))
+                .await;
+            assert_eq!(registered.status_code(), 201, "{}", registered.text());
+            let body: Value = registered.json();
+            assert_eq!(body["status"], "redirect", "{body}");
+            let redirect = body["data"]["url"].as_str().expect("redirect url");
+            assert!(redirect.starts_with(CALLBACK), "{redirect}");
+            assert!(query_param(redirect, "code").is_some(), "{redirect}");
+            assert_eq!(query_param(redirect, "state").as_deref(), Some("s-create"));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn prompt_create_opens_the_login_page_when_the_realm_refuses_registration() {
+        rt().block_on(async {
+            let _setting = REGISTRATION_SETTING.lock().await;
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::public()).await;
+            app.set_user_registration(false).await;
+
+            let response = authorize(
+                &server,
+                app,
+                &client.client_id,
+                &[("prompt", "create"), ("state", "s-create")],
+            )
+            .await;
+            assert_eq!(response.status_code(), 302, "{}", response.text());
+            let location = response.header("location");
+            let location = location.to_str().expect("location header");
+            assert!(
+                location.starts_with(&format!(
+                    "http://localhost:5555/realms/{}/authentication/login?",
+                    app.realm
+                )),
+                "{location}"
+            );
+            assert!(response.maybe_cookie("FERRISKEY_SESSION").is_some());
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn prompt_create_combined_with_none_is_an_invalid_request() {
+        rt().block_on(async {
+            let app = app();
+            let client = app.client(ClientSpec::public()).await;
+            let response = authorize(
+                &app.server(),
+                app,
+                &client.client_id,
+                &[("prompt", "none create"), ("state", "s1")],
             )
             .await;
             assert_eq!(response.status_code(), 302, "{}", response.text());

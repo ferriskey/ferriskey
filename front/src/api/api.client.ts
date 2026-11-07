@@ -707,6 +707,7 @@ export namespace Schemas {
     introspection_endpoint: string;
     issuer: string;
     jwks_uri: string;
+    prompt_values_supported: Array<string>;
     registration_endpoint?: (string | null) | undefined;
     response_types_supported: Array<string>;
     revocation_endpoint: string;

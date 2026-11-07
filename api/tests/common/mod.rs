@@ -432,6 +432,15 @@ impl TestApp {
         .expect("set registration toggles");
     }
 
+    pub async fn set_user_registration(&self, enabled: bool) {
+        sqlx::query("UPDATE realm_settings SET user_registration_enabled = $1 WHERE realm_id = $2")
+            .bind(enabled)
+            .bind(self.realm_id)
+            .execute(&self.pool)
+            .await
+            .expect("set user registration");
+    }
+
     pub async fn set_client_enabled(&self, client: &SeededClient, enabled: bool) {
         sqlx::query("UPDATE clients SET enabled = $1 WHERE id = $2")
             .bind(enabled)
