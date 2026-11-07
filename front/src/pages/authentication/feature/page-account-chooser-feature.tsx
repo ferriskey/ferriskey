@@ -13,7 +13,6 @@ import { AUTH_NAMESPACE } from '../constants'
 import PageAccountChooser from '../ui/page-account-chooser'
 import {
   buildLoginPath,
-  formatLastUsed,
   parseMaxAge,
   resolveSelectOutcome,
 } from '../utils/account-chooser'
@@ -23,7 +22,7 @@ export default function PageAccountChooserFeature() {
   const queryClient = useQueryClient()
   const { realm_name } = useParams()
   const { search } = useLocation()
-  const { t, i18n } = useTranslation(AUTH_NAMESPACE)
+  const { t } = useTranslation(AUTH_NAMESPACE)
 
   const realm = realm_name ?? 'master'
   const clientId = useMemo(() => new URLSearchParams(search).get('client_id') ?? '', [search])
@@ -33,7 +32,6 @@ export default function PageAccountChooserFeature() {
   const { mutateAsync: selectAccount } = useSelectAccount()
   const { mutateAsync: removeAccount } = useRemoveAccount()
 
-  const [now] = useState(() => Date.now())
   const [busySessionId, setBusySessionId] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -106,10 +104,9 @@ export default function PageAccountChooserFeature() {
         sessionId: entry.session_id,
         displayName: entry.display_name,
         maskedEmail: entry.masked_email ?? null,
-        lastUsed: formatLastUsed(entry.last_seen_at, now, i18n.language),
         requiresReauthentication: entry.requires_reauthentication,
       })),
-    [entries, now, i18n.language]
+    [entries]
   )
 
   return (

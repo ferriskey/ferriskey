@@ -36,6 +36,7 @@ account_chooser:
   loading: Loading your accounts
   last_used: 'Last used {{when}}'
   reauthentication: Confirm your password
+  signed_out: Signed out
   continue_as: Continue as {{name}}
   remove: Remove from this device
   remove_named: Remove {{name}} from this device

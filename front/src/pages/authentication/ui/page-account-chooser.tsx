@@ -1,17 +1,16 @@
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ShieldCheck, UserRound } from 'lucide-react'
+import { CircleUser, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AUTH_NAMESPACE, BRAND_NAME } from '../constants'
+import { avatarColorClass, avatarInitial } from '../utils/account-avatar'
 import './page-login.css'
 
 export interface ChooserAccount {
   sessionId: string
   displayName: string
   maskedEmail: string | null
-  lastUsed: string | null
   requiresReauthentication: boolean
 }
 
@@ -37,11 +36,14 @@ export default function PageAccountChooser({
   const { t } = useTranslation(AUTH_NAMESPACE)
   const isBusy = busySessionId !== null
 
+  const rowClass =
+    'flex min-h-[52px] w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60'
+
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
-      <div className='relative z-10 w-full max-w-[380px]'>
+      <div className='relative z-10 w-full max-w-[720px]'>
         <Card className='login-card overflow-hidden border p-0 shadow-sm'>
-          <CardContent className='grid gap-0 p-0'>
+          <CardContent className='grid gap-0 p-0 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]'>
             <div className='flex flex-col gap-5 p-6'>
               <div className='space-y-1.5'>
                 <div className='flex items-center gap-2'>
@@ -64,91 +66,93 @@ export default function PageAccountChooser({
                   {errorMessage}
                 </div>
               )}
+            </div>
 
+            <div className='p-6 md:border-l md:self-center'>
               {isLoading ? (
                 <div
-                  className='flex flex-col gap-3'
+                  className='divide-y overflow-hidden rounded-lg border bg-card'
                   role='status'
                   aria-busy='true'
                   aria-label={t('account_chooser.loading')}
                 >
-                  <Skeleton className='h-[104px] w-full rounded-lg' />
-                  <Skeleton className='h-[104px] w-full rounded-lg' />
+                  {[0, 1].map((index) => (
+                    <div key={index} className='flex min-h-[52px] items-center gap-3 px-3 py-2.5'>
+                      <Skeleton className='size-8 shrink-0 rounded-full' />
+                      <div className='min-w-0 flex-1 space-y-1.5'>
+                        <Skeleton className='h-3.5 w-1/2' />
+                        <Skeleton className='h-3 w-3/4' />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <ul className='flex flex-col gap-3' aria-label={t('account_chooser.title')}>
+                <ul
+                  className='divide-y overflow-hidden rounded-lg border bg-card'
+                  aria-label={t('account_chooser.title')}
+                >
                   {accounts.map((account) => (
-                    <li
-                      key={account.sessionId}
-                      className='flex flex-col gap-3 rounded-lg border bg-card p-3'
-                    >
-                      <div className='flex items-start gap-3'>
-                        <div
+                    <li key={account.sessionId} className='group relative'>
+                      <button
+                        type='button'
+                        className={`${rowClass} pr-10`}
+                        disabled={isBusy}
+                        aria-busy={busySessionId === account.sessionId}
+                        onClick={() => onContinue(account.sessionId)}
+                      >
+                        <span
                           aria-hidden
-                          className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary'
+                          className={`flex size-8 shrink-0 items-center justify-center rounded-full text-[10px] font-medium text-white ${avatarColorClass(account.displayName, account.maskedEmail)}`}
                         >
-                          <UserRound className='h-4 w-4' />
-                        </div>
-                        <div className='min-w-0 flex-1 space-y-0.5'>
-                          <p className='truncate text-sm font-medium text-foreground'>
+                          {avatarInitial(account.displayName)}
+                        </span>
+                        <span className='min-w-0 flex-1'>
+                          <span className='block truncate text-sm font-medium text-foreground'>
                             {account.displayName}
-                          </p>
+                          </span>
                           {account.maskedEmail && (
-                            <p className='truncate text-xs text-muted-foreground'>
+                            <span className='block truncate text-xs text-muted-foreground'>
                               {account.maskedEmail}
-                            </p>
+                            </span>
                           )}
-                          {account.lastUsed && (
-                            <p className='text-xs text-muted-foreground'>
-                              {t('account_chooser.last_used', { when: account.lastUsed })}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      {account.requiresReauthentication && (
-                        <Badge
-                          variant='outline'
-                          className='border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
-                        >
-                          <ShieldCheck />
-                          {t('account_chooser.reauthentication')}
-                        </Badge>
-                      )}
-                      <div className='flex flex-col gap-1'>
-                        <Button
-                          type='button'
-                          className='h-10 w-full rounded-lg text-sm'
-                          disabled={isBusy}
-                          aria-busy={busySessionId === account.sessionId}
-                          onClick={() => onContinue(account.sessionId)}
-                        >
-                          {t('account_chooser.continue_as', { name: account.displayName })}
-                        </Button>
-                        <Button
-                          type='button'
-                          variant='ghost'
-                          className='h-8 w-full rounded-lg text-xs text-muted-foreground'
-                          disabled={isBusy}
-                          aria-label={t('account_chooser.remove_named', { name: account.displayName })}
-                          onClick={() => onRemove(account.sessionId)}
-                        >
-                          {t('account_chooser.remove')}
-                        </Button>
-                      </div>
+                        </span>
+                        {account.requiresReauthentication && (
+                          <span className='shrink-0 self-start text-[11px] text-muted-foreground'>
+                            {t('account_chooser.signed_out')}
+                          </span>
+                        )}
+                      </button>
+                      <Button
+                        type='button'
+                        variant='ghost'
+                        size='icon'
+                        className='absolute right-1.5 top-1/2 size-7 -translate-y-1/2 rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100'
+                        disabled={isBusy}
+                        aria-label={t('account_chooser.remove_named', { name: account.displayName })}
+                        title={t('account_chooser.remove')}
+                        onClick={() => onRemove(account.sessionId)}
+                      >
+                        <X className='size-4' />
+                      </Button>
                     </li>
                   ))}
+                  <li>
+                    <button
+                      type='button'
+                      className={rowClass}
+                      disabled={isLoading || isBusy}
+                      onClick={onUseAnother}
+                    >
+                      <span aria-hidden className='flex size-8 shrink-0 items-center justify-center'>
+                        <CircleUser className='size-8 text-muted-foreground' strokeWidth={1.5} />
+                      </span>
+                      <span className='min-w-0 flex-1 truncate text-sm font-medium text-foreground'>
+                        {t('account_chooser.use_another')}
+                      </span>
+                    </button>
+                  </li>
                 </ul>
               )}
-
-              <Button
-                type='button'
-                variant='outline'
-                className='h-10 w-full rounded-lg text-sm'
-                disabled={isLoading || isBusy}
-                onClick={onUseAnother}
-              >
-                {t('account_chooser.use_another')}
-              </Button>
             </div>
           </CardContent>
         </Card>
