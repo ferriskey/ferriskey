@@ -74,6 +74,7 @@ impl From<crate::entity::user_sessions::Model> for UserSession {
             sso_token_hash: model.sso_token_hash,
             persistent: model.persistent,
             authenticated_at: model.authenticated_at.with_timezone(&Utc),
+            device_session_id: model.device_session_id,
         }
     }
 }
@@ -103,6 +104,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
             sso_token_hash: Set(session.sso_token_hash.clone()),
             persistent: Set(session.persistent),
             authenticated_at: Set(session.authenticated_at.fixed_offset()),
+            device_session_id: Set(session.device_session_id),
         };
 
         model.insert(&self.db).await.map_err(|e| {
@@ -343,6 +345,124 @@ impl UserSessionRepository for PostgresUserSessionRepository {
             })?;
 
         Ok(())
+    }
+
+    async fn attach_device(
+        &self,
+        session: &Scoped<UserSession>,
+        device_session_id: Uuid,
+    ) -> Result<(), SessionError> {
+        let result = crate::entity::user_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::user_sessions::Column::DeviceSessionId,
+                Expr::value(Some(device_session_id)),
+            )
+            .filter(crate::entity::user_sessions::Column::Id.eq(session.get().id))
+            .filter(crate::entity::user_sessions::Column::RealmId.eq(session.get().realm_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error attaching a user session to a device: {:?}", e);
+                SessionError::UpdateError
+            })?;
+
+        if result.rows_affected == 0 {
+            return Err(SessionError::NotFound);
+        }
+
+        Ok(())
+    }
+
+    async fn detach_device(&self, session: &Scoped<UserSession>) -> Result<(), SessionError> {
+        crate::entity::user_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::user_sessions::Column::DeviceSessionId,
+                Expr::value(Option::<Uuid>::None),
+            )
+            .filter(crate::entity::user_sessions::Column::Id.eq(session.get().id))
+            .filter(crate::entity::user_sessions::Column::RealmId.eq(session.get().realm_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error detaching a user session from its device: {:?}", e);
+                SessionError::UpdateError
+            })?;
+
+        Ok(())
+    }
+
+    async fn rotate_sso_token_hash(
+        &self,
+        session: &Scoped<UserSession>,
+        expected_sso_token_hash: &str,
+        expected_device_session_id: Uuid,
+        new_sso_token_hash: &str,
+    ) -> Result<(), SessionError> {
+        use crate::entity::user_sessions::{Column, Entity};
+
+        let result = Entity::update_many()
+            .col_expr(Column::SsoTokenHash, Expr::value(new_sso_token_hash))
+            .filter(Column::Id.eq(session.get().id))
+            .filter(Column::RealmId.eq(session.get().realm_id))
+            .filter(Column::SsoTokenHash.eq(expected_sso_token_hash))
+            .filter(Column::DeviceSessionId.eq(expected_device_session_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error rotating sso_token_hash for user session: {:?}", e);
+                SessionError::UpdateError
+            })?;
+
+        if result.rows_affected == 0 {
+            return Err(SessionError::NotFound);
+        }
+
+        Ok(())
+    }
+
+    async fn detach_from_device(
+        &self,
+        session: &Scoped<UserSession>,
+        expected_device_session_id: Uuid,
+    ) -> Result<(), SessionError> {
+        use crate::entity::user_sessions::{Column, Entity};
+
+        let result = Entity::update_many()
+            .col_expr(Column::SsoTokenHash, Expr::value(Option::<String>::None))
+            .col_expr(Column::DeviceSessionId, Expr::value(Option::<Uuid>::None))
+            .filter(Column::Id.eq(session.get().id))
+            .filter(Column::RealmId.eq(session.get().realm_id))
+            .filter(Column::DeviceSessionId.eq(expected_device_session_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error detaching a user session from its device: {:?}", e);
+                SessionError::UpdateError
+            })?;
+
+        if result.rows_affected == 0 {
+            return Err(SessionError::NotFound);
+        }
+
+        Ok(())
+    }
+
+    async fn find_all_by_device(
+        &self,
+        device_session_id: Uuid,
+        realm_id: Uuid,
+    ) -> Result<Vec<UserSession>, SessionError> {
+        let sessions = crate::entity::user_sessions::Entity::find()
+            .filter(crate::entity::user_sessions::Column::DeviceSessionId.eq(device_session_id))
+            .filter(crate::entity::user_sessions::Column::RealmId.eq(realm_id))
+            .all(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error listing the user sessions of a device: {:?}", e);
+                SessionError::NotFound
+            })?;
+
+        Ok(sessions.into_iter().map(UserSession::from).collect())
     }
 }
 

@@ -185,6 +185,12 @@ pub enum CoreError {
     #[error("Re-authentication required")]
     ReauthenticationRequired,
 
+    #[error("Device session not found")]
+    DeviceSessionNotFound,
+
+    #[error("Account selection required")]
+    AccountSelectionRequired,
+
     #[error("Invalid session")]
     InvalidSession,
 
@@ -516,6 +522,8 @@ impl CoreError {
             CoreError::SessionNotFound => "session_not_found",
             CoreError::SessionExpired => "session_expired",
             CoreError::ReauthenticationRequired => "reauthentication_required",
+            CoreError::DeviceSessionNotFound => "device_session_not_found",
+            CoreError::AccountSelectionRequired => "account_selection_required",
             CoreError::InvalidSession => "invalid_session",
             CoreError::SessionCreateError => "session_create_error",
             CoreError::SessionDeleteError => "session_delete_error",
@@ -745,6 +753,11 @@ mod tests {
             (
                 CoreError::ReauthenticationRequired,
                 "reauthentication_required",
+            ),
+            (CoreError::DeviceSessionNotFound, "device_session_not_found"),
+            (
+                CoreError::AccountSelectionRequired,
+                "account_selection_required",
             ),
             (CoreError::InvalidSession, "invalid_session"),
             (CoreError::SessionCreateError, "session_create_error"),
@@ -989,7 +1002,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 134);
+        assert_eq!(every_variant_with_expected_reason().len(), 136);
     }
 
     #[test]

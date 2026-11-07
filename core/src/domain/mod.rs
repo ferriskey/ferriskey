@@ -11,6 +11,7 @@ pub mod compass;
 pub mod consent;
 pub mod credential;
 pub mod crypto;
+pub mod device_session;
 pub mod email_template;
 pub mod email_verification;
 pub mod health;

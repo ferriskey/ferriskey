@@ -183,6 +183,7 @@ use crate::{
 pub mod services;
 
 pub mod abyss;
+pub mod account_chooser;
 pub mod account_security;
 pub mod aegis;
 pub mod auth;
@@ -608,6 +609,16 @@ pub async fn create_service_with_secrets(
     )
     .with_refresh_token_format(config.refresh_token_format);
     let login_admission = Arc::new(auth_service.clone());
+    let session_resumption = Arc::new(
+        crate::application::account_chooser::SessionResumptionAdapter::new(Arc::new(
+            auth_service.clone(),
+        )),
+    );
+    let device_session = Arc::new(
+        crate::infrastructure::repositories::device_session_repository::PostgresDeviceSessionRepository::new(
+            postgres.get_db(),
+        ),
+    );
 
     // The auth service doubles as the device flow's token issuer.
     let device_flow_service = DeviceFlowServiceImpl::new(
@@ -933,6 +944,14 @@ pub async fn create_service_with_secrets(
             policy.clone(),
             token_revocation.clone(),
         ),
+        account_chooser_service:
+            crate::domain::device_session::services::AccountChooserServiceImpl::new(
+                device_session.clone(),
+                user_session.clone(),
+                user.clone(),
+                realm.clone(),
+                session_resumption,
+            ),
         security_event_repository: security_event.clone(),
     };
 

@@ -167,6 +167,55 @@ where
     ) -> Result<(), SessionError> {
         self.inner.clear_sso_token_hash(session).await
     }
+
+    async fn attach_device(
+        &self,
+        session: &Scoped<UserSession>,
+        device_session_id: Uuid,
+    ) -> Result<(), SessionError> {
+        self.inner.attach_device(session, device_session_id).await
+    }
+
+    async fn detach_device(&self, session: &Scoped<UserSession>) -> Result<(), SessionError> {
+        self.inner.detach_device(session).await
+    }
+
+    async fn rotate_sso_token_hash(
+        &self,
+        session: &Scoped<UserSession>,
+        expected_sso_token_hash: &str,
+        expected_device_session_id: Uuid,
+        new_sso_token_hash: &str,
+    ) -> Result<(), SessionError> {
+        self.inner
+            .rotate_sso_token_hash(
+                session,
+                expected_sso_token_hash,
+                expected_device_session_id,
+                new_sso_token_hash,
+            )
+            .await
+    }
+
+    async fn detach_from_device(
+        &self,
+        session: &Scoped<UserSession>,
+        expected_device_session_id: Uuid,
+    ) -> Result<(), SessionError> {
+        self.inner
+            .detach_from_device(session, expected_device_session_id)
+            .await
+    }
+
+    async fn find_all_by_device(
+        &self,
+        device_session_id: Uuid,
+        realm_id: Uuid,
+    ) -> Result<Vec<UserSession>, SessionError> {
+        self.inner
+            .find_all_by_device(device_session_id, realm_id)
+            .await
+    }
 }
 
 #[cfg(test)]
