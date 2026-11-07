@@ -130,4 +130,21 @@ pub trait UserSessionRepository: Send + Sync {
         &self,
         session: &Scoped<UserSession>,
     ) -> impl Future<Output = Result<(), SessionError>> + Send;
+
+    fn attach_device(
+        &self,
+        session: &Scoped<UserSession>,
+        device_session_id: Uuid,
+    ) -> impl Future<Output = Result<(), SessionError>> + Send;
+
+    fn detach_device(
+        &self,
+        session: &Scoped<UserSession>,
+    ) -> impl Future<Output = Result<(), SessionError>> + Send;
+
+    fn find_all_by_device(
+        &self,
+        device_session_id: Uuid,
+        realm_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<UserSession>, SessionError>> + Send;
 }

@@ -177,6 +177,10 @@ impl From<CoreError> for ApiError {
             CoreError::ReauthenticationRequired => {
                 Self::Unauthorized("Re-authentication required".into())
             }
+            CoreError::DeviceSessionNotFound => Self::NotFound("Device session not found".into()),
+            CoreError::AccountSelectionRequired => {
+                Self::Unauthorized("Account selection required".into())
+            }
             CoreError::InvalidSession => Self::Unauthorized("Invalid session".into()),
             CoreError::SessionCreateError => {
                         Self::InternalServerError("Failed to create session".into())

@@ -167,6 +167,28 @@ where
     ) -> Result<(), SessionError> {
         self.inner.clear_sso_token_hash(session).await
     }
+
+    async fn attach_device(
+        &self,
+        session: &Scoped<UserSession>,
+        device_session_id: Uuid,
+    ) -> Result<(), SessionError> {
+        self.inner.attach_device(session, device_session_id).await
+    }
+
+    async fn detach_device(&self, session: &Scoped<UserSession>) -> Result<(), SessionError> {
+        self.inner.detach_device(session).await
+    }
+
+    async fn find_all_by_device(
+        &self,
+        device_session_id: Uuid,
+        realm_id: Uuid,
+    ) -> Result<Vec<UserSession>, SessionError> {
+        self.inner
+            .find_all_by_device(device_session_id, realm_id)
+            .await
+    }
 }
 
 #[cfg(test)]

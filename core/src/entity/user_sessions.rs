@@ -24,6 +24,7 @@ pub struct Model {
     pub sso_token_hash: Option<String>,
     pub persistent: bool,
     pub authenticated_at: DateTimeWithTimeZone,
+    pub device_session_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -39,6 +40,7 @@ pub enum Column {
     SsoTokenHash,
     Persistent,
     AuthenticatedAt,
+    DeviceSessionId,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -55,7 +57,10 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
+    DeviceSessions,
     Realms,
+    SessionParticipants,
+    SessionTokenRevocations,
     Users,
 }
 
@@ -77,6 +82,7 @@ impl ColumnTrait for Column {
                 .unique(),
             Self::Persistent => ColumnType::Boolean.def(),
             Self::AuthenticatedAt => ColumnType::TimestampWithTimeZone.def(),
+            Self::DeviceSessionId => ColumnType::Uuid.def().null(),
         }
     }
 }
@@ -84,10 +90,20 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
+            Self::DeviceSessions => Entity::belongs_to(super::device_sessions::Entity)
+                .from(Column::DeviceSessionId)
+                .to(super::device_sessions::Column::Id)
+                .into(),
             Self::Realms => Entity::belongs_to(super::realms::Entity)
                 .from(Column::RealmId)
                 .to(super::realms::Column::Id)
                 .into(),
+            Self::SessionParticipants => {
+                Entity::has_many(super::session_participants::Entity).into()
+            }
+            Self::SessionTokenRevocations => {
+                Entity::has_one(super::session_token_revocations::Entity).into()
+            }
             Self::Users => Entity::belongs_to(super::users::Entity)
                 .from(Column::UserId)
                 .to(super::users::Column::Id)
@@ -96,9 +112,27 @@ impl RelationTrait for Relation {
     }
 }
 
+impl Related<super::device_sessions::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::DeviceSessions.def()
+    }
+}
+
 impl Related<super::realms::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Realms.def()
+    }
+}
+
+impl Related<super::session_participants::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::SessionParticipants.def()
+    }
+}
+
+impl Related<super::session_token_revocations::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::SessionTokenRevocations.def()
     }
 }
 

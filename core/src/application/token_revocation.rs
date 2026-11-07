@@ -141,6 +141,7 @@ mod tests {
             sso_token_hash: None,
             persistent: false,
             authenticated_at: chrono::Utc::now(),
+            device_session_id: None,
         }
     }
 

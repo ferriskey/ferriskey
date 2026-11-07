@@ -4391,15 +4391,12 @@ where
         }
     }
 
-    /// The live SSO session a `FERRISKEY_SSO` cookie names in this realm, with
-    /// its user, refusing an expired session or a disabled account.
-    async fn load_sso_session_user(
+    async fn find_sso_session(
         &self,
         cookie: &str,
         scope: &RealmScope,
-    ) -> Result<(Scoped<UserSession>, User), CoreError> {
-        let session = self
-            .user_session_repository
+    ) -> Result<Scoped<UserSession>, CoreError> {
+        self.user_session_repository
             .find_by_sso_token_hash(&sso_token_hash(cookie))
             .await
             .map_err(|e| {
@@ -4407,8 +4404,26 @@ where
                 CoreError::InternalServerError
             })?
             .in_realm(scope)?
-            .ok_or(CoreError::SessionNotFound)?;
+            .ok_or(CoreError::SessionNotFound)
+    }
 
+    /// The live SSO session a `FERRISKEY_SSO` cookie names in this realm, with
+    /// its user, refusing an expired session or a disabled account.
+    async fn load_sso_session_user(
+        &self,
+        cookie: &str,
+        scope: &RealmScope,
+    ) -> Result<(Scoped<UserSession>, User), CoreError> {
+        let session = self.find_sso_session(cookie, scope).await?;
+
+        self.live_session_user(session, scope).await
+    }
+
+    async fn live_session_user(
+        &self,
+        session: Scoped<UserSession>,
+        scope: &RealmScope,
+    ) -> Result<(Scoped<UserSession>, User), CoreError> {
         if session.get().is_expired() {
             return Err(CoreError::SessionExpired);
         }
@@ -4431,19 +4446,16 @@ where
         Ok((session, user))
     }
 
-    async fn handle_sso_session(
+    pub(crate) async fn resumable_session(
         &self,
-        cookie: String,
+        session: Scoped<UserSession>,
+        scope: &RealmScope,
         max_age: Option<i64>,
-        scope: RealmScope,
-        auth_session: AuthSession,
-        session_code: Uuid,
-        webapp_base_url: &str,
-    ) -> Result<AuthenticateOutput, CoreError> {
+        client_id: Uuid,
+    ) -> Result<(Scoped<UserSession>, User, Client), CoreError> {
         let realm_id = scope.id();
 
-        let (session, user) = self.load_sso_session_user(&cookie, &scope).await?;
-        let user_session_id = session.get().id;
+        let (session, user) = self.live_session_user(session, scope).await?;
 
         if let Some(max_age) = max_age
             && (Utc::now() - session.get().authenticated_at).num_seconds() > max_age
@@ -4453,10 +4465,10 @@ where
 
         let client = self
             .client_repository
-            .get_by_id(realm_id, auth_session.client_id)
+            .get_by_id(realm_id, client_id)
             .await
             .map_err(|_| CoreError::InvalidClient)?
-            .in_realm(&scope)
+            .in_realm(scope)
             .map_err(|_| CoreError::InvalidClient)?
             .into_inner();
 
@@ -4496,6 +4508,26 @@ where
                 "an authentication step is still due for this user".to_string(),
             ));
         }
+
+        Ok((session, user, client))
+    }
+
+    async fn handle_sso_session(
+        &self,
+        cookie: String,
+        max_age: Option<i64>,
+        scope: RealmScope,
+        auth_session: AuthSession,
+        session_code: Uuid,
+        webapp_base_url: &str,
+    ) -> Result<AuthenticateOutput, CoreError> {
+        let realm_id = scope.id();
+
+        let session = self.find_sso_session(&cookie, &scope).await?;
+        let (session, user, client) = self
+            .resumable_session(session, &scope, max_age, auth_session.client_id)
+            .await?;
+        let user_session_id = session.get().id;
 
         if let Err(e) = self
             .user_session_repository
@@ -7443,6 +7475,7 @@ mod tests {
             sso_token_hash: None,
             persistent: false,
             authenticated_at: chrono::Utc::now(),
+            device_session_id: None,
         }
     }
 
@@ -8103,6 +8136,7 @@ mod bound_session_tests {
             sso_token_hash: Some("hash".to_string()),
             persistent: false,
             authenticated_at: chrono::Utc::now(),
+            device_session_id: None,
         }
     }
 
