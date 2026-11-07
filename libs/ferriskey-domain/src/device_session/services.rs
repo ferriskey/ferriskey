@@ -125,6 +125,10 @@ where
     }
 }
 
+fn supersedes(candidate: &AccountEntry, kept: &AccountEntry) -> bool {
+    (candidate.is_active, candidate.last_seen_at) > (kept.is_active, kept.last_seen_at)
+}
+
 fn device_failure(error: DeviceSessionError) -> CoreError {
     warn!(error = ?error, "A device session operation failed");
     CoreError::InternalServerError
@@ -241,7 +245,7 @@ where
 
         let active_hash = active_sso_token.map(|token| self.resumption.hash_secret(token));
 
-        let mut entries = Vec::new();
+        let mut entries: Vec<(Uuid, AccountEntry)> = Vec::new();
 
         for session in self.sessions_of_device(&device, scope).await? {
             if session.get().is_expired() || session.get().sso_token_hash.is_none() {
@@ -283,7 +287,7 @@ where
                 Err(_) => true,
             };
 
-            entries.push(AccountEntry {
+            let entry = AccountEntry {
                 session_id: candidate.id,
                 display_name: display_name(&user),
                 masked_email: settings
@@ -295,9 +299,16 @@ where
                 last_seen_at: candidate.last_seen_at,
                 is_active,
                 requires_reauthentication,
-            });
+            };
+
+            match entries.iter_mut().find(|(id, _)| *id == candidate.user_id) {
+                Some((_, kept)) if supersedes(&entry, kept) => *kept = entry,
+                Some(_) => {}
+                None => entries.push((candidate.user_id, entry)),
+            }
         }
 
+        let mut entries: Vec<AccountEntry> = entries.into_iter().map(|(_, entry)| entry).collect();
         entries.sort_by_key(|entry| std::cmp::Reverse(entry.last_seen_at));
 
         Ok(entries)
@@ -718,6 +729,75 @@ mod tests {
             .map(|e| e.session_id)
             .collect();
         assert_eq!(flagged, vec![active.id]);
+    }
+
+    #[tokio::test]
+    async fn list_keeps_the_most_recent_entry_of_a_user() {
+        let scope = scope();
+        let user = user(&scope);
+        let now = Utc::now();
+        let mut older = session(&scope, user.id);
+        older.last_seen_at = Some(now - Duration::minutes(10));
+        let mut newer = session(&scope, user.id);
+        newer.last_seen_at = Some(now);
+        let service = service(
+            devices_resolving(device(&scope)),
+            sessions_of(MockUserSessionRepository::new(), vec![older, newer.clone()]),
+            users_returning(vec![user]),
+            realms(&scope, true, false),
+            resumption_passing(),
+        );
+
+        let entries = list(&service, &scope, Some(TOKEN)).await;
+
+        let ids: Vec<Uuid> = entries.iter().map(|e| e.session_id).collect();
+        assert_eq!(ids, vec![newer.id]);
+    }
+
+    #[tokio::test]
+    async fn list_keeps_the_active_entry_of_a_user_even_when_older() {
+        let scope = scope();
+        let user = user(&scope);
+        let other = user_in(scope.id());
+        let now = Utc::now();
+        let mut active = session(&scope, user.id);
+        active.sso_token_hash = Some(hashed("active-secret"));
+        active.last_seen_at = Some(now - Duration::minutes(10));
+        let mut newer = session(&scope, user.id);
+        newer.last_seen_at = Some(now);
+        let bob = session(&scope, other.id);
+        let service = service(
+            devices_resolving(device(&scope)),
+            sessions_of(
+                MockUserSessionRepository::new(),
+                vec![newer, active.clone(), bob.clone()],
+            ),
+            users_returning(vec![user, other]),
+            realms(&scope, true, false),
+            resumption_passing(),
+        );
+
+        let entries = service
+            .list_entries(
+                Some(TOKEN),
+                &scope,
+                Some("active-secret"),
+                None,
+                Uuid::new_v4(),
+            )
+            .await
+            .expect("listing must not fail");
+
+        let mut ids: Vec<Uuid> = entries.iter().map(|e| e.session_id).collect();
+        ids.sort();
+        let mut expected = vec![active.id, bob.id];
+        expected.sort();
+        assert_eq!(ids, expected);
+        assert!(
+            entries
+                .iter()
+                .any(|e| e.is_active && e.session_id == active.id)
+        );
     }
 
     async fn requires_reauthentication_when(
