@@ -269,6 +269,16 @@ fn resume_error_code(error: &CoreError) -> &'static str {
     }
 }
 
+fn with_max_age(url: String, max_age: Option<i64>) -> String {
+    match max_age.filter(|seconds| *seconds > 0) {
+        Some(seconds) => {
+            let separator = if url.contains('?') { '&' } else { '?' };
+            format!("{url}{separator}max_age={seconds}")
+        }
+        None => url,
+    }
+}
+
 fn with_login_hint(url: String, login_hint: Option<&str>) -> String {
     match login_hint.filter(|hint| !hint.is_empty()) {
         Some(hint) => {
@@ -593,6 +603,10 @@ pub async fn auth_handler(
         params.login_hint.as_deref(),
     );
 
+    if show_chooser {
+        full_url = with_max_age(full_url, params.max_age);
+    }
+
     let stale_sso_cookie = cookie.get(SSO_SESSION_COOKIE).is_some() && !keeps_live_session;
     // No longer honoured since the SSO session replaced it; cleared from the
     // browsers that still carry it. Drop this after one release.
@@ -650,7 +664,7 @@ mod tests {
     use super::{
         EntryPage, Prompt, PromptNoneDecision, PromptNoneFacts, SsoFastPathOutcome,
         authorization_error_response, mark_session_expired, prompt_none_decision,
-        resume_error_code, sso_fast_path_outcome, webapp_entry_url, with_login_hint,
+        resume_error_code, sso_fast_path_outcome, webapp_entry_url, with_login_hint, with_max_age,
     };
     use axum::http::{StatusCode, header::LOCATION};
     use ferriskey_core::domain::authentication::entities::{
@@ -923,6 +937,22 @@ mod tests {
         assert_eq!(
             full_url,
             "https://login.example.com/realms/demo/authentication/account-chooser?client_id=test-client&state=s1"
+        );
+    }
+
+    #[test]
+    fn a_positive_max_age_is_appended_and_zero_or_absent_is_not() {
+        assert_eq!(
+            with_max_age("https://w/c?client_id=c".into(), Some(300)),
+            "https://w/c?client_id=c&max_age=300"
+        );
+        assert_eq!(
+            with_max_age("https://w/c?client_id=c".into(), Some(0)),
+            "https://w/c?client_id=c"
+        );
+        assert_eq!(
+            with_max_age("https://w/c?client_id=c".into(), None),
+            "https://w/c?client_id=c"
         );
     }
 

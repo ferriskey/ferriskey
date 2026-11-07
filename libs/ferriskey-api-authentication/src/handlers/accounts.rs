@@ -1,12 +1,14 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode, header::SET_COOKIE};
 use axum::response::IntoResponse;
 use axum_cookie::CookieManager;
 use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse};
 use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::authentication::AuthenticateResponse;
 use ferriskey_api_core::request_context::RequestContext;
 use ferriskey_api_core::url::{FullUrl, WebappUrl};
+use ferriskey_core::domain::authentication::entities::AuthenticateOutput;
 use ferriskey_core::domain::authentication::ports::{
     AccountSelectionService, ListAccountsInput, SelectAccountInput, SelectAccountOutcome,
     SessionOrigin,
@@ -18,7 +20,6 @@ use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 use crate::device_cookie::DEVICE_COOKIE;
-use crate::handlers::auth::sso_success_response;
 use crate::sso_cookie::SSO_SESSION_COOKIE;
 
 const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
@@ -107,6 +108,39 @@ pub struct SelectAccountRequiresCredentials {
     pub login_hint: String,
 }
 
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum SelectAccountResponse {
+    Resumed(AuthenticateResponse),
+    RequiresCredentials(SelectAccountRequiresCredentials),
+}
+
+fn resumed_response(
+    output: AuthenticateOutput,
+    is_secure: bool,
+) -> Result<axum::response::Response, ApiError> {
+    let sso_session = output
+        .sso_cookie
+        .clone()
+        .map(|secret| (secret, output.sso_session_max_age_secs));
+    let body: AuthenticateResponse = output.into();
+
+    let mut headers = HeaderMap::new();
+    if let Some((secret, max_age_secs)) = sso_session {
+        headers.append(
+            SET_COOKIE,
+            crate::sso_cookie::set(secret, max_age_secs, is_secure)?,
+        );
+    }
+
+    Ok((
+        StatusCode::OK,
+        headers,
+        Json(SelectAccountResponse::Resumed(body)),
+    )
+        .into_response())
+}
+
 fn cookie_value(cookie: &CookieManager, name: &str) -> Option<String> {
     cookie
         .get(name)
@@ -158,15 +192,14 @@ pub async fn list_accounts(
     path = "/login-actions/accounts/select",
     tag = "auth",
     summary = "Continue the authorization request as a remembered account",
-    description = "Resumes the chosen account's session without credentials and redirects to the client. When the session cannot be resumed silently the response is 200 with status requires_credentials and a login_hint, and the credential form re-authenticates into that session.",
+    description = "Resumes the chosen account's session without credentials and answers like the login endpoint does, with the redirect target in `url` and the FERRISKEY_SSO cookie set. When the session cannot be resumed silently the response is 200 with status requires_credentials and a login_hint, and the credential form re-authenticates into that session.",
     request_body = SelectAccountRequest,
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         SelectAccountParams,
     ),
     responses(
-        (status = 302, description = "Redirect to the client with an authorization code, sets the FERRISKEY_SSO cookie"),
-        (status = 200, description = "Credentials are required", body = SelectAccountRequiresCredentials),
+        (status = 200, description = "The session was resumed (same shape as the login endpoint, sets the FERRISKEY_SSO cookie), or credentials are required", body = SelectAccountResponse),
         (status = 401, description = "Missing session cookie", body = ApiErrorResponse),
         (status = 404, description = "The session is not attached to this device", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
@@ -206,14 +239,16 @@ pub async fn select_account(
 
     match outcome {
         SelectAccountOutcome::Resumed(output) => {
-            sso_success_response(*output, session_code, base_url.starts_with("https://"))
+            resumed_response(*output, base_url.starts_with("https://"))
         }
         SelectAccountOutcome::RequiresCredentials { login_hint } => Ok((
             StatusCode::OK,
-            Json(SelectAccountRequiresCredentials {
-                status: SelectAccountStatus::RequiresCredentials,
-                login_hint,
-            }),
+            Json(SelectAccountResponse::RequiresCredentials(
+                SelectAccountRequiresCredentials {
+                    status: SelectAccountStatus::RequiresCredentials,
+                    login_hint,
+                },
+            )),
         )
             .into_response()),
     }

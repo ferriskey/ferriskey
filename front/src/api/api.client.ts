@@ -1483,6 +1483,7 @@ export namespace Schemas {
   export type SelectAccountRequest = { session_id: string };
   export type SelectAccountStatus = "requires_credentials";
   export type SelectAccountRequiresCredentials = { login_hint: string; status: SelectAccountStatus };
+  export type SelectAccountResponse = AuthenticateResponse | SelectAccountRequiresCredentials;
   export type SendMagicLinkRequest = { email: string; remember_me?: boolean | undefined };
   export type SendMagicLinkResponse = { message: string };
   export type SetClientSamlConfigValidator = Partial<{
@@ -3483,8 +3484,7 @@ export namespace Endpoints {
       body: Schemas.SelectAccountRequest;
     };
     responses: {
-      200: Schemas.SelectAccountRequiresCredentials;
-      302: unknown;
+      200: Schemas.SelectAccountResponse;
       401: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;

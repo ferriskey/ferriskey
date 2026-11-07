@@ -369,14 +369,11 @@ fn selecting_an_account_resumes_its_session_without_credentials() {
 
         let response = select(&f.server, app, &browser, &auth_session, alice_session, None).await;
 
-        assert_eq!(response.status_code(), 302, "{}", response.text());
-        let location = response
-            .headers()
-            .get("location")
-            .expect("location")
-            .to_str()
-            .expect("ascii")
-            .to_string();
+        assert_eq!(response.status_code(), 200, "{}", response.text());
+        assert!(response.headers().get("location").is_none());
+        let body: Value = response.json();
+        assert_eq!(body["status"], "Success", "{body}");
+        let location = body["url"].as_str().expect("url").to_string();
         assert!(location.starts_with(common::CALLBACK), "{location}");
         assert!(query_param(&location, "code").is_some(), "{location}");
         assert_eq!(
@@ -871,6 +868,49 @@ fn prompt_select_account_shows_the_chooser_even_with_one_live_session() {
         );
         assert!(set_cookie_value(&response, "FERRISKEY_SESSION").is_some());
         assert!(set_cookie_raw(&response, "FERRISKEY_SSO").is_none());
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn the_chooser_url_carries_max_age_only_when_requested() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let (server, client, _alice, browser) = alice_only(app).await;
+
+        let with = authorize_with(
+            &server,
+            app,
+            &client,
+            &browser,
+            &[("prompt", "select_account"), ("max_age", "300")],
+        )
+        .await;
+        let without = authorize_with(
+            &server,
+            app,
+            &client,
+            &browser,
+            &[("prompt", "select_account")],
+        )
+        .await;
+        let zero = authorize_with(
+            &server,
+            app,
+            &client,
+            &browser,
+            &[("prompt", "select_account"), ("max_age", "0")],
+        )
+        .await;
+
+        let with = location_of(&with);
+        assert!(
+            path_of(&with).ends_with("/authentication/account-chooser"),
+            "{with}"
+        );
+        assert_eq!(query_param(&with, "max_age").as_deref(), Some("300"));
+        assert!(query_param(&location_of(&without), "max_age").is_none());
+        assert!(query_param(&location_of(&zero), "max_age").is_none());
     });
 }
 
