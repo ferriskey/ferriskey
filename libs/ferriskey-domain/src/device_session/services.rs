@@ -111,17 +111,20 @@ where
         device_token: Option<&str>,
         scope: &RealmScope,
         session_id: Uuid,
-    ) -> Result<Scoped<UserSession>, CoreError> {
+    ) -> Result<(Uuid, Scoped<UserSession>), CoreError> {
         let device = self
             .resolve_device(device_token, scope)
             .await?
             .ok_or(CoreError::DeviceSessionNotFound)?;
 
-        self.sessions_of_device(&device, scope)
+        let session = self
+            .sessions_of_device(&device, scope)
             .await?
             .into_iter()
             .find(|session| session.get().id == session_id)
-            .ok_or(CoreError::DeviceSessionNotFound)
+            .ok_or(CoreError::DeviceSessionNotFound)?;
+
+        Ok((device.get().id, session))
     }
 }
 
@@ -252,8 +255,10 @@ where
                 continue;
             }
 
-            let Ok(user) = self.user_repository.get_by_id(session.get().user_id).await else {
-                continue;
+            let user = match self.user_repository.get_by_id(session.get().user_id).await {
+                Ok(user) => user,
+                Err(CoreError::NotFound) => continue,
+                Err(e) => return Err(e),
             };
             let Ok(user) = user.in_realm(scope) else {
                 continue;
@@ -322,23 +327,34 @@ where
         max_age: Option<i64>,
         client_id: Uuid,
     ) -> Result<SelectedAccount, CoreError> {
-        let session = self
+        let (device_id, session) = self
             .attached_session(device_token, scope, session_id)
             .await?;
 
-        if session.get().sso_token_hash.is_none() {
-            return Err(CoreError::SessionNotFound);
-        }
+        let current_hash = session
+            .get()
+            .sso_token_hash
+            .clone()
+            .ok_or(CoreError::SessionNotFound)?;
 
         let (session, user) = self
             .resumption
             .resumable_session(scope, session, max_age, client_id)
             .await?;
 
+        if user.is_locked(Utc::now()) {
+            return Err(CoreError::AccountLocked);
+        }
+
         let new_sso_secret = self.resumption.generate_secret();
 
         self.session_repository
-            .set_sso_token_hash(&session, &self.resumption.hash_secret(&new_sso_secret))
+            .rotate_sso_token_hash(
+                &session,
+                &current_hash,
+                device_id,
+                &self.resumption.hash_secret(&new_sso_secret),
+            )
             .await
             .map_err(session_failure)?;
 
@@ -356,19 +372,17 @@ where
         scope: &RealmScope,
         session_id: Uuid,
     ) -> Result<(), CoreError> {
-        let session = self
+        let (device_id, session) = self
             .attached_session(device_token, scope, session_id)
             .await?;
 
         self.session_repository
-            .clear_sso_token_hash(&session)
+            .detach_from_device(&session, device_id)
             .await
-            .map_err(session_failure)?;
-
-        self.session_repository
-            .detach_device(&session)
-            .await
-            .map_err(session_failure)
+            .map_err(|error| match error {
+                SessionError::NotFound => CoreError::DeviceSessionNotFound,
+                other => session_failure(other),
+            })
     }
 }
 
@@ -885,7 +899,16 @@ mod tests {
         guard: Result<(), CoreError>,
         sessions: MockUserSessionRepository,
     ) -> Service {
-        let user = user(scope);
+        selecting_as(scope, target, guard, sessions, user(scope))
+    }
+
+    fn selecting_as(
+        scope: &RealmScope,
+        target: UserSession,
+        guard: Result<(), CoreError>,
+        sessions: MockUserSessionRepository,
+        user: User,
+    ) -> Service {
         let mut port = resumption();
         port.expect_resumable_session()
             .returning(move |_, session, _, _| {
@@ -905,19 +928,26 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn select_mints_a_fresh_secret_through_set_sso_token_hash_only() {
+    async fn select_rotates_the_secret_through_the_conditional_update_only() {
         let scope = scope();
         let mut target = session(&scope, Uuid::new_v4());
         target.persistent = true;
         let before = target.clone();
         let target_id = target.id;
 
+        let expected_hash = target.sso_token_hash.clone().expect("live session");
         let mut sessions = MockUserSessionRepository::new();
+        sessions.expect_rotate_sso_token_hash().never();
+        sessions.expect_reauthenticate().never();
         sessions
-            .expect_set_sso_token_hash()
+            .expect_rotate_sso_token_hash()
             .times(1)
-            .withf(move |session, hash| session.get().id == target_id && hash == "h:fresh-secret")
-            .returning(|_, _| Box::pin(async { Ok(()) }));
+            .withf(move |session, expected, _, new| {
+                session.get().id == target_id
+                    && expected == expected_hash
+                    && new == "h:fresh-secret"
+            })
+            .returning(|_, _, _, _| Box::pin(async { Ok(()) }));
 
         let service = selecting(&scope, target.clone(), Ok(()), sessions);
 
@@ -942,8 +972,8 @@ mod tests {
         let target_id = target.id;
         let mut sessions = MockUserSessionRepository::new();
         sessions
-            .expect_set_sso_token_hash()
-            .returning(|_, _| Box::pin(async { Ok(()) }));
+            .expect_rotate_sso_token_hash()
+            .returning(|_, _, _, _| Box::pin(async { Ok(()) }));
         let service = selecting(&scope, target, Ok(()), sessions);
 
         let selected = service
@@ -959,7 +989,7 @@ mod tests {
         let target = session(&scope, Uuid::new_v4());
         let target_id = target.id;
         let mut sessions = MockUserSessionRepository::new();
-        sessions.expect_set_sso_token_hash().never();
+        sessions.expect_rotate_sso_token_hash().never();
         let service = selecting(&scope, target, Err(reason), sessions);
 
         service
@@ -1071,7 +1101,7 @@ mod tests {
         target.sso_token_hash = None;
         let target_id = target.id;
         let mut sessions = MockUserSessionRepository::new();
-        sessions.expect_set_sso_token_hash().never();
+        sessions.expect_rotate_sso_token_hash().never();
         let service = service(
             devices_resolving(device(&scope)),
             sessions_of(sessions, vec![target]),
@@ -1088,33 +1118,27 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn detach_clears_the_secret_then_detaches_without_deleting() {
+    async fn detach_is_one_conditional_write_on_the_validated_device() {
         let scope = scope();
         let target = session(&scope, Uuid::new_v4());
         let target_id = target.id;
-        let order = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let known = device(&scope);
+        let known_id = known.id;
 
         let mut sessions = MockUserSessionRepository::new();
-        let log = order.clone();
         sessions
-            .expect_clear_sso_token_hash()
+            .expect_detach_from_device()
             .times(1)
-            .returning(move |_| {
-                log.lock().expect("log").push("clear");
-                Box::pin(async { Ok(()) })
-            });
-        let log = order.clone();
-        sessions
-            .expect_detach_device()
-            .times(1)
-            .returning(move |_| {
-                log.lock().expect("log").push("detach");
-                Box::pin(async { Ok(()) })
-            });
+            .withf(move |session, device_id| {
+                session.get().id == target_id && *device_id == known_id
+            })
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+        sessions.expect_clear_sso_token_hash().never();
+        sessions.expect_detach_device().never();
         sessions.expect_delete().never();
 
         let service = service(
-            devices_resolving(device(&scope)),
+            devices_resolving(known),
             sessions_of(sessions, vec![target]),
             MockUserRepository::new(),
             MockRealmRepository::new(),
@@ -1125,16 +1149,159 @@ mod tests {
             .detach_entry(Some(TOKEN), &scope, target_id)
             .await
             .expect("detaching an attached entry must succeed");
+    }
 
-        assert_eq!(*order.lock().expect("log"), vec!["clear", "detach"]);
+    #[tokio::test]
+    async fn detach_of_a_session_that_left_the_device_meanwhile_is_not_found() {
+        let scope = scope();
+        let target = session(&scope, Uuid::new_v4());
+        let target_id = target.id;
+        let mut sessions = MockUserSessionRepository::new();
+        sessions
+            .expect_detach_from_device()
+            .times(1)
+            .returning(|_, _| Box::pin(async { Err(SessionError::NotFound) }));
+        let service = service(
+            devices_resolving(device(&scope)),
+            sessions_of(sessions, vec![target]),
+            MockUserRepository::new(),
+            MockRealmRepository::new(),
+            resumption(),
+        );
+
+        let result = service.detach_entry(Some(TOKEN), &scope, target_id).await;
+
+        assert!(matches!(result, Err(CoreError::DeviceSessionNotFound)));
+    }
+
+    #[tokio::test]
+    async fn select_rotates_only_from_the_validated_device_and_secret() {
+        let scope = scope();
+        let target = session(&scope, Uuid::new_v4());
+        let target_id = target.id;
+        let current = target.sso_token_hash.clone().expect("live session");
+        let known = device(&scope);
+        let known_id = known.id;
+
+        let mut sessions = MockUserSessionRepository::new();
+        sessions
+            .expect_rotate_sso_token_hash()
+            .times(1)
+            .withf(move |_, expected, device_id, _| expected == current && *device_id == known_id)
+            .returning(|_, _, _, _| Box::pin(async { Ok(()) }));
+        let mut port = resumption();
+        port.expect_resumable_session()
+            .returning(|scope, session, _, _| {
+                let mut user = user_in(scope.id());
+                user.id = session.get().user_id;
+                Box::pin(async move { Ok((session, user)) })
+            });
+        let service = service(
+            devices_resolving(known),
+            sessions_of(sessions, vec![target]),
+            MockUserRepository::new(),
+            MockRealmRepository::new(),
+            port,
+        );
+
+        service
+            .select_entry(Some(TOKEN), &scope, target_id, None, Uuid::new_v4())
+            .await
+            .expect("selection must succeed");
+    }
+
+    #[tokio::test]
+    async fn select_fails_when_the_session_changed_since_it_was_validated() {
+        let scope = scope();
+        let target = session(&scope, Uuid::new_v4());
+        let target_id = target.id;
+        let mut sessions = MockUserSessionRepository::new();
+        sessions
+            .expect_rotate_sso_token_hash()
+            .times(1)
+            .returning(|_, _, _, _| Box::pin(async { Err(SessionError::NotFound) }));
+        let service = selecting(&scope, target, Ok(()), sessions);
+
+        let result = service
+            .select_entry(Some(TOKEN), &scope, target_id, None, Uuid::new_v4())
+            .await;
+
+        assert!(matches!(result, Err(CoreError::SessionNotFound)));
+    }
+
+    #[tokio::test]
+    async fn select_of_a_locked_user_is_refused_before_a_secret_is_minted() {
+        let scope = scope();
+        let target = session(&scope, Uuid::new_v4());
+        let target_id = target.id;
+        let mut locked = user(&scope);
+        locked.locked_until = Some(Utc::now() + Duration::minutes(10));
+        let mut sessions = MockUserSessionRepository::new();
+        sessions.expect_rotate_sso_token_hash().never();
+
+        let mut port = MockSessionResumptionPort::new();
+        port.expect_hash_secret().returning(hashed);
+        port.expect_generate_secret().never();
+        port.expect_resumable_session()
+            .returning(move |_, session, _, _| {
+                let mut user = locked.clone();
+                user.id = session.get().user_id;
+                Box::pin(async move { Ok((session, user)) })
+            });
+        let service = service(
+            devices_resolving(device(&scope)),
+            sessions_of(sessions, vec![target]),
+            MockUserRepository::new(),
+            MockRealmRepository::new(),
+            port,
+        );
+
+        let result = service
+            .select_entry(Some(TOKEN), &scope, target_id, None, Uuid::new_v4())
+            .await;
+
+        assert!(matches!(result, Err(CoreError::AccountLocked)));
+    }
+
+    #[tokio::test]
+    async fn list_skips_a_missing_user_but_propagates_infrastructure_errors() {
+        let scope = scope();
+        let live = session(&scope, Uuid::new_v4());
+
+        for (failure, listed) in [
+            (CoreError::NotFound, true),
+            (CoreError::InternalServerError, false),
+        ] {
+            let mut users = MockUserRepository::new();
+            users.expect_get_by_id().returning(move |_| {
+                let failure = failure.clone();
+                Box::pin(async move { Err(failure) })
+            });
+            let service = service(
+                devices_resolving(device(&scope)),
+                sessions_of(MockUserSessionRepository::new(), vec![live.clone()]),
+                users,
+                realms(&scope, true, false),
+                resumption(),
+            );
+
+            let result = service
+                .list_entries(Some(TOKEN), &scope, None, None, Uuid::new_v4())
+                .await;
+
+            match (listed, result) {
+                (true, Ok(entries)) => assert!(entries.is_empty()),
+                (false, Err(CoreError::InternalServerError)) => {}
+                (_, other) => panic!("unexpected outcome: {other:?}"),
+            }
+        }
     }
 
     #[tokio::test]
     async fn detach_of_a_session_not_on_the_device_changes_nothing() {
         let scope = scope();
         let mut sessions = MockUserSessionRepository::new();
-        sessions.expect_clear_sso_token_hash().never();
-        sessions.expect_detach_device().never();
+        sessions.expect_detach_from_device().never();
         let service = service(
             devices_resolving(device(&scope)),
             sessions_of(sessions, vec![session(&scope, Uuid::new_v4())]),

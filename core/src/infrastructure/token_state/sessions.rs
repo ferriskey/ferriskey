@@ -135,11 +135,51 @@ impl<R: UserSessionRepository> UserSessionRepository for CachedUserSessionReposi
         session: &Scoped<UserSession>,
         device_session_id: Uuid,
     ) -> Result<(), SessionError> {
-        self.inner.attach_device(session, device_session_id).await
+        let attached = self.inner.attach_device(session, device_session_id).await;
+        if attached.is_ok() {
+            self.state.changed();
+        }
+        attached
     }
 
     async fn detach_device(&self, session: &Scoped<UserSession>) -> Result<(), SessionError> {
-        self.inner.detach_device(session).await
+        let detached = self.inner.detach_device(session).await;
+        if detached.is_ok() {
+            self.state.changed();
+        }
+        detached
+    }
+
+    async fn rotate_sso_token_hash(
+        &self,
+        session: &Scoped<UserSession>,
+        expected_sso_token_hash: &str,
+        expected_device_session_id: Uuid,
+        new_sso_token_hash: &str,
+    ) -> Result<(), SessionError> {
+        self.inner
+            .rotate_sso_token_hash(
+                session,
+                expected_sso_token_hash,
+                expected_device_session_id,
+                new_sso_token_hash,
+            )
+            .await
+    }
+
+    async fn detach_from_device(
+        &self,
+        session: &Scoped<UserSession>,
+        expected_device_session_id: Uuid,
+    ) -> Result<(), SessionError> {
+        let detached = self
+            .inner
+            .detach_from_device(session, expected_device_session_id)
+            .await;
+        if detached.is_ok() {
+            self.state.changed();
+        }
+        detached
     }
 
     async fn find_all_by_device(
@@ -309,6 +349,92 @@ mod tests {
             .expect("clear");
 
         repository.find_by_id(live.id).await.expect("read again");
+    }
+
+    #[tokio::test]
+    async fn attaching_a_session_to_a_device_makes_the_next_read_go_to_the_store() {
+        let live = session(Uuid::new_v4());
+        let mut inner = finding(Some(live.clone()), 2);
+        inner
+            .expect_attach_device()
+            .times(1)
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+        let repository = cached(inner);
+        repository.find_by_id(live.id).await.expect("warm");
+
+        repository
+            .attach_device(&scoped(live.clone()), Uuid::new_v4())
+            .await
+            .expect("attach");
+
+        repository.find_by_id(live.id).await.expect("read again");
+    }
+
+    #[tokio::test]
+    async fn a_failed_attach_keeps_the_cache() {
+        let live = session(Uuid::new_v4());
+        let mut inner = finding(Some(live.clone()), 1);
+        inner
+            .expect_attach_device()
+            .times(1)
+            .returning(|_, _| Box::pin(async { Err(super::SessionError::UpdateError) }));
+        let repository = cached(inner);
+        repository.find_by_id(live.id).await.expect("warm");
+
+        let attached = repository
+            .attach_device(&scoped(live.clone()), Uuid::new_v4())
+            .await;
+
+        assert!(attached.is_err());
+        repository.find_by_id(live.id).await.expect("still cached");
+    }
+
+    #[tokio::test]
+    async fn detaching_a_session_from_a_device_makes_the_next_read_go_to_the_store() {
+        let live = session(Uuid::new_v4());
+        let mut inner = finding(Some(live.clone()), 3);
+        inner
+            .expect_detach_device()
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(()) }));
+        inner
+            .expect_detach_from_device()
+            .times(1)
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+        let repository = cached(inner);
+        repository.find_by_id(live.id).await.expect("warm");
+
+        repository
+            .detach_device(&scoped(live.clone()))
+            .await
+            .expect("detach");
+        repository.find_by_id(live.id).await.expect("read again");
+
+        repository
+            .detach_from_device(&scoped(live.clone()), Uuid::new_v4())
+            .await
+            .expect("detach from device");
+        repository.find_by_id(live.id).await.expect("read again");
+    }
+
+    #[tokio::test]
+    async fn a_failed_detach_keeps_the_cache() {
+        let live = session(Uuid::new_v4());
+        let mut inner = finding(Some(live.clone()), 1);
+        inner
+            .expect_detach_device()
+            .times(1)
+            .returning(|_| Box::pin(async { Err(super::SessionError::UpdateError) }));
+        let repository = cached(inner);
+        repository.find_by_id(live.id).await.expect("warm");
+
+        assert!(
+            repository
+                .detach_device(&scoped(live.clone()))
+                .await
+                .is_err()
+        );
+        repository.find_by_id(live.id).await.expect("still cached");
     }
 
     #[tokio::test]

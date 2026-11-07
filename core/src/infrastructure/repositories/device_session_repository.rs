@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    prelude::Expr,
+    prelude::Expr, sea_query::Func,
 };
 use tracing::error;
 use uuid::Uuid;
@@ -85,7 +85,11 @@ impl DeviceSessionRepository for PostgresDeviceSessionRepository {
             )
             .col_expr(
                 device_sessions::Column::ExpiresAt,
-                Expr::value(expires_at.fixed_offset()),
+                sea_orm::sea_query::SimpleExpr::from(
+                    Func::cust("GREATEST")
+                        .arg(Expr::col(device_sessions::Column::ExpiresAt))
+                        .arg(Expr::value(expires_at.fixed_offset())),
+                ),
             )
             .filter(device_sessions::Column::Id.eq(device.get().id))
             .filter(device_sessions::Column::RealmId.eq(device.get().realm_id))
@@ -266,6 +270,20 @@ mod tests {
             .expect("present")
             .across_realms();
         assert!((touched.expires_at - later).num_milliseconds().abs() < 5);
+
+        fixture
+            .devices
+            .touch_last_seen(&found, Utc::now() + Duration::hours(2))
+            .await
+            .expect("touch with an earlier expiry");
+        let kept = fixture
+            .devices
+            .find_by_token_hash("hash-a")
+            .await
+            .expect("find")
+            .expect("present")
+            .across_realms();
+        assert!((kept.expires_at - later).num_milliseconds().abs() < 5);
     }
 
     #[tokio::test]
@@ -385,5 +403,95 @@ mod tests {
                 .is_err()
         );
         fixture.pool.close().await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn rotation_and_detach_apply_only_while_the_session_is_unchanged() {
+        let fixture = setup().await;
+        let device = device(&fixture, "hash-c", Duration::hours(1));
+        fixture.devices.create(&device).await.expect("create");
+
+        let mut hashed = UserSession::new(
+            fixture.user_id,
+            Uuid::from(fixture.scope.id()),
+            None,
+            None,
+            Duration::hours(1),
+            None,
+        );
+        hashed.sso_token_hash = Some("old".to_owned());
+        fixture.sessions.create(&hashed).await.expect("create");
+        let scoped = Unscoped::new(hashed.clone())
+            .in_realm(&fixture.scope)
+            .expect("same realm");
+        fixture
+            .sessions
+            .attach_device(&scoped, device.id)
+            .await
+            .expect("attach");
+
+        assert!(
+            fixture
+                .sessions
+                .rotate_sso_token_hash(&scoped, "stale", device.id, "new")
+                .await
+                .is_err()
+        );
+        assert!(
+            fixture
+                .sessions
+                .rotate_sso_token_hash(&scoped, "old", Uuid::new_v4(), "new")
+                .await
+                .is_err()
+        );
+        fixture
+            .sessions
+            .rotate_sso_token_hash(&scoped, "old", device.id, "new")
+            .await
+            .expect("rotate");
+
+        let stored = fixture
+            .sessions
+            .find_by_id(hashed.id)
+            .await
+            .expect("find")
+            .expect("present")
+            .across_realms();
+        assert_eq!(stored.sso_token_hash.as_deref(), Some("new"));
+        assert_eq!(stored.expires_at.timestamp(), hashed.expires_at.timestamp());
+        assert_eq!(
+            stored.authenticated_at.timestamp(),
+            hashed.authenticated_at.timestamp()
+        );
+
+        assert!(
+            fixture
+                .sessions
+                .detach_from_device(&scoped, Uuid::new_v4())
+                .await
+                .is_err()
+        );
+        fixture
+            .sessions
+            .detach_from_device(&scoped, device.id)
+            .await
+            .expect("detach");
+        let detached = fixture
+            .sessions
+            .find_by_id(hashed.id)
+            .await
+            .expect("find")
+            .expect("the row is kept")
+            .across_realms();
+        assert_eq!(detached.sso_token_hash, None);
+        assert_eq!(detached.device_session_id, None);
+        assert!(
+            fixture
+                .sessions
+                .detach_from_device(&scoped, device.id)
+                .await
+                .is_err()
+        );
     }
 }

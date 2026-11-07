@@ -391,6 +391,62 @@ impl UserSessionRepository for PostgresUserSessionRepository {
         Ok(())
     }
 
+    async fn rotate_sso_token_hash(
+        &self,
+        session: &Scoped<UserSession>,
+        expected_sso_token_hash: &str,
+        expected_device_session_id: Uuid,
+        new_sso_token_hash: &str,
+    ) -> Result<(), SessionError> {
+        use crate::entity::user_sessions::{Column, Entity};
+
+        let result = Entity::update_many()
+            .col_expr(Column::SsoTokenHash, Expr::value(new_sso_token_hash))
+            .filter(Column::Id.eq(session.get().id))
+            .filter(Column::RealmId.eq(session.get().realm_id))
+            .filter(Column::SsoTokenHash.eq(expected_sso_token_hash))
+            .filter(Column::DeviceSessionId.eq(expected_device_session_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error rotating sso_token_hash for user session: {:?}", e);
+                SessionError::UpdateError
+            })?;
+
+        if result.rows_affected == 0 {
+            return Err(SessionError::NotFound);
+        }
+
+        Ok(())
+    }
+
+    async fn detach_from_device(
+        &self,
+        session: &Scoped<UserSession>,
+        expected_device_session_id: Uuid,
+    ) -> Result<(), SessionError> {
+        use crate::entity::user_sessions::{Column, Entity};
+
+        let result = Entity::update_many()
+            .col_expr(Column::SsoTokenHash, Expr::value(Option::<String>::None))
+            .col_expr(Column::DeviceSessionId, Expr::value(Option::<Uuid>::None))
+            .filter(Column::Id.eq(session.get().id))
+            .filter(Column::RealmId.eq(session.get().realm_id))
+            .filter(Column::DeviceSessionId.eq(expected_device_session_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error detaching a user session from its device: {:?}", e);
+                SessionError::UpdateError
+            })?;
+
+        if result.rows_affected == 0 {
+            return Err(SessionError::NotFound);
+        }
+
+        Ok(())
+    }
+
     async fn find_all_by_device(
         &self,
         device_session_id: Uuid,
