@@ -61,6 +61,9 @@ pub enum CoreError {
     #[error("Invalid SAML configuration: {0}")]
     InvalidSamlConfig(String),
 
+    #[error("Invalid client authentication settings: {0}")]
+    InvalidClientAuthentication(String),
+
     #[error("No SAML attribute mapper is registered under this identifier")]
     SamlAttributeMapperNotFound,
 
@@ -476,6 +479,7 @@ impl CoreError {
             CoreError::TokenExchangePolicyAlreadyExists => "token_exchange_policy_already_exists",
             CoreError::SamlConfigNotFound => "saml_config_not_found",
             CoreError::InvalidSamlConfig(_) => "invalid_saml_config",
+            CoreError::InvalidClientAuthentication(_) => "invalid_client_authentication",
             CoreError::SamlAttributeMapperNotFound => "saml_attribute_mapper_not_found",
             CoreError::InvalidSamlAttributeMapper(_) => "invalid_saml_attribute_mapper",
             CoreError::InvalidClient => "invalid_client",
@@ -670,6 +674,10 @@ mod tests {
             (
                 CoreError::InvalidSamlConfig(payload.clone()),
                 "invalid_saml_config",
+            ),
+            (
+                CoreError::InvalidClientAuthentication(payload.clone()),
+                "invalid_client_authentication",
             ),
             (
                 CoreError::SamlAttributeMapperNotFound,
@@ -989,7 +997,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 134);
+        assert_eq!(every_variant_with_expected_reason().len(), 135);
     }
 
     #[test]

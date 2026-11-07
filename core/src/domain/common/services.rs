@@ -234,6 +234,7 @@ where
                         consent_required: false,
                         registration_source:
                             crate::domain::client::entities::ClientRegistrationSource::Admin,
+                        auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -279,6 +280,7 @@ where
                         consent_required: false,
                         registration_source:
                             crate::domain::client::entities::ClientRegistrationSource::Admin,
+                        auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(false),
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -317,6 +319,7 @@ where
                         consent_required: false,
                         registration_source:
                             crate::domain::client::entities::ClientRegistrationSource::Admin,
+                        auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -502,6 +505,7 @@ where
                             consent_required: false,
                             registration_source:
                                 crate::domain::client::entities::ClientRegistrationSource::Admin,
+                            auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
                         })
                         .await
                     {
@@ -773,6 +777,9 @@ pub mod tests {
             backchannel_logout_session_required: true,
             consent_required: false,
             registration_source: crate::domain::client::entities::ClientRegistrationSource::Admin,
+            token_endpoint_auth_method: crate::domain::client::entities::auth_method::TokenEndpointAuthMethod::ClientSecretBasic,
+            jwks: None,
+            jwks_uri: None,
         };
 
         Identity::Client(client)

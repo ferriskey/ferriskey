@@ -301,7 +301,7 @@ pub struct AuthInput {
 pub struct ExchangeTokenInput {
     pub realm_name: String,
     pub client_id: String,
-    pub client_secret: Option<String>,
+    pub client_credential: crate::authentication::client_credential::ClientCredential,
     pub code: Option<String>,
     pub username: Option<String>,
     pub password: Option<String>,

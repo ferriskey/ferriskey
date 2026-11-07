@@ -1,7 +1,10 @@
 use std::net::{IpAddr, Ipv4Addr};
 
 use super::auth::root_scoped_base_url;
-use crate::basic_auth::try_parse_basic_client_credentials;
+use super::authorization_server_metadata::realm_issuer;
+use crate::client_credentials::{
+    ClientAuthParams, TOKEN_ENDPOINT_PATH, assertion_audiences, presented_client,
+};
 use crate::validators::TokenRequestValidator;
 use axum::{
     Form,
@@ -15,6 +18,7 @@ use ferriskey_api_core::api_entities::api_error::OAuth2ErrorResponse;
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_api_core::request_context::RequestContext;
 use ferriskey_api_core::url::FullUrl;
+use ferriskey_core::domain::authentication::client_authentication::ClientCredential;
 use ferriskey_core::domain::authentication::device_flow::error::DeviceFlowError;
 use ferriskey_core::domain::authentication::entities::{GrantType, JwtToken};
 use ferriskey_core::domain::authentication::token_exchange::{
@@ -221,13 +225,19 @@ async fn token_response(
         None
     };
 
-    let (client_id, client_secret) = match try_parse_basic_client_credentials(&headers) {
-        Some((id, sec)) => (id, Some(sec)),
-        None => (
-            payload.client_id.clone().unwrap_or_default(),
-            payload.client_secret.clone(),
-        ),
-    };
+    let issuer = realm_issuer(&base_url, &state.args.server.root_path, &realm_name);
+    let presented = presented_client(
+        &headers,
+        ClientAuthParams {
+            client_id: payload.client_id.as_deref(),
+            client_secret: payload.client_secret.as_deref(),
+            client_assertion_type: payload.client_assertion_type.as_deref(),
+            client_assertion: payload.client_assertion.as_deref(),
+        },
+        || assertion_audiences(&issuer, TOKEN_ENDPOINT_PATH),
+    )?;
+    let client_id = presented.client_id;
+    let client_credential = presented.credential;
 
     let throttle_ip = context
         .ip_address
@@ -246,7 +256,7 @@ async fn token_response(
             &state,
             realm_name.clone(),
             client_id.clone(),
-            client_secret,
+            client_credential,
             payload,
             context.ip_address,
             context.user_agent,
@@ -270,7 +280,7 @@ async fn token_response(
     }
 
     let grant_type = payload.grant_type.clone();
-    let has_client_secret = client_secret.is_some();
+    let has_client_credential = client_credential.is_present();
     let has_username = payload.username.is_some();
     let has_password = payload.password.is_some();
     let has_code = payload.code.is_some();
@@ -281,7 +291,7 @@ async fn token_response(
     let exchange_input = ExchangeTokenInput {
         realm_name: realm_name.clone(),
         client_id: client_id.clone(),
-        client_secret,
+        client_credential,
         code: payload.code,
         username: payload.username,
         password: payload.password,
@@ -323,7 +333,7 @@ async fn token_response(
                 warn!(
                     client_id = %client_id,
                     grant_type = ?grant_type,
-                    has_client_secret,
+                    has_client_credential,
                     has_username,
                     has_password,
                     has_code,
@@ -347,7 +357,7 @@ async fn exchange_subject_token(
     state: &AppState,
     realm_name: String,
     client_id: String,
-    client_secret: Option<String>,
+    client_credential: ClientCredential,
     payload: TokenRequestValidator,
     ip_address: Option<String>,
     user_agent: Option<String>,
@@ -373,7 +383,7 @@ async fn exchange_subject_token(
 
     let output = state
         .service
-        .exchange_subject_token(realm_name, client_id.clone(), client_secret, input)
+        .exchange_subject_token(realm_name, client_id.clone(), client_credential, input)
         .await
         .inspect_err(|error| {
             warn!(client_id = %client_id, error = ?error, "Subject token exchange failed");

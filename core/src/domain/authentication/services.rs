@@ -32,7 +32,10 @@ use ferriskey_organization::{
     OrganizationMemberRepository, OrganizationRepository,
 };
 
-use crate::domain::authentication::client_authentication::{ClientGrant, authenticate_client};
+use crate::domain::authentication::client_assertion::ports::ClientAssertionVerifier;
+use crate::domain::authentication::client_authentication::{
+    ClientGrant, ClientProof, authenticate_client, authorize_client,
+};
 use crate::domain::authentication::login_context::{LoginContext, VerifiedLogin};
 use crate::domain::authentication::mapper_engine::{
     ClaimSources, ContextGroup, ContextOrganization,
@@ -808,7 +811,7 @@ fn validate_authorization_code_request(
     client: &Client,
     request_realm_id: RealmId,
     request_redirect_uri: Option<&str>,
-    request_client_secret: Option<&str>,
+    client_proof: ClientProof,
     now: DateTime<Utc>,
 ) -> Result<(), CoreError> {
     if auth_session.protocol != AuthProtocol::OpenIdConnect {
@@ -820,11 +823,7 @@ fn validate_authorization_code_request(
         return Err(CoreError::InvalidAuthorizationCode);
     }
 
-    authenticate_client(
-        client,
-        request_client_secret,
-        ClientGrant::AuthorizationCode,
-    )?;
+    authorize_client(client, client_proof, ClientGrant::AuthorizationCode)?;
 
     // The code belongs to one client. Without this, any client_id in the realm
     // could redeem another client's code and receive tokens minted under its own
@@ -1074,6 +1073,7 @@ pub struct AuthServiceImpl<
     LAT,
     CO,
     CM,
+    CAV,
 > where
     R: RealmRepository,
     C: ClientRepository,
@@ -1105,6 +1105,7 @@ pub struct AuthServiceImpl<
     LAT: LoginActionTokenRepository,
     CO: ConsentDecisionRepository,
     CM: ClientMetadataResolver,
+    CAV: ClientAssertionVerifier,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -1140,6 +1141,7 @@ pub struct AuthServiceImpl<
     pub(crate) consent_service: Arc<ConsentServiceImpl<CO>>,
     pub(crate) client_metadata_resolver: Arc<CM>,
     pub(crate) service_account_cache: Arc<ServiceAccountCache>,
+    pub(crate) client_assertion_verifier: Arc<CAV>,
     pub(crate) refresh_token_format: RefreshTokenFormat,
 }
 
@@ -1174,6 +1176,7 @@ impl<
     LAT,
     CO,
     CM,
+    CAV,
 >
     AuthServiceImpl<
         R,
@@ -1206,6 +1209,7 @@ impl<
         LAT,
         CO,
         CM,
+        CAV,
     >
 where
     R: RealmRepository,
@@ -1238,6 +1242,7 @@ where
     LAT: LoginActionTokenRepository,
     CO: ConsentDecisionRepository,
     CM: ClientMetadataResolver,
+    CAV: ClientAssertionVerifier,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -1274,6 +1279,7 @@ where
         consent_service: Arc<ConsentServiceImpl<CO>>,
         client_metadata_resolver: Arc<CM>,
         service_account_cache: Arc<ServiceAccountCache>,
+        client_assertion_verifier: Arc<CAV>,
     ) -> Self {
         Self {
             realm_repository,
@@ -1310,6 +1316,7 @@ where
             consent_service,
             client_metadata_resolver,
             service_account_cache,
+            client_assertion_verifier,
             refresh_token_format: RefreshTokenFormat::default(),
         }
     }
@@ -1352,6 +1359,7 @@ impl<
     LAT,
     CO,
     CM,
+    CAV,
 >
     AuthServiceImpl<
         R,
@@ -1384,6 +1392,7 @@ impl<
         LAT,
         CO,
         CM,
+        CAV,
     >
 where
     R: RealmRepository,
@@ -1416,6 +1425,7 @@ where
     LAT: LoginActionTokenRepository,
     CO: ConsentDecisionRepository,
     CM: ClientMetadataResolver,
+    CAV: ClientAssertionVerifier,
 {
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
@@ -2718,7 +2728,7 @@ where
             &client,
             params.realm.id(),
             params.redirect_uri.as_deref(),
-            params.client_secret.as_deref(),
+            params.client_proof,
             Utc::now(),
         )?;
 
@@ -2932,11 +2942,7 @@ where
     async fn client_credential(&self, params: GrantTypeParams) -> Result<JwtToken, CoreError> {
         let client = params.client;
 
-        authenticate_client(
-            &client,
-            params.client_secret.as_deref(),
-            ClientGrant::ClientCredentials,
-        )?;
+        authorize_client(&client, params.client_proof, ClientGrant::ClientCredentials)?;
 
         let mut id_token = IdTokenIssuance::Withheld;
         if let Some(ref scope_str) = params.scope {
@@ -3351,11 +3357,7 @@ where
         let password = params.password.ok_or(CoreError::InternalServerError)?;
         let client = params.client;
 
-        authenticate_client(
-            &client,
-            params.client_secret.as_deref(),
-            ClientGrant::Password,
-        )?;
+        authorize_client(&client, params.client_proof, ClientGrant::Password)?;
         let resource = self
             .direct_grant_resource(&params.realm, params.resource.as_deref())
             .await?;
@@ -3493,11 +3495,7 @@ where
     ) -> Result<JwtToken, CoreError> {
         let client = params.client;
 
-        authenticate_client(
-            &client,
-            params.client_secret.as_deref(),
-            ClientGrant::RefreshToken,
-        )?;
+        authorize_client(&client, params.client_proof, ClientGrant::RefreshToken)?;
 
         let settings = self.realm_settings_of(&params.realm).await?;
         let lifetimes = TokenLifetimes::resolve(&settings, &client);
@@ -3657,11 +3655,7 @@ where
 
         let client = params.client;
 
-        authenticate_client(
-            &client,
-            params.client_secret.as_deref(),
-            ClientGrant::RefreshToken,
-        )?;
+        authorize_client(&client, params.client_proof, ClientGrant::RefreshToken)?;
 
         if !stored.status.is_active() {
             warn!(
@@ -4731,6 +4725,7 @@ impl<
     LAT,
     CO,
     CM,
+    CAV,
 > LoginAdmissionPort
     for AuthServiceImpl<
         R,
@@ -4763,6 +4758,7 @@ impl<
         LAT,
         CO,
         CM,
+        CAV,
     >
 where
     R: RealmRepository,
@@ -4795,6 +4791,7 @@ where
     LAT: LoginActionTokenRepository,
     CO: ConsentDecisionRepository,
     CM: ClientMetadataResolver,
+    CAV: ClientAssertionVerifier,
 {
     async fn admit(&self, input: AdmitLoginInput) -> Result<LoginAdmission, CoreError> {
         let client = self
@@ -4867,6 +4864,7 @@ impl<
     LAT,
     CO,
     CM,
+    CAV,
 > AuthService
     for AuthServiceImpl<
         R,
@@ -4899,6 +4897,7 @@ impl<
         LAT,
         CO,
         CM,
+        CAV,
     >
 where
     R: RealmRepository,
@@ -4931,6 +4930,7 @@ where
     LAT: LoginActionTokenRepository,
     CO: ConsentDecisionRepository,
     CM: ClientMetadataResolver,
+    CAV: ClientAssertionVerifier,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
@@ -5089,7 +5089,7 @@ where
             realm_name = %input.realm_name,
             client_id = %input.client_id,
             grant_type = ?input.grant_type,
-            has_client_secret = input.client_secret.is_some(),
+            has_client_credential = input.client_credential.is_present(),
             has_username = input.username.is_some(),
             has_password = input.password.is_some(),
             has_code = input.code.is_some(),
@@ -5124,11 +5124,13 @@ where
             .map_err(|_| CoreError::ClientAuthenticationFailed)?
             .into_inner();
 
-        authenticate_client(
+        let client_proof = authenticate_client(
+            self.client_assertion_verifier.as_ref(),
             &client,
-            input.client_secret.as_deref(),
+            &input.client_credential,
             ClientGrant::for_token_grant(&grant_type)?,
-        )?;
+        )
+        .await?;
 
         // The code grant continues the flow the authorize step already opened.
         // The refresh grant stays untraced for now: it fires on every token
@@ -5155,7 +5157,7 @@ where
             client,
             base_url: input.base_url,
             client_id: input.client_id,
-            client_secret: input.client_secret,
+            client_proof,
             code: input.code,
             username: input.username,
             password: input.password,
@@ -5805,10 +5807,12 @@ where
             .into_inner();
 
         authenticate_client(
+            self.client_assertion_verifier.as_ref(),
             &client,
-            Some(input.client_secret.as_str()),
+            &input.client_credential,
             ClientGrant::Introspection,
-        )?;
+        )
+        .await?;
 
         let token = input.token;
 
@@ -5902,10 +5906,12 @@ where
             .into_inner();
 
         authenticate_client(
+            self.client_assertion_verifier.as_ref(),
             &client,
-            input.client_secret.as_deref(),
+            &input.client_credential,
             ClientGrant::Revocation,
-        )?;
+        )
+        .await?;
 
         match PresentedRefreshToken::parse(&input.token) {
             Ok(PresentedRefreshToken::Opaque(opaque)) => {
@@ -6924,6 +6930,7 @@ mod tests {
     // ---- PKCE (RFC 7636) unit tests --------------------------------------
 
     use super::{pkce_request_allowed, pkce_validate_verifier, pkce_verify};
+    use crate::domain::authentication::client_authentication::ClientProof;
     use crate::domain::authentication::value_objects::CodeChallengeMethod;
 
     /// RFC 7636 Appendix B: known S256 test vector.
@@ -7077,6 +7084,9 @@ mod tests {
             backchannel_logout_session_required: true,
             consent_required: false,
             registration_source: crate::domain::client::entities::ClientRegistrationSource::Admin,
+            token_endpoint_auth_method: crate::domain::client::entities::auth_method::TokenEndpointAuthMethod::ClientSecretBasic,
+            jwks: None,
+            jwks_uri: None,
         }
     }
 
@@ -7109,7 +7119,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             )
             .is_ok()
@@ -7117,7 +7127,7 @@ mod tests {
     }
 
     #[test]
-    fn code_request_rejected_without_client_secret() {
+    fn code_request_rejected_without_client_authentication() {
         // The core of the CVE: a confidential client's code was redeemable with
         // no client authentication at all.
         let (session, client) = matching_pair();
@@ -7128,7 +7138,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                None,
+                ClientProof::None,
                 Utc::now(),
             ),
             Err(CoreError::ClientAuthenticationFailed)
@@ -7136,7 +7146,7 @@ mod tests {
     }
 
     #[test]
-    fn code_request_rejected_with_wrong_client_secret() {
+    fn code_request_rejected_with_a_proof_of_another_method() {
         let (session, client) = matching_pair();
 
         assert!(matches!(
@@ -7145,7 +7155,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                Some("wrong"),
+                ClientProof::PrivateKeyJwt,
                 Utc::now(),
             ),
             Err(CoreError::ClientAuthenticationFailed)
@@ -7165,7 +7175,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                None,
+                ClientProof::None,
                 Utc::now(),
             )
             .is_ok()
@@ -7184,7 +7194,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             ),
             Err(CoreError::InvalidAuthorizationCode)
@@ -7202,7 +7212,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             ),
             Err(CoreError::InvalidAuthorizationCode)
@@ -7222,7 +7232,7 @@ mod tests {
                 &client,
                 other_realm,
                 Some(REDIRECT_URI),
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             ),
             Err(CoreError::InvalidAuthorizationCode)
@@ -7239,7 +7249,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some("https://attacker.example/callback"),
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             ),
             Err(CoreError::InvalidAuthorizationCode)
@@ -7258,7 +7268,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 None,
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             ),
             Err(CoreError::InvalidAuthorizationCode)
@@ -7276,7 +7286,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             ),
             Err(CoreError::InvalidAuthorizationCode)
@@ -7294,7 +7304,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             ),
             Err(CoreError::ClientAuthenticationFailed)
