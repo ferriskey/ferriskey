@@ -1338,7 +1338,13 @@ fn a_fresh_session_still_resumes_when_it_is_within_the_authorize_request_max_age
 
         let selected = select(&f.server, app, &browser, &auth_session, alice_session, None).await;
 
-        assert_eq!(selected.status_code(), 302, "{}", selected.text());
+        assert_eq!(selected.status_code(), 200, "{}", selected.text());
+        let body: Value = selected.json();
+        assert_eq!(body["status"], "Success", "{body}");
+        assert!(
+            query_param(body["url"].as_str().expect("url"), "code").is_some(),
+            "{body}"
+        );
     });
 }
 
@@ -1415,14 +1421,9 @@ fn selecting_an_account_that_needs_consent_still_rotates_the_browser_cookie() {
         )
         .await;
 
-        assert_eq!(selected.status_code(), 302, "{}", selected.text());
-        let location = selected
-            .headers()
-            .get("location")
-            .expect("location")
-            .to_str()
-            .expect("ascii")
-            .to_string();
+        assert_eq!(selected.status_code(), 200, "{}", selected.text());
+        let body: Value = selected.json();
+        let location = body["url"].as_str().expect("url").to_string();
         assert!(location.contains("authentication/consent"), "{location}");
         assert!(query_param(&location, "code").is_none(), "{location}");
 
