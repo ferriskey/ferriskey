@@ -82,6 +82,21 @@ async fn begin(
     browser: &Browser,
     prompt_login: bool,
 ) -> String {
+    let extra: &[(&str, &str)] = if prompt_login {
+        &[("prompt", "login")]
+    } else {
+        &[]
+    };
+    begin_with(server, app, client, browser, extra).await
+}
+
+async fn begin_with(
+    server: &TestServer,
+    app: &TestApp,
+    client: &SeededClient,
+    browser: &Browser,
+    extra: &[(&str, &str)],
+) -> String {
     let mut request = server
         .get(&app.oidc("auth"))
         .add_query_param("response_type", "code")
@@ -90,8 +105,8 @@ async fn begin(
         .add_query_param("scope", "openid")
         .add_query_param("state", "chooser-state")
         .add_header("Cookie", browser.cookies(None));
-    if prompt_login {
-        request = request.add_query_param("prompt", "login");
+    for (key, value) in extra {
+        request = request.add_query_param(key, value);
     }
     let response = request.await;
     assert_eq!(
@@ -775,5 +790,254 @@ fn turning_the_chooser_off_stops_select_and_remove() {
         assert_eq!(removed.status_code(), 404, "{}", removed.text());
         assert_eq!(listed.json::<Value>(), json!({ "data": [] }));
         assert!(sso_hash(app, alice_session).await.is_some());
+    });
+}
+
+async fn age_session(app: &TestApp, session_id: Uuid, seconds: i64) {
+    sqlx::query(
+        "UPDATE user_sessions SET authenticated_at = NOW() - make_interval(secs => $2) WHERE id = $1",
+    )
+    .bind(session_id)
+    .bind(seconds as f64)
+    .execute(&app.pool)
+    .await
+    .expect("age the session");
+}
+
+fn assert_requires_credentials(response: &TestResponse) {
+    assert_eq!(response.status_code(), 200, "{}", response.text());
+    let body: Value = response.json();
+    assert_eq!(body["status"], "requires_credentials", "{body}");
+    assert!(
+        body.get("code").is_none() && body.get("url").is_none(),
+        "{body}"
+    );
+    assert!(set_cookie_raw(response, "FERRISKEY_SSO").is_none());
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn the_authorize_request_max_age_is_enforced_when_the_select_request_omits_it() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let f = alice_then_bob(app).await;
+        let alice_session = session_of_user(app, &f.alice).await;
+        age_session(app, alice_session, 600).await;
+
+        let mut browser = f.browser.clone();
+        browser.sso = None;
+        let auth_session = begin_with(
+            &f.server,
+            app,
+            &f.client,
+            &browser,
+            &[("prompt", "select_account"), ("max_age", "300")],
+        )
+        .await;
+
+        let selected = select(&f.server, app, &browser, &auth_session, alice_session, None).await;
+
+        assert_requires_credentials(&selected);
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn a_select_request_cannot_loosen_the_authorize_request_max_age() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let f = alice_then_bob(app).await;
+        let alice_session = session_of_user(app, &f.alice).await;
+        age_session(app, alice_session, 600).await;
+
+        let mut browser = f.browser.clone();
+        browser.sso = None;
+        let auth_session = begin_with(
+            &f.server,
+            app,
+            &f.client,
+            &browser,
+            &[("prompt", "select_account"), ("max_age", "300")],
+        )
+        .await;
+
+        let selected = select(
+            &f.server,
+            app,
+            &browser,
+            &auth_session,
+            alice_session,
+            Some(1_000_000),
+        )
+        .await;
+
+        assert_requires_credentials(&selected);
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn max_age_zero_always_re_authenticates_from_the_chooser() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let f = alice_then_bob(app).await;
+        let alice_session = session_of_user(app, &f.alice).await;
+
+        let mut browser = f.browser.clone();
+        browser.sso = None;
+        let auth_session = begin_with(
+            &f.server,
+            app,
+            &f.client,
+            &browser,
+            &[("prompt", "select_account"), ("max_age", "0")],
+        )
+        .await;
+
+        let selected = select(&f.server, app, &browser, &auth_session, alice_session, None).await;
+
+        assert_requires_credentials(&selected);
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn a_fresh_session_still_resumes_when_it_is_within_the_authorize_request_max_age() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let f = alice_then_bob(app).await;
+        let alice_session = session_of_user(app, &f.alice).await;
+
+        let mut browser = f.browser.clone();
+        browser.sso = None;
+        let auth_session = begin_with(
+            &f.server,
+            app,
+            &f.client,
+            &browser,
+            &[("prompt", "select_account"), ("max_age", "300")],
+        )
+        .await;
+
+        let selected = select(&f.server, app, &browser, &auth_session, alice_session, None).await;
+
+        assert_eq!(selected.status_code(), 302, "{}", selected.text());
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn the_list_applies_the_stored_max_age_of_the_auth_session() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let f = alice_then_bob(app).await;
+        let alice_session = session_of_user(app, &f.alice).await;
+        age_session(app, alice_session, 600).await;
+
+        let mut browser = f.browser.clone();
+        browser.sso = None;
+        let auth_session = begin_with(
+            &f.server,
+            app,
+            &f.client,
+            &browser,
+            &[("prompt", "select_account"), ("max_age", "300")],
+        )
+        .await;
+
+        let response = f
+            .server
+            .get(&app.path("/login-actions/accounts"))
+            .add_query_param("client_id", &f.client.client_id)
+            .add_header("Cookie", browser.cookies(Some(&auth_session)))
+            .await;
+        let entries = entries(&response);
+        let alice_entry = entries
+            .iter()
+            .find(|entry| entry["session_id"] == alice_session.to_string())
+            .expect("alice's entry");
+
+        assert_eq!(alice_entry["requires_reauthentication"], true);
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn selecting_an_account_that_needs_consent_still_rotates_the_browser_cookie() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let f = alice_then_bob(app).await;
+        sqlx::query("UPDATE clients SET consent_required = TRUE WHERE id = $1")
+            .bind(f.client.id)
+            .execute(&app.pool)
+            .await
+            .expect("require consent");
+        let alice_session = session_of_user(app, &f.alice).await;
+        let active_secret = f.browser.sso.clone();
+
+        let mut browser = f.browser.clone();
+        browser.sso = None;
+        let auth_session = begin_with(
+            &f.server,
+            app,
+            &f.client,
+            &browser,
+            &[("prompt", "select_account consent")],
+        )
+        .await;
+
+        let mut with_active = browser.clone();
+        with_active.sso = active_secret.clone();
+        let selected = select(
+            &f.server,
+            app,
+            &with_active,
+            &auth_session,
+            alice_session,
+            None,
+        )
+        .await;
+
+        assert_eq!(selected.status_code(), 302, "{}", selected.text());
+        let location = selected
+            .headers()
+            .get("location")
+            .expect("location")
+            .to_str()
+            .expect("ascii")
+            .to_string();
+        assert!(location.contains("authentication/consent"), "{location}");
+        assert!(query_param(&location, "code").is_none(), "{location}");
+
+        let rotated = set_cookie_value(&selected, "FERRISKEY_SSO")
+            .expect("the rotated secret reaches the browser during the consent flow");
+        assert_ne!(Some(rotated.clone()), active_secret);
+        assert!(!rotated.is_empty());
+
+        let mut after = browser.clone();
+        after.sso = Some(rotated);
+        let resumed = f
+            .server
+            .get(&app.oidc("auth"))
+            .add_query_param("response_type", "code")
+            .add_query_param("client_id", &f.client.client_id)
+            .add_query_param("redirect_uri", common::CALLBACK)
+            .add_query_param("scope", "openid")
+            .add_query_param("state", "chooser-state")
+            .add_header("Cookie", after.cookies(None))
+            .await;
+        assert_eq!(resumed.status_code(), 302, "{}", resumed.text());
+        let resumed_user = sqlx::query_scalar::<_, Option<Uuid>>(
+            "SELECT user_id FROM auth_sessions WHERE client_id = $1 ORDER BY created_at DESC LIMIT 1",
+        )
+        .bind(f.client.id)
+        .fetch_one(&app.pool)
+        .await
+        .expect("auth session user");
+        assert_eq!(
+            resumed_user.map(|id| id.to_string()),
+            Some(f.alice.id.clone()),
+            "the rotated cookie resolves to the selected account, not the previously active one"
+        );
     });
 }

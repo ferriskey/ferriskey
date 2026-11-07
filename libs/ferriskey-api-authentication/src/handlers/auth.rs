@@ -281,6 +281,7 @@ pub async fn auth_handler(
             prompt_consent: prompt.as_ref().is_some_and(|prompt| prompt.consent),
             issuer: Some(issuer.clone()),
             resource: params.resource.clone(),
+            max_age: params.max_age,
         })
         .await
     {

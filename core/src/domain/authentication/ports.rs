@@ -263,6 +263,7 @@ pub struct ListAccountsInput {
     pub active_sso_token: Option<String>,
     pub max_age: Option<i64>,
     pub client_id: String,
+    pub session_code: Option<Uuid>,
 }
 
 pub trait AccountSelectionService: Send + Sync {

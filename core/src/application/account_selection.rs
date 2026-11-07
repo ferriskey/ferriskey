@@ -25,6 +25,13 @@ fn chooser_enabled(scope: &RealmScope) -> bool {
         .is_some_and(|settings| settings.account_chooser_enabled)
 }
 
+fn stricter_max_age(stored: Option<i64>, requested: Option<i64>) -> Option<i64> {
+    match (stored, requested) {
+        (Some(stored), Some(requested)) => Some(stored.min(requested)),
+        (stored, requested) => stored.or(requested),
+    }
+}
+
 fn is_refusal(error: &CoreError) -> bool {
     matches!(
         error,
@@ -54,7 +61,7 @@ impl AccountSelectionService for ApplicationService {
                 input.device_token.as_deref(),
                 &scope,
                 input.session_id,
-                input.max_age,
+                stricter_max_age(auth_session.max_age, input.max_age),
                 auth_session.client_id,
             )
             .await
@@ -99,12 +106,23 @@ impl AccountSelectionService for ApplicationService {
             return Ok(Vec::new());
         };
 
+        let stored_max_age = match input.session_code {
+            Some(session_code) => self
+                .auth_service
+                .open_selection_auth_session(&scope, session_code)
+                .await
+                .ok()
+                .filter(|auth_session| auth_session.client_id == client_id)
+                .and_then(|auth_session| auth_session.max_age),
+            None => None,
+        };
+
         self.account_chooser_service
             .list_entries(
                 input.device_token.as_deref(),
                 &scope,
                 input.active_sso_token.as_deref(),
-                input.max_age,
+                stricter_max_age(stored_max_age, input.max_age),
                 client_id,
             )
             .await
@@ -169,5 +187,38 @@ impl AccountSelectionService for ApplicationService {
             .auth_service
             .session_id_of_sso_secret(&scope, &sso_cookie)
             .await)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::stricter_max_age;
+
+    #[test]
+    fn no_limit_on_either_side_means_no_limit() {
+        assert_eq!(stricter_max_age(None, None), None);
+    }
+
+    #[test]
+    fn a_stored_limit_survives_an_omitted_request_limit() {
+        assert_eq!(stricter_max_age(Some(300), None), Some(300));
+    }
+
+    #[test]
+    fn a_request_limit_applies_when_nothing_is_stored() {
+        assert_eq!(stricter_max_age(None, Some(60)), Some(60));
+    }
+
+    #[test]
+    fn the_smaller_limit_wins() {
+        assert_eq!(stricter_max_age(Some(300), Some(60)), Some(60));
+        assert_eq!(stricter_max_age(Some(300), Some(86_400)), Some(300));
+    }
+
+    #[test]
+    fn zero_is_the_strictest_limit() {
+        assert_eq!(stricter_max_age(Some(0), Some(300)), Some(0));
+        assert_eq!(stricter_max_age(Some(300), Some(0)), Some(0));
+        assert_eq!(stricter_max_age(None, Some(0)), Some(0));
     }
 }

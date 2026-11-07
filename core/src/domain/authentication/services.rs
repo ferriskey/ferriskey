@@ -151,6 +151,18 @@ fn consent_error_redirect(
     with_issuer(location, issuer)
 }
 
+fn max_age_exceeded(
+    authenticated_at: DateTime<Utc>,
+    now: DateTime<Utc>,
+    max_age: Option<i64>,
+) -> bool {
+    match max_age {
+        None => false,
+        Some(0) => true,
+        Some(max_age) => (now - authenticated_at).num_seconds() > max_age,
+    }
+}
+
 fn resource_is_allowed(allowed_resources: &[String], resource: &str) -> bool {
     allowed_resources.iter().any(|allowed| allowed == resource)
 }
@@ -4513,9 +4525,7 @@ where
 
         let (session, user) = self.live_session_user(session, scope).await?;
 
-        if let Some(max_age) = max_age
-            && (Utc::now() - session.get().authenticated_at).num_seconds() > max_age
-        {
+        if max_age_exceeded(session.get().authenticated_at, Utc::now(), max_age) {
             return Err(CoreError::ReauthenticationRequired);
         }
 
@@ -4716,20 +4726,29 @@ where
             .find_sso_session(&selected.new_sso_secret, scope)
             .await?;
         let client = self.client_of_session(scope, &auth_session).await?;
+        let rotated_secret = selected.new_sso_secret.clone();
 
-        self.resume_into_flow(
-            ResumedSession {
-                user_id: selected.user_id,
-                session,
-                cookie: selected.new_sso_secret,
-            },
-            session_code,
-            auth_session,
-            scope,
-            &client,
-            webapp_base_url,
-        )
-        .await
+        let mut output = self
+            .resume_into_flow(
+                ResumedSession {
+                    user_id: selected.user_id,
+                    session,
+                    cookie: selected.new_sso_secret,
+                },
+                session_code,
+                auth_session,
+                scope,
+                &client,
+                webapp_base_url,
+            )
+            .await?;
+
+        if output.sso_cookie.is_none() {
+            output.sso_cookie = Some(rotated_secret);
+            output.sso_session_max_age_secs = selected.cookie_max_age;
+        }
+
+        Ok(output)
     }
 
     pub(crate) async fn remember_reauthentication_into(
@@ -5270,6 +5289,7 @@ where
             prompt_consent: input.prompt_consent,
             issuer: input.issuer,
             resource: input.resource,
+            max_age: input.max_age,
         };
         let session = self
             .auth_session_repository
@@ -6631,6 +6651,28 @@ fn token_generation_error(error: impl ToString) -> CoreError {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn a_zero_max_age_always_demands_a_new_authentication() {
+        let now = chrono::Utc::now();
+
+        assert!(super::max_age_exceeded(now, now, Some(0)));
+        assert!(super::max_age_exceeded(
+            now + chrono::Duration::seconds(5),
+            now,
+            Some(0)
+        ));
+    }
+
+    #[test]
+    fn a_positive_max_age_compares_whole_seconds() {
+        let now = chrono::Utc::now();
+        let authenticated_at = now - chrono::Duration::seconds(100);
+
+        assert!(!super::max_age_exceeded(authenticated_at, now, None));
+        assert!(!super::max_age_exceeded(authenticated_at, now, Some(100)));
+        assert!(super::max_age_exceeded(authenticated_at, now, Some(99)));
+    }
+
+    #[test]
     fn sso_token_hash_is_lowercase_sha256_hex() {
         assert_eq!(
             super::sso_token_hash("abc"),
@@ -6791,6 +6833,7 @@ mod tests {
             prompt_consent: false,
             issuer: None,
             resource: None,
+            max_age: None,
         }
     }
 

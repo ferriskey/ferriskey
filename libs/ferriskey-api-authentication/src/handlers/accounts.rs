@@ -141,6 +141,8 @@ pub async fn list_accounts(
             active_sso_token: cookie_value(&cookie, SSO_SESSION_COOKIE),
             max_age: params.max_age,
             client_id: params.client_id,
+            session_code: cookie_value(&cookie, AUTH_SESSION_COOKIE)
+                .and_then(|code| Uuid::parse_str(&code).ok()),
         })
         .await?;
 
