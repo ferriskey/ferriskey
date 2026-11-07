@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router'
 import PageLoginFeature from './feature/page-login-feature'
 import PageCallbackFeature from './feature/page-callback-feature'
 import PageRequiredActionFeature from './feature/page-required-action-feature'

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Check, ChevronsUpDown, Loader2, Plus, Search } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useUserRealmSearch } from '@/api/realm.api'
 import { CreateRealmDialog } from './create-realm-dialog'
