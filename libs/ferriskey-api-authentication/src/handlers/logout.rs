@@ -6,9 +6,15 @@ use axum::{
 };
 use axum_cookie::CookieManager;
 use axum_extra::extract::cookie::{Cookie, SameSite};
-use ferriskey_core::domain::authentication::{ports::AuthService, value_objects::EndSessionInput};
+use ferriskey_core::domain::authentication::{
+    ports::{AccountSelectionService, AuthService},
+    value_objects::EndSessionInput,
+};
+use ferriskey_core::domain::common::entities::app_errors::CoreError;
+use tracing::warn;
 use validator::Validate;
 
+use crate::device_cookie::DEVICE_COOKIE;
 use crate::handlers::auth::root_scoped_base_url;
 use crate::validators::LogoutRequestValidator;
 use ferriskey_api_core::api_entities::api_error::ApiErrorResponse;
@@ -76,6 +82,25 @@ async fn handle_logout_request(
         .map(|c| c.value().trim().to_string())
         .filter(|value| !value.is_empty());
 
+    let device_token = cookie
+        .get(DEVICE_COOKIE)
+        .map(|c| c.value().trim().to_string())
+        .filter(|value| !value.is_empty());
+
+    let logged_out_session = match (&sso_cookie, &device_token) {
+        (Some(sso_cookie), Some(_)) => state
+            .service
+            .session_id_of_sso_cookie(realm_name.clone(), sso_cookie.clone())
+            .await
+            .unwrap_or_else(|e| {
+                warn!(error = %e, "Failed to resolve the session being logged out");
+                None
+            }),
+        _ => None,
+    };
+
+    let detach_realm = realm_name.clone();
+
     let expected_issuer = format!(
         "{}/realms/{}",
         root_scoped_base_url(&base_url, &state.args.server.root_path),
@@ -94,6 +119,16 @@ async fn handle_logout_request(
             sso_cookie,
         })
         .await?;
+
+    if let Some(session_id) = logged_out_session
+        && let Err(e) = state
+            .service
+            .detach_account(detach_realm, device_token, session_id)
+            .await
+        && !matches!(e, CoreError::DeviceSessionNotFound)
+    {
+        warn!(session_id = %session_id, error = %e, "Failed to detach the logged-out session from the device");
+    }
 
     let headers = clear_session_cookies_headers(&base_url)?;
 

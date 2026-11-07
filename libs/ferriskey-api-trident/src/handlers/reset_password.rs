@@ -21,6 +21,7 @@ use ferriskey_api_core::{
         response::Response,
     },
     app_state::AppState,
+    device_cookie::{attach_login, device_token},
     sso_cookie,
     url::{FullUrl, WebappUrl},
 };
@@ -110,7 +111,7 @@ pub async fn reset_password_with_token(
 ) -> Result<impl IntoResponse, ApiError> {
     state
         .service
-        .validate_password_policy(realm_name, &payload.new_password)
+        .validate_password_policy(realm_name.clone(), &payload.new_password)
         .await?;
 
     let result = state
@@ -141,7 +142,18 @@ pub async fn reset_password_with_token(
 
     // A reset completed inside an OAuth flow opened an SSO session with the
     // code it minted; hand it to this browser.
-    let headers = sso_cookie::headers(result.sso_session, is_secure)?;
+    let mut headers = sso_cookie::headers(result.sso_session.clone(), is_secure)?;
+    if let Some(session) = &result.sso_session {
+        attach_login(
+            &state,
+            &realm_name,
+            device_token(&cookie),
+            &session.cookie,
+            is_secure,
+            &mut headers,
+        )
+        .await;
+    }
 
     Ok((
         StatusCode::OK,

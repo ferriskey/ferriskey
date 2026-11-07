@@ -95,7 +95,7 @@ fn auth_session_cookie(session_code: Uuid, is_secure: bool) -> Result<HeaderValu
         .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))
 }
 
-fn sso_success_response(
+pub(crate) fn sso_success_response(
     auth_result: ferriskey_core::domain::authentication::entities::AuthenticateOutput,
     session_code: Uuid,
     is_secure: bool,

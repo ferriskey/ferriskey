@@ -1,4 +1,5 @@
 use super::auth::root_scoped_base_url;
+use crate::device_cookie::{attach_login, device_token};
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header::SET_COOKIE};
 use axum::response::IntoResponse;
@@ -11,7 +12,7 @@ use ferriskey_api_core::url::{FullUrl, WebappUrl};
 
 use ferriskey_core::domain::authentication::entities::AuthenticateInput;
 use ferriskey_core::domain::authentication::entities::AuthenticationStepStatus;
-use ferriskey_core::domain::authentication::ports::AuthService;
+use ferriskey_core::domain::authentication::ports::{AuthService, SessionOrigin};
 use ferriskey_core::domain::email_verification::ports::EmailVerificationService;
 use ferriskey_core::domain::user::entities::RequiredAction;
 use serde::{Deserialize, Serialize};
@@ -101,7 +102,14 @@ pub async fn authenticate(
         password,
         payload.remember_me,
     );
-    let result = state.service.authenticate(authenticate_params).await?;
+    let origin = SessionOrigin {
+        user_agent: context.user_agent.clone(),
+        ip_address: context.ip_address.clone(),
+    };
+    let result = state
+        .service
+        .authenticate_from(authenticate_params, origin)
+        .await?;
 
     // If user has VerifyEmail required action, automatically send verification email
     if result.status == AuthenticationStepStatus::RequiresActions
@@ -128,6 +136,7 @@ pub async fn authenticate(
         );
     }
 
+    let device = device_token(&cookie);
     let step_token = result.temporary_token.clone();
     let sso_session = result
         .sso_cookie
@@ -138,6 +147,16 @@ pub async fn authenticate(
     let mut headers = HeaderMap::new();
 
     if let Some((secret, max_age_secs)) = sso_session {
+        attach_login(
+            &state,
+            &realm_name,
+            device,
+            &secret,
+            base_url.starts_with("https"),
+            &mut headers,
+        )
+        .await;
+
         headers.append(
             SET_COOKIE,
             crate::sso_cookie::set(secret, max_age_secs, base_url.starts_with("https"))?,

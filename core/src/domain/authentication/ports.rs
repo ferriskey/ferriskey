@@ -4,6 +4,7 @@ use crate::domain::authentication::value_objects::{
     EndSessionInput, EndSessionOutput, GenerateTokensForUserInput, GetUserInfoInput, Identity,
     IntrospectTokenInput, RevokeTokenInput, UserInfoResponse,
 };
+use crate::domain::device_session::entities::AccountEntry;
 use crate::domain::realm::entities::{RealmScope, Scoped, Unscoped};
 use crate::domain::{
     authentication::{
@@ -148,6 +149,12 @@ pub trait AuthSessionRepository: Send + Sync {
     ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SessionOrigin {
+    pub user_agent: Option<String>,
+    pub ip_address: Option<String>,
+}
+
 pub trait AuthService: Send + Sync {
     fn auth(&self, input: AuthInput) -> impl Future<Output = Result<AuthOutput, CoreError>> + Send;
     fn get_certs(
@@ -176,6 +183,11 @@ pub trait AuthService: Send + Sync {
     fn authenticate(
         &self,
         input: AuthenticateInput,
+    ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
+    fn authenticate_from(
+        &self,
+        input: AuthenticateInput,
+        origin: SessionOrigin,
     ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
     fn register_user(
         &self,
@@ -224,6 +236,65 @@ pub trait AuthService: Send + Sync {
         realm_name: String,
         cookie: String,
     ) -> impl Future<Output = Result<User, CoreError>> + Send;
+}
+
+pub struct SelectAccountInput {
+    pub realm_name: String,
+    pub device_token: Option<String>,
+    pub session_code: Uuid,
+    pub session_id: Uuid,
+    pub max_age: Option<i64>,
+    pub webapp_base_url: String,
+}
+
+pub enum SelectAccountOutcome {
+    Resumed(Box<AuthenticateOutput>),
+    RequiresCredentials { login_hint: String },
+}
+
+pub struct AttachedDevice {
+    pub token: Option<String>,
+    pub max_age_secs: i64,
+}
+
+pub struct ListAccountsInput {
+    pub realm_name: String,
+    pub device_token: Option<String>,
+    pub active_sso_token: Option<String>,
+    pub max_age: Option<i64>,
+    pub client_id: String,
+}
+
+pub trait AccountSelectionService: Send + Sync {
+    fn select_account(
+        &self,
+        input: SelectAccountInput,
+    ) -> impl Future<Output = Result<SelectAccountOutcome, CoreError>> + Send;
+
+    fn list_accounts(
+        &self,
+        input: ListAccountsInput,
+    ) -> impl Future<Output = Result<Vec<AccountEntry>, CoreError>> + Send;
+
+    fn detach_account(
+        &self,
+        realm_name: String,
+        device_token: Option<String>,
+        session_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn attach_login_to_device(
+        &self,
+        realm_name: String,
+        device_token: Option<String>,
+        sso_cookie: String,
+    ) -> impl Future<Output = Result<Option<AttachedDevice>, CoreError>> + Send;
+
+    fn session_id_of_sso_cookie(
+        &self,
+        realm_name: String,
+        sso_cookie: String,
+    ) -> impl Future<Output = Result<Option<Uuid>, CoreError>> + Send;
 }
 
 /// A strategy for handling different OAuth2 grant types during authentication.
