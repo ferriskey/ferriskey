@@ -280,7 +280,8 @@ export namespace Schemas {
     | "finalize"
     | "saml_authn_request"
     | "saml_assertion"
-    | "subject_token_exchange";
+    | "subject_token_exchange"
+    | "account_selection";
   export type CompassFlowStep = {
     details?: unknown | undefined;
     duration_ms?: (number | null) | undefined;
@@ -1206,6 +1207,9 @@ export namespace Schemas {
     | "identity_provider_link_removed"
     | "webhook_delivery_exhausted"
     | "token_exchanged"
+    | "account_selected"
+    | "account_selection_denied"
+    | "device_session_created"
     | "unknown";
   export type SecurityEventId = string;
   export type Paginated_SecurityEvent = {

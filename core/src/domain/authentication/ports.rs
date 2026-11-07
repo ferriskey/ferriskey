@@ -245,6 +245,7 @@ pub struct SelectAccountInput {
     pub session_id: Uuid,
     pub max_age: Option<i64>,
     pub webapp_base_url: String,
+    pub origin: SessionOrigin,
 }
 
 pub enum SelectAccountOutcome {

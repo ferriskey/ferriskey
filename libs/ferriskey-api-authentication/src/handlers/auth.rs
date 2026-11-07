@@ -13,7 +13,7 @@ use ferriskey_core::domain::authentication::entities::{
 };
 use ferriskey_core::domain::authentication::ports::{
     AccountSelectionService, AuthService, AuthorizeAccounts, ListAccountsInput, SelectAccountInput,
-    SelectAccountOutcome,
+    SelectAccountOutcome, SessionOrigin,
 };
 use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
@@ -382,8 +382,8 @@ pub async fn auth_handler(
             nonce: params.nonce.clone(),
             code_challenge: params.code_challenge.clone(),
             code_challenge_method: params.code_challenge_method.clone(),
-            ip_address: context.ip_address,
-            user_agent: context.user_agent,
+            ip_address: context.ip_address.clone(),
+            user_agent: context.user_agent.clone(),
             prompt_consent: prompt.as_ref().is_some_and(|prompt| prompt.consent),
             issuer: Some(issuer.clone()),
             resource: params.resource.clone(),
@@ -528,6 +528,10 @@ pub async fn auth_handler(
                         session_id,
                         max_age: params.max_age,
                         webapp_base_url: webapp_url.clone(),
+                        origin: SessionOrigin {
+                            user_agent: context.user_agent.clone(),
+                            ip_address: context.ip_address.clone(),
+                        },
                     })
                     .await;
 

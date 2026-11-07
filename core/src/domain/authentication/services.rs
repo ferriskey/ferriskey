@@ -4782,6 +4782,20 @@ where
         Ok(user.username)
     }
 
+    pub(crate) async fn session_in_scope(
+        &self,
+        scope: &RealmScope,
+        session_id: Uuid,
+    ) -> Option<UserSession> {
+        self.user_session_repository
+            .find_by_id(session_id)
+            .await
+            .ok()??
+            .in_realm(scope)
+            .ok()
+            .map(Scoped::into_inner)
+    }
+
     pub(crate) async fn session_id_of_sso_secret(
         &self,
         scope: &RealmScope,

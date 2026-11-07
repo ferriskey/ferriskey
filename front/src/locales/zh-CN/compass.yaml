@@ -47,6 +47,9 @@ step:
   subject_token_exchange:
     label: 主体令牌交换
     description: 客户端用已有的访问令牌换取了范围更窄的令牌（RFC 8693）。
+  account_selection:
+    label: 账户选择
+    description: 用户选择了此浏览器上已登录的账户。
 
 # Rendered in a badge next to a progress bar, so keep them short. "ms" and "s" are the SI symbols.
 duration:

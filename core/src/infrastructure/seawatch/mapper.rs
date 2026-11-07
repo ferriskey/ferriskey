@@ -118,6 +118,9 @@ mod tests {
         SecurityEventType::IdentityProviderLinkRemoved,
         SecurityEventType::WebhookDeliveryExhausted,
         SecurityEventType::TokenExchanged,
+        SecurityEventType::AccountSelected,
+        SecurityEventType::AccountSelectionDenied,
+        SecurityEventType::DeviceSessionCreated,
         SecurityEventType::Unknown,
     ];
 
@@ -180,6 +183,9 @@ mod tests {
                 | SecurityEventType::IdentityProviderLinkRemoved
                 | SecurityEventType::WebhookDeliveryExhausted
                 | SecurityEventType::TokenExchanged
+                | SecurityEventType::AccountSelected
+                | SecurityEventType::AccountSelectionDenied
+                | SecurityEventType::DeviceSessionCreated
                 | SecurityEventType::Unknown => true,
             };
 
@@ -189,6 +195,22 @@ mod tests {
         for event_type in ALL_EVENT_TYPES {
             assert_listed(event_type);
         }
+    }
+
+    #[test]
+    fn account_chooser_event_types_use_their_documented_wire_names() {
+        assert_eq!(
+            SecurityEventType::AccountSelected.to_string(),
+            "account_selected"
+        );
+        assert_eq!(
+            SecurityEventType::AccountSelectionDenied.to_string(),
+            "account_selection_denied"
+        );
+        assert_eq!(
+            SecurityEventType::DeviceSessionCreated.to_string(),
+            "device_session_created"
+        );
     }
 
     #[test]

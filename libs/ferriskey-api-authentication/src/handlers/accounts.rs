@@ -5,9 +5,11 @@ use axum::response::IntoResponse;
 use axum_cookie::CookieManager;
 use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse};
 use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::request_context::RequestContext;
 use ferriskey_api_core::url::{FullUrl, WebappUrl};
 use ferriskey_core::domain::authentication::ports::{
     AccountSelectionService, ListAccountsInput, SelectAccountInput, SelectAccountOutcome,
+    SessionOrigin,
 };
 use ferriskey_core::domain::device_session::entities::AccountEntry;
 use ferriskey_core::domain::session::entities::SessionState;
@@ -170,11 +172,13 @@ pub async fn list_accounts(
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
+#[allow(clippy::too_many_arguments)]
 pub async fn select_account(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
     WebappUrl(webapp_url): WebappUrl,
+    context: RequestContext,
     cookie: CookieManager,
     Query(params): Query<SelectAccountParams>,
     Json(payload): Json<SelectAccountRequest>,
@@ -193,6 +197,10 @@ pub async fn select_account(
             session_id: payload.session_id,
             max_age: params.max_age,
             webapp_base_url: webapp_url,
+            origin: SessionOrigin {
+                user_agent: context.user_agent,
+                ip_address: context.ip_address,
+            },
         })
         .await?;
 
