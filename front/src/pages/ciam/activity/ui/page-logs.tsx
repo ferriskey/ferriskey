@@ -15,7 +15,7 @@ import { formatTimestamp } from '@/utils/format-date'
 import { bucketPerDay, type WindowEvents } from '../feature/use-window-events'
 import { eventCard, eventColumns } from './event-journal'
 
-type SecurityEvent = Schemas.SecurityEvent
+type SecurityEvent = Schemas.Paginated_SecurityEvent['data'][number]
 
 const CONSOLE_NAMESPACES = ['console', 'seawatch'] as const
 

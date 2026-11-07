@@ -24,7 +24,7 @@ import {
 } from '../event-catalogue'
 import { securityEventColumnFilters } from '../event-filter-fields'
 
-type SecurityEvent = Schemas.SecurityEvent
+type SecurityEvent = Schemas.Paginated_SecurityEvent['data'][number]
 type DailyActivityStats = Schemas.DailyActivityStats
 import type { RealmDirectory } from '@/hooks/use-realm-directory'
 

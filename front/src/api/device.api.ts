@@ -11,7 +11,7 @@ export const useDeviceVerify = () => {
       return window.tanstackApi.client.post('/realms/{realm_name}/device/verify', {
         path: { realm_name: realm ?? 'master' },
         body: data,
-      } as never) as Promise<Schemas.DeviceVerifyResponse>
+      })
     },
   })
 }
@@ -30,7 +30,7 @@ export const useDevicePreview = ({
       return window.tanstackApi.client.get('/realms/{realm_name}/device/preview', {
         path: { realm_name: realm ?? 'master' },
         query: { user_code: userCode },
-      } as never) as Promise<Schemas.DeviceVerificationPreview>
+      })
     },
   })
 }

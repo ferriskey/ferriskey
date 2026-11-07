@@ -3,7 +3,7 @@ export { formatRelative, formatTimestamp } from '@/utils/format-date'
 import { translate } from '@/lib/i18n'
 import type { Schemas } from '@/api/api.client'
 
-type SecurityEvent = Schemas.SecurityEvent
+type SecurityEvent = Schemas.Paginated_SecurityEvent['data'][number]
 type SecurityEventType = Schemas.SecurityEventType
 
 export const catalogedEventTypes: Record<SecurityEventType, true> = {
