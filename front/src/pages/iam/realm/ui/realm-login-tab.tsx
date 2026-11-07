@@ -16,6 +16,8 @@ export interface LoginDraft {
   passkey: boolean
   magicLink: boolean
   magicLinkTtl: number
+  accountChooser: boolean
+  accountChooserShowEmail: boolean
   loginAliases: LoginAlias[]
 }
 
@@ -149,6 +151,31 @@ export default function RealmLoginTab({
             </div>
           </FieldRow>
         )}
+      </Section>
+
+      <Section
+        title={t('login.account_chooser.title')}
+        description={t('login.account_chooser.description')}
+      >
+        <FieldRow
+          label={t('login.account_chooser.enabled.label')}
+          description={t('login.account_chooser.enabled.description')}
+        >
+          <SwitchField
+            checked={value.accountChooser}
+            onCheckedChange={(v) => onChange({ accountChooser: v })}
+          />
+        </FieldRow>
+        <FieldRow
+          label={t('login.account_chooser.show_email.label')}
+          description={t('login.account_chooser.show_email.description')}
+        >
+          <SwitchField
+            checked={value.accountChooserShowEmail}
+            disabled={!value.accountChooser}
+            onCheckedChange={(v) => onChange({ accountChooserShowEmail: v })}
+          />
+        </FieldRow>
       </Section>
     </>
   )
