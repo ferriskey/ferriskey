@@ -13,6 +13,11 @@ import {
 } from '@/api/realm.api'
 import { useGetClients } from '@/api/client.api'
 import { useGetResourceOwners, useUpdateResourceOwners } from '@/api/resource-owners.api'
+import {
+  useGetSigningKeys,
+  useRevokeSigningKey,
+  useRotateSigningKey,
+} from '@/api/signing-keys.api'
 import { useUserPicker } from '@/hooks/use-user-picker'
 import { useRolePicker } from '@/hooks/use-role-picker'
 import {
@@ -54,6 +59,7 @@ const REALM_TABS = [
   { key: 'mcp', labelKey: 'settings.tabs.mcp' },
   { key: 'password-policy', labelKey: 'settings.tabs.password_policy' },
   { key: 'maintenance', labelKey: 'settings.tabs.maintenance' },
+  { key: 'keys', labelKey: 'settings.tabs.keys' },
 ] as const
 
 const MASTER_REALM_OVERVIEW_URL = '/realms/master/overview'
@@ -131,6 +137,13 @@ export default function PageRealmSettingsFeature() {
   const { mutate: deleteRealm } = useDeleteRealm()
   const { mutate: addWhitelistEntry } = useAddRealmWhitelistEntry()
   const { mutate: removeWhitelistEntry } = useRemoveRealmWhitelistEntry()
+  const {
+    data: signingKeysData,
+    isLoading: signingKeysLoading,
+    isError: signingKeysError,
+  } = useGetSigningKeys({ realm })
+  const { mutate: rotateSigningKey, isPending: rotatingSigningKey } = useRotateSigningKey()
+  const { mutate: revokeSigningKey, isPending: revokingSigningKey } = useRevokeSigningKey()
 
   const translatedTabs = useMemo(
     () => REALM_TABS.map((item) => ({ key: item.key, label: t(item.labelKey) })),
@@ -411,6 +424,28 @@ export default function PageRealmSettingsFeature() {
     }
   }
 
+  const handleRotateKey = () => {
+    rotateSigningKey(
+      { realm },
+      {
+        onSuccess: () => toast.success(t('settings.toast.key_rotated')),
+        onError: (error: Error) =>
+          toast.error(apiErrorMessage(error, t('settings.toast.key_rotate_failed'))),
+      }
+    )
+  }
+
+  const handleRevokeKey = (kid: string) => {
+    revokeSigningKey(
+      { realm, kid },
+      {
+        onSuccess: () => toast.success(t('settings.toast.key_revoked')),
+        onError: (error: Error) =>
+          toast.error(apiErrorMessage(error, t('settings.toast.key_revoke_failed'))),
+      }
+    )
+  }
+
   return (
     <PageRealmSettings
       realm={realmData}
@@ -438,6 +473,15 @@ export default function PageRealmSettingsFeature() {
       isSearchingMaintenanceRoles={rolePicker.loading}
       whitelistedUserIds={whitelistedUserIds}
       whitelistedRoleIds={whitelistedRoleIds}
+      signingKeys={{
+        keys: signingKeysData?.data ?? [],
+        isLoading: signingKeysLoading,
+        isError: signingKeysError,
+        isRotating: rotatingSigningKey,
+        isRevoking: revokingSigningKey,
+        onRotate: handleRotateKey,
+        onRevoke: handleRevokeKey,
+      }}
       dirtyCount={dirtyCount}
       canSave={canSave}
       onDisplayNameChange={(v) => general.patch({ displayName: v })}

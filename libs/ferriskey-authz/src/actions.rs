@@ -107,6 +107,9 @@ pub const SCOPE_MAPPING_READ: ActionId = ActionId::new("scope_mapping:read");
 pub const SCOPE_MAPPING_UNASSIGN: ActionId = ActionId::new("scope_mapping:unassign");
 pub const SECURITY_EVENT_READ: ActionId = ActionId::new("security_event:read");
 pub const SECURITY_EVENT_VERIFY_CHAIN: ActionId = ActionId::new("security_event:verify_chain");
+pub const SIGNING_KEY_LIST: ActionId = ActionId::new("signing_key:list");
+pub const SIGNING_KEY_REVOKE: ActionId = ActionId::new("signing_key:revoke");
+pub const SIGNING_KEY_ROTATE: ActionId = ActionId::new("signing_key:rotate");
 pub const USER_BULK_DELETE: ActionId = ActionId::new("user:bulk_delete");
 pub const USER_CREATE: ActionId = ActionId::new("user:create");
 pub const USER_DELETE: ActionId = ActionId::new("user:delete");
@@ -220,6 +223,9 @@ pub const ALL: &[ActionId] = &[
     SCOPE_MAPPING_UNASSIGN,
     SECURITY_EVENT_READ,
     SECURITY_EVENT_VERIFY_CHAIN,
+    SIGNING_KEY_LIST,
+    SIGNING_KEY_REVOKE,
+    SIGNING_KEY_ROTATE,
     USER_BULK_DELETE,
     USER_CREATE,
     USER_DELETE,

@@ -118,6 +118,8 @@ mod tests {
         SecurityEventType::IdentityProviderLinkRemoved,
         SecurityEventType::WebhookDeliveryExhausted,
         SecurityEventType::TokenExchanged,
+        SecurityEventType::SigningKeyRotated,
+        SecurityEventType::SigningKeyRevoked,
         SecurityEventType::Unknown,
     ];
 
@@ -180,6 +182,8 @@ mod tests {
                 | SecurityEventType::IdentityProviderLinkRemoved
                 | SecurityEventType::WebhookDeliveryExhausted
                 | SecurityEventType::TokenExchanged
+                | SecurityEventType::SigningKeyRotated
+                | SecurityEventType::SigningKeyRevoked
                 | SecurityEventType::Unknown => true,
             };
 

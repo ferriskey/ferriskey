@@ -11,6 +11,7 @@ settings:
     mcp: MCP
     password_policy: Password Policy
     maintenance: Maintenance
+    keys: Keys
   save:
     title_one: '{{count}} unsaved change'
     title_other: '{{count}} unsaved changes'
@@ -23,6 +24,10 @@ settings:
     policy_updated: Password policy updated successfully
     policy_failed: Failed to update password policy
     owners_failed: Failed to update resource owners
+    key_rotated: Signing key rotated.
+    key_rotate_failed: Failed to rotate the signing key
+    key_revoked: Signing key revoked.
+    key_revoke_failed: Failed to revoke the signing key
 
 general:
   identity:
@@ -191,6 +196,54 @@ maintenance:
     search_placeholder: Search roles…
     empty_hint: No roles available.
     exhausted_hint: Every role of this realm is already allowed.
+
+keys:
+  title: Signing keys
+  description: Keys this realm uses to sign tokens and SAML documents. A rotated key stays published until it retires, so the tokens it already signed keep verifying.
+  error:
+    title: Failed to load signing keys
+    description: The console could not read the signing keys of this realm.
+  empty:
+    title: No signing keys
+    hint: This realm has no signing key yet.
+  table:
+    kid: Key ID
+    algorithm: Algorithm
+    status: Status
+    created_at: Created
+    retire_at: Retires
+    revoked_at: Revoked
+    actions: Actions
+    none: '-'
+    copy_kid: Copy key ID {{kid}}
+  status:
+    active:
+      label: Active
+      description: Signs the new tokens of this realm.
+    passive:
+      label: Passive
+      description: Rotated out but still published, so tokens it signed keep verifying until it retires.
+    retired:
+      label: Retired
+      description: No longer published; tokens it signed can no longer be verified.
+    revoked:
+      label: Revoked
+      description: Withdrawn at once; tokens it signed are rejected.
+  dialog:
+    cancel: Cancel
+  rotate:
+    button: Rotate key
+    confirm_title: Rotate the signing key?
+    confirm_description: A new key becomes active and signs every new token. The previous key stays published until it retires, so the tokens it already signed keep verifying.
+    confirm_action: Rotate
+  revoke:
+    button: Revoke
+    confirm_title: Revoke this signing key?
+    confirm_description_active: This is the active key. Revoking it installs a new active key, and the tokens signed by the revoked one stop working immediately.
+    confirm_description_passive: Tokens signed by this key stop working immediately, even though it was still published.
+    consequence_tokens: Every token signed by this key is rejected at once.
+    consequence_irreversible: A revoked key cannot be restored.
+    confirm_action: Revoke key
 
 validation:
   cimd_host_invalid: Enter a bare host name, without scheme or path

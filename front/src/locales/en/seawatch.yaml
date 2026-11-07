@@ -35,6 +35,8 @@ event:
   email_sent: Email delivered
   client_maintenance_enabled: Client maintenance enabled
   client_maintenance_disabled: Client maintenance disabled
+  signing_key_rotated: Signing key rotated
+  signing_key_revoked: Signing key revoked
   session_created: Session opened
   session_revoked: Session revoked
   webhook_delivery_exhausted: Webhook delivery gave up

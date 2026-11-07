@@ -86,6 +86,7 @@ use crate::{
         realm::{
             resource_owner_services::ResourceOwnerServiceImpl,
             services::{MailServiceImpl, RealmServiceImpl},
+            signing_key_services::SigningKeyServiceImpl,
         },
         role::services::RoleServiceImpl,
         saml::services::SamlServiceImpl,
@@ -322,10 +323,10 @@ pub async fn create_service_with_secrets(
         Arc::new(PostgresRoleRepository::new(postgres.get_db())),
         token_state.clone(),
     ));
-    let keystore = Arc::new(PostgresKeyStoreRepository::with_cipher(
-        postgres.get_db(),
-        secret_cipher.clone(),
-    ));
+    let keystore = Arc::new(
+        PostgresKeyStoreRepository::with_cipher(postgres.get_db(), secret_cipher.clone())
+            .announcing_changes(token_state.clone()),
+    );
     let user_role = Arc::new(CachedUserRoleRepository::new(
         Arc::new(PostgresUserRoleRepository::new(postgres.get_db())),
         token_state.clone(),
@@ -724,6 +725,13 @@ pub async fn create_service_with_secrets(
             realm.clone(),
             client.clone(),
             resource_owner.clone(),
+            policy.clone(),
+        ),
+        signing_key_service: SigningKeyServiceImpl::new(
+            realm.clone(),
+            client.clone(),
+            keystore.clone(),
+            security_event.clone(),
             policy.clone(),
         ),
         mail_service: MailServiceImpl::new(realm.clone(), smtp_config.clone(), policy.clone()),

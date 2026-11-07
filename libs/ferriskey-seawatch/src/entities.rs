@@ -99,6 +99,12 @@ pub enum SecurityEventType {
     #[serde(rename = "token_exchanged")]
     TokenExchanged,
 
+    #[serde(rename = "signing_key_rotated")]
+    SigningKeyRotated,
+
+    #[serde(rename = "signing_key_revoked")]
+    SigningKeyRevoked,
+
     /// A row whose persisted `event_type` does not match any known variant —
     /// a typo, a variant removed in a refactor, or a row written by a newer
     /// version. Never constructed by write-path code; the read path falls
@@ -143,6 +149,8 @@ impl SecurityEventType {
             "identity_provider_link_removed" => Self::IdentityProviderLinkRemoved,
             "webhook_delivery_exhausted" => Self::WebhookDeliveryExhausted,
             "token_exchanged" => Self::TokenExchanged,
+            "signing_key_rotated" => Self::SigningKeyRotated,
+            "signing_key_revoked" => Self::SigningKeyRevoked,
             _ => Self::Unknown,
         }
     }
@@ -188,6 +196,8 @@ impl Display for SecurityEventType {
                 write!(f, "webhook_delivery_exhausted")
             }
             SecurityEventType::TokenExchanged => write!(f, "token_exchanged"),
+            SecurityEventType::SigningKeyRotated => write!(f, "signing_key_rotated"),
+            SecurityEventType::SigningKeyRevoked => write!(f, "signing_key_revoked"),
             SecurityEventType::Unknown => write!(f, "unknown"),
         }
     }

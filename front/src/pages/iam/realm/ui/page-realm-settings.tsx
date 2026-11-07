@@ -12,6 +12,7 @@ import RealmMcpTab, { type McpDraft } from './realm-mcp-tab'
 import type { OwnerClientOption } from '../resource-owners'
 import RealmPasswordPolicyTab, { type PolicyDraft } from './realm-password-policy-tab'
 import RealmMaintenanceTab from './realm-maintenance-tab'
+import RealmSigningKeysTab, { type RealmSigningKeysTabProps } from './realm-signing-keys-tab'
 import { REALM_NAMESPACE } from '../realm-namespace'
 
 type Realm = Schemas.Realm
@@ -42,6 +43,7 @@ export interface PageRealmSettingsProps {
   isSearchingMaintenanceRoles: boolean
   whitelistedUserIds: string[]
   whitelistedRoleIds: string[]
+  signingKeys: RealmSigningKeysTabProps
   dirtyCount: number
   canSave: boolean
   onDisplayNameChange: (v: string) => void
@@ -82,6 +84,7 @@ export default function PageRealmSettings({
   isSearchingMaintenanceRoles,
   whitelistedUserIds,
   whitelistedRoleIds,
+  signingKeys,
   dirtyCount,
   canSave,
   onDisplayNameChange,
@@ -205,6 +208,8 @@ export default function PageRealmSettings({
               onRolesChange={onWhitelistedRolesChange}
             />
           )}
+
+          {tab === 'keys' && <RealmSigningKeysTab {...signingKeys} />}
         </div>
       </PageTabs>
 

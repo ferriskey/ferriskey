@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use chrono::{DateTime, Utc};
 use ferriskey_domain::realm::{Realm, RealmId, scope::Unscoped};
 use uuid::Uuid;
@@ -7,6 +9,7 @@ use crate::{
     jwt::{
         RefreshTokenHash,
         entities::{AccessToken, Jwt, JwtClaim, JwtKeyPair, RefreshToken},
+        signing_keys::{RealmKeySet, SigningKey},
     },
 };
 
@@ -220,8 +223,38 @@ pub trait AccessTokenRepository: Send + Sync {
 }
 
 pub trait KeyStoreRepository: Send + Sync {
+    /// The realm's active key, generated on first use.
     fn get_or_generate_key(
         &self,
         realm_id: RealmId,
     ) -> impl Future<Output = Result<JwtKeyPair, SecurityError>> + Send;
+
+    /// The active key and the passive keys still published for verification.
+    fn get_key_set(
+        &self,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Arc<RealmKeySet>, SecurityError>> + Send;
+}
+
+pub trait SigningKeyRepository: Send + Sync {
+    /// Every key the realm ever had, retired and revoked ones included.
+    fn list_keys(
+        &self,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Vec<SigningKey>, SecurityError>> + Send;
+
+    /// Installs a new active key. The previous one stays published for `grace`.
+    fn rotate_key(
+        &self,
+        realm_id: RealmId,
+        grace: chrono::Duration,
+    ) -> impl Future<Output = Result<SigningKey, SecurityError>> + Send;
+
+    /// Withdraws `kid` at once. Revoking the active key installs a new one.
+    /// `None` when the realm has no such key.
+    fn revoke_key(
+        &self,
+        realm_id: RealmId,
+        kid: Uuid,
+    ) -> impl Future<Output = Result<Option<SigningKey>, SecurityError>> + Send;
 }
