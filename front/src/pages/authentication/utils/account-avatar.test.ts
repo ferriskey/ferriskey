@@ -4,12 +4,10 @@ import assert from 'node:assert/strict'
 import { avatarColorClass, avatarInitial } from './account-avatar.ts'
 
 const PALETTE = [
-  'bg-teal-600',
-  'bg-purple-600',
-  'bg-indigo-600',
-  'bg-green-700',
-  'bg-orange-600',
-  'bg-blue-600',
+  'border-fk-primary-border bg-fk-primary-soft text-fk-primary-text',
+  'border-fk-info-border bg-fk-info-soft text-fk-info',
+  'border-fk-success-border bg-fk-success-soft text-fk-success',
+  'border-fk-violet-border bg-fk-violet-soft text-fk-violet',
 ]
 
 test('the initial is the uppercased first character', () => {

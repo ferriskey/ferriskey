@@ -50,7 +50,8 @@ login:
 account_chooser:
   title: 选择账户
   description: 使用您已在此设备上登录过的账户继续。
-  continue_to: 选择账户以继续访问 <app>{{name}}</app>。
+  continue_to: 以继续访问 <app>{{name}}</app>
+  remembered_other: '此设备上已记住 {{count}} 个账户'
   loading: 正在加载您的账户
   last_used: '上次使用：{{when}}'
   reauthentication: 请确认您的密码

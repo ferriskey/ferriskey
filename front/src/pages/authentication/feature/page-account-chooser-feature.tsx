@@ -114,6 +114,7 @@ export default function PageAccountChooserFeature() {
       isLoading={isPending || shouldLeave}
       accounts={accounts}
       appName={data?.client_name ?? clientId}
+      realmName={realm}
       busySessionId={busySessionId}
       errorMessage={errorMessage}
       onContinue={onContinue}
