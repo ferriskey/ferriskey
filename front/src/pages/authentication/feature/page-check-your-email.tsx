@@ -2,6 +2,7 @@ import { useLocation, useParams, Link } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { Mail, ArrowLeft } from 'lucide-react'
 import { AUTH_NAMESPACE } from '../constants'
+import { withAuthFlow } from '@/lib/auth-flow-query'
 
 export default function PageCheckYourEmail() {
   const { realm_name } = useParams()
@@ -33,7 +34,7 @@ export default function PageCheckYourEmail() {
         <p className='text-sm text-muted-foreground'>{t('check_email.hint')}</p>
 
         <Link
-          to={`/realms/${realm_name}/authentication/login`}
+          to={withAuthFlow(`/realms/${realm_name}/authentication/login`, location.search)}
           className='inline-flex items-center gap-2 text-sm text-primary hover:underline'
         >
           <ArrowLeft className='w-4 h-4' />

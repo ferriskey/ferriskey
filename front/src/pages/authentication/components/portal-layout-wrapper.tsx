@@ -1,6 +1,6 @@
 import type { CSSProperties, FormEvent, MouseEvent, ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   useGetActivePortalTheme,
@@ -16,6 +16,7 @@ import { mergeWithDefaults, themeToCssVars } from '@/lib/portal-theme/theme'
 import type { Schemas } from '@/api/api.client'
 import { useDevicePreview } from '@/api/device.api'
 import { toConsentScopeList, useGetConsentRequest } from '@/api/consent.api'
+import { authFlowSearch, hasAuthFlowClient } from '@/lib/auth-flow-query'
 import { usePortalPageSubmit } from '../hooks/use-portal-page-submit'
 import { usePasskeyAuth } from '../hooks/use-passkey-auth'
 import {
@@ -69,6 +70,13 @@ interface Props {
 export function PortalLayoutWrapper({ children, pageType }: Props) {
   const { realm_name } = useParams<RouterParams>()
   const realm = realm_name ?? 'master'
+  const { search } = useLocation()
+  // Passed to every render of the tree: links keep the application's sign-in query, and "Email
+  // verified" offers a sign-in only when that query names the client to sign in to.
+  const flowOptions = {
+    authFlowSearch: search,
+    hideSignInLink: pageType === 'email_verified' && !hasAuthFlowClient(search),
+  }
 
   const { data: activeData, isLoading: isThemeLoading } = useGetActivePortalTheme({
     realm,
@@ -281,11 +289,16 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
         const email = String(
           formData?.get('email') ?? formData?.get('username') ?? '',
         ).trim()
-        const query = email ? `?email=${encodeURIComponent(email)}` : ''
-        navigate(`/realms/${realm}/authentication/magic-link-request${query}`)
+        // Keep the application's sign-in query, so "Back to login" there returns to it.
+        const query = new URLSearchParams(authFlowSearch(search))
+        if (email) query.set('email', email)
+        const queryString = query.toString()
+        navigate(
+          `/realms/${realm}/authentication/magic-link-request${queryString ? `?${queryString}` : ''}`,
+        )
       }
     },
-    [navigate, onConsentDeny, onDeviceDeny, onPasskeyLogin, realm],
+    [navigate, onConsentDeny, onDeviceDeny, onPasskeyLogin, realm, search],
   )
 
   if (
@@ -425,6 +438,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
     const verifiedTree = parseTree(verifiedData?.page_tree)
     if (deviceResult === 'approved' && verifiedTree.length > 0) {
       const verifiedContent: ReactNode = treeToReactNode(verifiedTree, {
+        ...flowOptions,
         runtime: true,
         identityProviders,
       })
@@ -443,6 +457,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
           {buttonInteractionStyle}
           {layoutIsValid
             ? treeToReactNode(layoutTree, {
+                ...flowOptions,
                 runtime: true,
                 pageContent: verifiedContent,
                 identityProviders,
@@ -475,7 +490,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
 
   const pageContent: ReactNode = (
     <form onSubmit={handleSubmit}>
-      {treeToReactNode(pageTree, { runtime: true, identityProviders, totpSetup, deviceConsent, consent, formError, isSubmitting })}
+      {treeToReactNode(pageTree, { ...flowOptions, runtime: true, identityProviders, totpSetup, deviceConsent, consent, formError, isSubmitting })}
     </form>
   )
 
@@ -493,7 +508,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
     <div style={pageSurface} onClick={handlePortalActionClick}>
       {responsiveStyle}
       {buttonInteractionStyle}
-      {treeToReactNode(layoutTree, { runtime: true, pageContent, identityProviders, totpSetup, deviceConsent, consent, formError, isSubmitting })}
+      {treeToReactNode(layoutTree, { ...flowOptions, runtime: true, pageContent, identityProviders, totpSetup, deviceConsent, consent, formError, isSubmitting })}
     </div>
   )
 }

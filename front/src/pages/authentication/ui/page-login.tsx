@@ -8,7 +8,8 @@ import type { AuthenticateSchema } from '@/pages/authentication/feature/page-log
 import type { MagicLinkSchema } from '@/pages/authentication/schemas/magic-link.schema'
 import { cn } from '@/lib/utils'
 import { InputText } from '@/components/ui/input-text'
-import { Link, useParams } from 'react-router'
+import { Link, useLocation, useParams } from 'react-router'
+import { withAuthFlow } from '@/lib/auth-flow-query'
 import type { Schemas } from '@/api/api.client'
 type RealmLoginSetting = Schemas.RealmLoginSetting
 import { LoginProviders } from './login-providers'
@@ -56,6 +57,7 @@ export default function PageLogin({
   onMagicLinkBack,
 }: PageLoginProps) {
   const { realm_name } = useParams()
+  const { search } = useLocation()
   const { t } = useTranslation(AUTH_NAMESPACE)
 
   if (isError) return <ErrorMessage />
@@ -169,7 +171,7 @@ export default function PageLogin({
                               )}
                               {loginSettings?.forgot_password_enabled && (
                               <Link
-                                to={'../forgot-password'}
+                                to={withAuthFlow('../forgot-password', search)}
                                 className='ml-auto text-xs font-medium text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline'
                               >
                                 {t('login.forgot_password')}
@@ -226,7 +228,7 @@ export default function PageLogin({
                                 components={{
                                   signup: (
                                     <Link
-                                      to={'../register'}
+                                      to={withAuthFlow('../register', search)}
                                       className='font-semibold text-foreground underline underline-offset-4'
                                     />
                                   ),

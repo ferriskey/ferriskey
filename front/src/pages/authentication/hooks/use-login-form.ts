@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useCallback, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { z } from 'zod'
 import { AuthenticationStatus } from '@/api/api.interface.ts'
 import { useAuthenticateMutation } from '@/api/auth.api'
@@ -10,6 +10,7 @@ import { apiErrorMessage, apiErrorReason } from '@/lib/api-error'
 import { translate } from '@/lib/i18n'
 import { AUTH_NAMESPACE } from '../constants'
 import { followServerRedirect } from '@/lib/follow-server-redirect'
+import { withAuthFlow } from '@/lib/auth-flow-query'
 
 const MAINTENANCE_REASON = 'client_under_maintenance'
 
@@ -44,6 +45,7 @@ type Options = {
 
 export function useLoginForm({ realm_name, loginError, getAuthParamsFromUrl }: Options) {
   const navigate = useNavigate()
+  const { search } = useLocation()
   const { t } = useTranslation(AUTH_NAMESPACE)
 
   const {
@@ -78,11 +80,12 @@ export function useLoginForm({ realm_name, loginError, getAuthParamsFromUrl }: O
     }
 
     if (authenticateData.status === AuthenticationStatus.RequiresOtpChallenge) {
-      navigate(`/realms/${realm_name}/authentication/otp`, {
+      // The sign-in query is kept so cancelling the challenge returns to the application's sign-in.
+      navigate(withAuthFlow(`/realms/${realm_name}/authentication/otp`, search), {
         state: { email: authenticateData.email ?? null },
       })
     }
-  }, [authenticateData, navigate, realm_name])
+  }, [authenticateData, navigate, realm_name, search])
 
   const onSubmit = useCallback(
     (data: AuthenticateSchema) => {

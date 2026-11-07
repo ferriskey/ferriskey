@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { AuthenticationStatus } from '@/api/api.interface'
 import {
@@ -26,6 +26,7 @@ import { POST_LOGIN_RETURN_KEY } from '../feature/page-device-verify-feature'
 import { AUTH_NAMESPACE, DEVICE_ACTION, type DeviceAction } from '../constants'
 import { followServerRedirect } from '@/lib/follow-server-redirect'
 import { continueLogin } from '../utils/continue-login'
+import { withAuthFlow } from '@/lib/auth-flow-query'
 
 export type DeviceVerifyResult = 'approved' | 'denied' | null
 
@@ -85,6 +86,7 @@ export function usePortalPageSubmit(
   const { t } = useTranslation(AUTH_NAMESPACE)
   const { realm_name, getAuthParamsFromUrl } = useOAuthParams()
   const navigate = useNavigate()
+  const { search } = useLocation()
   const {
     mutate: authenticate,
     data: authenticateData,
@@ -111,11 +113,12 @@ export function usePortalPageSubmit(
       return
     }
     if (authenticateData.status === AuthenticationStatus.RequiresOtpChallenge) {
-      navigate(`/realms/${realm_name}/authentication/otp`, {
+      // The sign-in query is kept so cancelling the challenge returns to the application's sign-in.
+      navigate(withAuthFlow(`/realms/${realm_name}/authentication/otp`, search), {
         state: { email: authenticateData.email ?? null },
       })
     }
-  }, [pageType, authenticateData, navigate, realm_name])
+  }, [pageType, authenticateData, navigate, realm_name, search])
 
   const loginSubmit = useCallback(
     (data: FormData) => {
@@ -208,10 +211,11 @@ export function usePortalPageSubmit(
     }
     // Backend returned a "verify your email" state — go to the confirmation
     // screen. The email is carried via location state purely for display.
-    navigate(`/realms/${realm_name}/authentication/check-your-email`, {
+    // The sign-in query is kept so "Back to login" there returns to the application.
+    navigate(withAuthFlow(`/realms/${realm_name}/authentication/check-your-email`, search), {
       replace: true,
     })
-  }, [pageType, registrationData, setAuthTokens, navigate, realm_name])
+  }, [pageType, registrationData, setAuthTokens, navigate, realm_name, search])
 
   const registerSubmit = useCallback(
     (data: FormData) => {

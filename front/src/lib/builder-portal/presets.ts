@@ -429,10 +429,12 @@ function emailVerifiedCard(): BuilderNode[] {
             node('heading', { content: 'Email verified' }),
             node('text', {
               content:
-                'Your email address has been confirmed. You can now sign in to your account.',
+                'Your email address has been confirmed. You can close this page and return to the application to sign in.',
             }),
           ],
         }),
+        // Shown only when the page knows the client to sign in to (`hideSignInLink` in the
+        // renderer); the link in a verification email carries none, so usually it is hidden.
         node('card-content', {
           props: { gap: '12px' },
           children: [
