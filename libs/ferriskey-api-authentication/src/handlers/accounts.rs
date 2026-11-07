@@ -74,6 +74,8 @@ impl From<AccountEntry> for AccountEntryDto {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct AccountListResponse {
     pub data: Vec<AccountEntryDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize, IntoParams)]
@@ -153,7 +155,7 @@ fn cookie_value(cookie: &CookieManager, name: &str) -> Option<String> {
     path = "/login-actions/accounts",
     tag = "auth",
     summary = "List the accounts remembered by this browser",
-    description = "Returns the accounts the browser previously signed in with, derived only from the FERRISKEY_DEVICE cookie. The list is empty, with a 200, when the cookie is absent, unknown, issued for another realm, or the realm has the account chooser disabled.",
+    description = "Returns the accounts the browser previously signed in with, derived only from the FERRISKEY_DEVICE cookie. `client_name` is present only when the FERRISKEY_SESSION cookie belongs to an in-flight authorization request of the queried client. The list is empty, with a 200, when the cookie is absent, unknown, issued for another realm, or the realm has the account chooser disabled.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ListAccountsParams,
@@ -169,21 +171,35 @@ pub async fn list_accounts(
     cookie: CookieManager,
     Query(params): Query<ListAccountsParams>,
 ) -> Result<Json<AccountListResponse>, ApiError> {
+    let session_code =
+        cookie_value(&cookie, AUTH_SESSION_COOKIE).and_then(|value| Uuid::parse_str(&value).ok());
+    let client_id = params.client_id;
+
     let entries = state
         .service
         .list_accounts(ListAccountsInput {
-            realm_name,
+            realm_name: realm_name.clone(),
             device_token: cookie_value(&cookie, DEVICE_COOKIE),
             active_sso_token: cookie_value(&cookie, SSO_SESSION_COOKIE),
             max_age: params.max_age,
-            client_id: params.client_id,
-            session_code: cookie_value(&cookie, AUTH_SESSION_COOKIE)
-                .and_then(|code| Uuid::parse_str(&code).ok()),
+            client_id: client_id.clone(),
+            session_code,
         })
         .await?;
 
+    let client_name = match session_code {
+        Some(session_code) => {
+            state
+                .service
+                .client_name_of_auth_session(realm_name, session_code, client_id)
+                .await?
+        }
+        None => None,
+    };
+
     Ok(Json(AccountListResponse {
         data: entries.into_iter().map(AccountEntryDto::from).collect(),
+        client_name,
     }))
 }
 

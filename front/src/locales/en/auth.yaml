@@ -33,6 +33,7 @@ login:
 account_chooser:
   title: Choose an account
   description: Continue with an account you already used on this device.
+  continue_to: Choose an account to continue to <app>{{name}}</app>.
   loading: Loading your accounts
   last_used: 'Last used {{when}}'
   reauthentication: Confirm your password

@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CircleUser, X } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { AUTH_NAMESPACE, BRAND_NAME } from '../constants'
 import { avatarColorClass, avatarInitial } from '../utils/account-avatar'
 import './page-login.css'
@@ -17,6 +17,7 @@ export interface ChooserAccount {
 export interface PageAccountChooserProps {
   isLoading: boolean
   accounts: ChooserAccount[]
+  appName: string
   busySessionId: string | null
   errorMessage: string | null
   onContinue: (sessionId: string) => void
@@ -27,6 +28,7 @@ export interface PageAccountChooserProps {
 export default function PageAccountChooser({
   isLoading,
   accounts,
+  appName,
   busySessionId,
   errorMessage,
   onContinue,
@@ -37,7 +39,7 @@ export default function PageAccountChooser({
   const isBusy = busySessionId !== null
 
   const rowClass =
-    'flex min-h-[52px] w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60'
+    'flex min-h-[48px] w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60'
 
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
@@ -55,7 +57,14 @@ export default function PageAccountChooser({
                 <h1 className='login-title text-xl font-semibold tracking-tight text-foreground'>
                   {t('account_chooser.title')}
                 </h1>
-                <p className='text-sm text-muted-foreground'>{t('account_chooser.description')}</p>
+                <p className='text-sm text-muted-foreground'>
+                  <Trans
+                    t={t}
+                    i18nKey='account_chooser.continue_to'
+                    values={{ name: appName }}
+                    components={{ app: <span className='font-medium text-foreground' /> }}
+                  />
+                </p>
               </div>
 
               {errorMessage && (
@@ -71,14 +80,14 @@ export default function PageAccountChooser({
             <div className='p-6 md:border-l md:self-center'>
               {isLoading ? (
                 <div
-                  className='divide-y overflow-hidden rounded-lg border bg-card'
+                  className='-mx-3 space-y-1'
                   role='status'
                   aria-busy='true'
                   aria-label={t('account_chooser.loading')}
                 >
                   {[0, 1].map((index) => (
-                    <div key={index} className='flex min-h-[52px] items-center gap-3 px-3 py-2.5'>
-                      <Skeleton className='size-8 shrink-0 rounded-full' />
+                    <div key={index} className='flex min-h-[48px] items-center gap-3 px-3 py-2.5'>
+                      <Skeleton className='size-6 shrink-0 rounded-full' />
                       <div className='min-w-0 flex-1 space-y-1.5'>
                         <Skeleton className='h-3.5 w-1/2' />
                         <Skeleton className='h-3 w-3/4' />
@@ -88,7 +97,7 @@ export default function PageAccountChooser({
                 </div>
               ) : (
                 <ul
-                  className='divide-y overflow-hidden rounded-lg border bg-card'
+                  className='-mx-3 space-y-1'
                   aria-label={t('account_chooser.title')}
                 >
                   {accounts.map((account) => (
@@ -102,7 +111,7 @@ export default function PageAccountChooser({
                       >
                         <span
                           aria-hidden
-                          className={`flex size-8 shrink-0 items-center justify-center rounded-full text-[10px] font-medium text-white ${avatarColorClass(account.displayName, account.maskedEmail)}`}
+                          className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-medium text-white ${avatarColorClass(account.displayName, account.maskedEmail)}`}
                         >
                           {avatarInitial(account.displayName)}
                         </span>
@@ -136,15 +145,16 @@ export default function PageAccountChooser({
                       </Button>
                     </li>
                   ))}
-                  <li>
+                  <li role='presentation' className='mx-3 !mt-3 border-t' />
+                  <li className='!mt-3'>
                     <button
                       type='button'
                       className={rowClass}
                       disabled={isLoading || isBusy}
                       onClick={onUseAnother}
                     >
-                      <span aria-hidden className='flex size-8 shrink-0 items-center justify-center'>
-                        <CircleUser className='size-8 text-muted-foreground' strokeWidth={1.5} />
+                      <span aria-hidden className='flex size-6 shrink-0 items-center justify-center'>
+                        <CircleUser className='size-5 text-muted-foreground' strokeWidth={1.5} />
                       </span>
                       <span className='min-w-0 flex-1 truncate text-sm font-medium text-foreground'>
                         {t('account_chooser.use_another')}

@@ -9,6 +9,7 @@ use crate::domain::authentication::ports::{
     AccountSelectionService, AttachedDevice, AuthorizeAccounts, ListAccountsInput,
     SelectAccountInput, SelectAccountOutcome, SessionOrigin,
 };
+use crate::domain::client::ports::ClientRepository;
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::device_session::entities::AccountEntry;
 use crate::domain::device_session::ports::AccountChooserService;
@@ -255,6 +256,47 @@ impl AccountSelectionService for ApplicationService {
         let scope = self.scope_of_realm(&input.realm_name).await?;
 
         self.entries_in_scope(&scope, input).await
+    }
+
+    async fn client_name_of_auth_session(
+        &self,
+        realm_name: String,
+        session_code: Uuid,
+        client_id: String,
+    ) -> Result<Option<String>, CoreError> {
+        let scope = self.scope_of_realm(&realm_name).await?;
+
+        let Ok(auth_session) = self
+            .auth_service
+            .open_selection_auth_session(&scope, session_code)
+            .await
+        else {
+            return Ok(None);
+        };
+
+        let Ok(client) = self
+            .auth_service
+            .client_repository
+            .get_by_id(scope.id(), auth_session.client_id)
+            .await
+        else {
+            return Ok(None);
+        };
+        let Ok(client) = client.in_realm(&scope) else {
+            return Ok(None);
+        };
+        let client = client.into_inner();
+
+        if client.client_id != client_id {
+            return Ok(None);
+        }
+
+        let name = client.name.trim();
+        Ok(Some(if name.is_empty() {
+            client.client_id
+        } else {
+            name.to_string()
+        }))
     }
 
     async fn detach_account(

@@ -4,7 +4,7 @@
     // <Schemas>
   export type AccountEntryState = ("active" | "soft_expired" | "expired")
 export type AccountEntryDto = { display_name: string, is_active: boolean, last_seen_at?: (string | null), masked_email?: (string | null), requires_reauthentication: boolean, session_id: string, state: AccountEntryState }
-export type AccountListResponse = { data: Array<AccountEntryDto> }
+export type AccountListResponse = { client_name?: (string | null), data: Array<AccountEntryDto> }
 /**
  * Incomplete schema. see https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptionsjson
  */
@@ -3372,7 +3372,7 @@ export type delete_Delete_identity_provider = {
 
     }
 /**
- * Returns the accounts the browser previously signed in with, derived only from the FERRISKEY_DEVICE cookie. The list is empty, with a 200, when the cookie is absent, unknown, issued for another realm, or the realm has the account chooser disabled.
+ * Returns the accounts the browser previously signed in with, derived only from the FERRISKEY_DEVICE cookie. `client_name` is present only when the FERRISKEY_SESSION cookie belongs to an in-flight authorization request of the queried client. The list is empty, with a 200, when the cookie is absent, unknown, issued for another realm, or the realm has the account chooser disabled.
  */
 export type get_List_accounts = {
       method: "GET",
