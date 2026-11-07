@@ -881,6 +881,8 @@ where
                 input.dcr_enabled,
                 input.cimd_allowed_hosts,
                 input.allowed_resources,
+                input.account_chooser_enabled,
+                input.account_chooser_show_email,
             )
             .await?;
 

@@ -533,6 +533,13 @@ authentication:
       forgot_password_description: '登录页面上会出现“忘记密码”链接，并向账户上记录的地址发送重置邮件。'
       remember_me_label: 保持登录
       remember_me_description: '登录页面上会出现“记住我”复选框，浏览器重启后仍保持会话。'
+    account_chooser:
+      title: 账户选择器
+      description: 登录页面如何对待已在此浏览器上登录过账户的用户。
+      enabled_label: 提供账户选择器
+      enabled_description: 已在此浏览器上登录过一个或多个账户的用户，可以直接从中选择一个，而无需再次输入凭据。
+      show_email_label: 显示已遮盖的邮箱地址
+      show_email_description: 选择器会在每个账户旁显示已遮盖的邮箱地址。仅在名称本身不足以区分账户时才开启。
     protection:
       title: 登录保护
       description: 同一账户上反复失败后会发生什么。

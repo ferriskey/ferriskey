@@ -521,6 +521,13 @@ authentication:
       forgot_password_description: 'A "Forgot password" link appears on the sign-in page and sends a reset message to the address on the account.'
       remember_me_label: Stay signed in
       remember_me_description: 'A "Remember me" checkbox appears on the sign-in page and keeps the session across browser restarts.'
+    account_chooser:
+      title: Account chooser
+      description: How the sign-in page treats people who already signed in with an account on this browser.
+      enabled_label: Offer an account chooser
+      enabled_description: A person who has signed in with one or more accounts on this browser can pick one of them instead of typing their credentials again.
+      show_email_label: Show masked email addresses
+      show_email_description: The chooser shows a masked email address next to each account. Turn it on only if the name alone is not enough to tell accounts apart.
     protection:
       title: Sign-in protection
       description: What happens after repeated failures on the same account.

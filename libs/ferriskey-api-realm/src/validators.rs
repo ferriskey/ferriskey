@@ -103,6 +103,8 @@ pub struct UpdateRealmSettingValidator {
     pub cimd_allowed_hosts: Option<Vec<String>>,
     #[validate(custom(function = "validate_allowed_resources"))]
     pub allowed_resources: Option<Vec<String>>,
+    pub account_chooser_enabled: Option<bool>,
+    pub account_chooser_show_email: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -285,6 +287,33 @@ mod update_realm_setting_validator_tests {
             "login_aliases should be None when omitted"
         );
         assert_eq!(v.user_registration_enabled, Some(true));
+    }
+}
+
+#[cfg(test)]
+mod account_chooser_validator_tests {
+    use super::UpdateRealmSettingValidator;
+    use serde_json::json;
+    use validator::Validate;
+
+    #[test]
+    fn absent_flags_are_none() {
+        let v: UpdateRealmSettingValidator =
+            serde_json::from_value(json!({})).expect("deserializes");
+        assert!(v.validate().is_ok());
+        assert_eq!(v.account_chooser_enabled, None);
+        assert_eq!(v.account_chooser_show_email, None);
+    }
+
+    #[test]
+    fn true_and_false_are_carried() {
+        let v: UpdateRealmSettingValidator = serde_json::from_value(json!({
+            "account_chooser_enabled": true,
+            "account_chooser_show_email": false
+        }))
+        .expect("deserializes");
+        assert_eq!(v.account_chooser_enabled, Some(true));
+        assert_eq!(v.account_chooser_show_email, Some(false));
     }
 }
 

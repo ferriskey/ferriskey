@@ -116,6 +116,8 @@ impl<R: RealmRepository> RealmRepository for InvalidatingRealmRepository<R> {
         dcr_enabled: Option<bool>,
         cimd_allowed_hosts: Option<Vec<String>>,
         allowed_resources: Option<Vec<String>>,
+        account_chooser_enabled: Option<bool>,
+        account_chooser_show_email: Option<bool>,
     ) -> Result<RealmSetting, CoreError> {
         let updated = self
             .inner
@@ -154,6 +156,8 @@ impl<R: RealmRepository> RealmRepository for InvalidatingRealmRepository<R> {
                 dcr_enabled,
                 cimd_allowed_hosts,
                 allowed_resources,
+                account_chooser_enabled,
+                account_chooser_show_email,
             )
             .await;
         self.state.changed();
@@ -244,6 +248,8 @@ mod tests {
              _,
              _,
              _,
+             _,
+             _,
              _| {
                 let settings = RealmSetting::new(realm_id, None);
                 Box::pin(async move { Ok(settings) })
@@ -254,6 +260,8 @@ mod tests {
         repository
             .update_realm_setting(
                 RealmId::default(),
+                None,
+                None,
                 None,
                 None,
                 None,

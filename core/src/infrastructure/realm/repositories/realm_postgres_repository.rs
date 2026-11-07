@@ -287,6 +287,8 @@ impl RealmRepository for PostgresRealmRepository {
         dcr_enabled: Option<bool>,
         cimd_allowed_hosts: Option<Vec<String>>,
         allowed_resources: Option<Vec<String>>,
+        account_chooser_enabled: Option<bool>,
+        account_chooser_show_email: Option<bool>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -432,6 +434,14 @@ impl RealmRepository for PostgresRealmRepository {
 
         if let Some(cimd_allowed_hosts) = cimd_allowed_hosts {
             realm_setting.cimd_allowed_hosts = Set(cimd_allowed_hosts);
+        }
+
+        if let Some(account_chooser_enabled) = account_chooser_enabled {
+            realm_setting.account_chooser_enabled = Set(account_chooser_enabled);
+        }
+
+        if let Some(account_chooser_show_email) = account_chooser_show_email {
+            realm_setting.account_chooser_show_email = Set(account_chooser_show_email);
         }
 
         let retained_resources = allowed_resources.clone();
