@@ -69,6 +69,7 @@ impl From<UserSessionListParams> for SessionFilter {
             user_agent: params.user_agent,
             persistent: params.persistent,
             created: DateRange::new(params.created_from, params.created_to),
+            ..Self::default()
         }
     }
 }
@@ -144,6 +145,7 @@ mod tests {
                     Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
                     Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
                 ),
+                active_only: false,
             }
         );
     }

@@ -94,6 +94,8 @@ pub struct SessionFilter {
     pub user_agent: Option<String>,
     pub persistent: Option<bool>,
     pub created: DateRange,
+    /// Leave out the sessions whose lifetime is over.
+    pub active_only: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
