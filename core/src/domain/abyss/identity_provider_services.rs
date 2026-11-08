@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use tracing::instrument;
+use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::domain::authentication::value_objects::Identity;
@@ -413,6 +413,22 @@ where
             .resolve_user_for_link_management(&identity, &input.realm_name, input.user_id)
             .await?;
 
+        // Removing a link takes away a way to sign in to the account, so the
+        // same bound applies as for resetting its password.
+        if !self
+            .identity_provider_policy
+            .can_manage_user(&identity, scope.realm(), user.get())
+            .await?
+        {
+            warn!(
+                user_id = %user.get().id,
+                "Refused to delete a link of a user holding permissions the subject does not hold"
+            );
+            return Err(CoreError::Forbidden(
+                "cannot change a user holding permissions you do not hold".to_string(),
+            ));
+        }
+
         let (link, alias) = self
             .load_links_in_realm(&scope, &user)
             .await?
@@ -586,5 +602,120 @@ mod tests {
             .expect("listing succeeds");
 
         assert_eq!(page.metadata().total, 7);
+    }
+
+    mod delete_identity_provider_link {
+        use super::*;
+        use crate::domain::common::services::tests::create_test_user_with_realm;
+        use crate::domain::realm::entities::Unscoped;
+
+        struct Fixture {
+            service: TestService,
+            identity: Identity,
+            input: DeleteIdentityProviderLinkInput,
+        }
+
+        fn fixture(target_permissions: Vec<String>) -> Fixture {
+            let realm = create_test_realm_with_name("test-realm");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let caller_id = caller_of(&identity);
+            let target = create_test_user_with_realm(&realm);
+            let target_id = target.id;
+
+            let mut realm_repository = MockRealmRepository::new();
+            let found = realm.clone();
+            realm_repository.expect_get_by_name().returning(move |_| {
+                let found = found.clone();
+                Box::pin(async move { Ok(Some(found)) })
+            });
+
+            let caller_roles = vec![role_with(&realm, vec![Permissions::ManageUsers.name()])];
+            let target_roles = vec![role_with(&realm, target_permissions)];
+            let mut user_role_repository = MockUserRoleRepository::new();
+            user_role_repository
+                .expect_get_user_roles()
+                .withf(move |id| *id == caller_id)
+                .returning(move |_| {
+                    let roles = caller_roles.clone();
+                    Box::pin(async move { Ok(roles) })
+                });
+            user_role_repository
+                .expect_get_user_roles()
+                .withf(move |id| *id == target_id)
+                .returning(move |_| {
+                    let roles = target_roles.clone();
+                    Box::pin(async move { Ok(roles) })
+                });
+
+            let mut user_repository = MockUserRepository::new();
+            user_repository.expect_get_by_id().returning(move |_| {
+                let target = target.clone();
+                Box::pin(async move { Ok(Unscoped::new(target)) })
+            });
+            let user_repository = Arc::new(user_repository);
+
+            let mut provider_repository = MockIdentityProviderRepository::new();
+            provider_repository
+                .expect_list_identity_providers_by_realm()
+                .returning(|_, _| Box::pin(async { Ok(vec![]) }));
+            let mut link_repository = MockIdentityProviderLinkRepository::new();
+            link_repository
+                .expect_get_by_user_id()
+                .returning(|_| Box::pin(async { Ok(vec![]) }));
+            link_repository.expect_delete().never();
+
+            let policy = FerriskeyPolicy::new(
+                user_repository.clone(),
+                Arc::new(MockClientRepository::new()),
+                Arc::new(user_role_repository),
+            );
+            let service = IdentityProviderServiceImpl::new(
+                Arc::new(provider_repository),
+                Arc::new(policy),
+                Arc::new(realm_repository),
+                user_repository,
+                Arc::new(link_repository),
+                Arc::new(MockSecurityEventRepository::new()),
+            );
+
+            Fixture {
+                service,
+                identity,
+                input: DeleteIdentityProviderLinkInput {
+                    realm_name: "test-realm".to_string(),
+                    user_id: target_id,
+                    link_id: Uuid::new_v4(),
+                },
+            }
+        }
+
+        #[tokio::test]
+        async fn refuses_a_user_holding_more_than_the_caller() {
+            let Fixture {
+                service,
+                identity,
+                input,
+            } = fixture(vec![Permissions::ManageRealm.name()]);
+
+            let result = service.delete_identity_provider_link(identity, input).await;
+
+            assert!(
+                matches!(result, Err(CoreError::Forbidden(_))),
+                "got {result:?}"
+            );
+        }
+
+        #[tokio::test]
+        async fn goes_on_for_a_user_the_caller_covers() {
+            let Fixture {
+                service,
+                identity,
+                input,
+            } = fixture(vec![Permissions::ManageUsers.name()]);
+
+            let result = service.delete_identity_provider_link(identity, input).await;
+
+            assert!(matches!(result, Err(CoreError::NotFound)), "got {result:?}");
+        }
     }
 }

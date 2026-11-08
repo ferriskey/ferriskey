@@ -16,6 +16,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
+      attestations: write
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -63,6 +64,25 @@ jobs:
         env:
           CHECKSUMS: ${{ steps.archive.outputs.checksums }}
         run: cosign sign-blob --yes --bundle "$CHECKSUMS.sigstore.json" "$CHECKSUMS"
+
+      # SLSA build provenance for the archive and its checksums. Scorecard
+      # looks for a *.intoto.jsonl asset on the release, so the bundle is
+      # published under that name. To verify a download:
+      #   gh attestation verify ferriskey-<tag>-src.tar.gz --repo ferriskey/ferriskey
+      - name: attest provenance
+        id: attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            ${{ steps.archive.outputs.dir }}/*.tar.gz
+            ${{ steps.archive.outputs.dir }}/*-checksums.txt
+
+      - name: collect provenance
+        env:
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+          DIR: ${{ steps.archive.outputs.dir }}
+          TAG: ${{ github.ref_name }}
+        run: cp "$BUNDLE" "$DIR/ferriskey-$TAG.intoto.jsonl"
 
       - name: release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3

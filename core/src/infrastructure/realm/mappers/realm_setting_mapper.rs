@@ -77,6 +77,8 @@ impl From<Model> for RealmSetting {
             dcr_enabled: value.dcr_enabled,
             cimd_allowed_hosts: value.cimd_allowed_hosts,
             allowed_resources: value.allowed_resources,
+            account_chooser_enabled: value.account_chooser_enabled,
+            account_chooser_show_email: value.account_chooser_show_email,
         }
     }
 }
@@ -127,7 +129,22 @@ mod tests {
             dcr_enabled: false,
             cimd_allowed_hosts: vec![],
             allowed_resources: vec![],
+            account_chooser_enabled: false,
+            account_chooser_show_email: false,
         }
+    }
+
+    #[test]
+    fn maps_the_account_chooser_settings() {
+        let mut model = base_model();
+        model.account_chooser_enabled = true;
+        model.account_chooser_show_email = true;
+
+        let setting = RealmSetting::from(model);
+
+        assert!(setting.account_chooser_enabled);
+        assert!(setting.account_chooser_show_email);
+        assert!(!RealmSetting::from(base_model()).account_chooser_enabled);
     }
 
     #[test]

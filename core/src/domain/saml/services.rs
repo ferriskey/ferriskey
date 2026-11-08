@@ -486,6 +486,7 @@ where
                 input.relay_state.as_deref(),
             ),
             session,
+            registration_enabled: scope.user_registration_enabled(),
         })
     }
 

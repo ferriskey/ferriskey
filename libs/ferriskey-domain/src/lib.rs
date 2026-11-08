@@ -8,6 +8,7 @@ pub mod client;
 pub mod common;
 pub mod credential;
 pub mod crypto;
+pub mod device_session;
 pub mod elevation;
 pub mod maintenance;
 pub mod realm;

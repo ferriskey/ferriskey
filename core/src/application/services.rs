@@ -373,6 +373,18 @@ type ApplicationTridentService = TridentServiceImpl<
     ApplicationAuthService,
 >;
 
+type ApplicationAccountChooserService =
+    crate::domain::device_session::services::AccountChooserServiceImpl<
+        DeviceSessionRepo,
+        UserSessionRepo,
+        UserRepo,
+        RealmRepo,
+        crate::application::account_chooser::SessionResumptionAdapter,
+    >;
+
+type DeviceSessionRepo =
+    crate::infrastructure::repositories::device_session_repository::PostgresDeviceSessionRepository;
+
 type ApplicationSsoSession = crate::application::sso_session::SsoSessionAdapter<
     UserSessionRepo,
     SecurityEventRepo,
@@ -444,7 +456,7 @@ type ApplicationClientRegistrationService =
         ScopeMappingRepo,
     >;
 
-type ApplicationAuthService = AuthServiceImpl<
+pub(crate) type ApplicationAuthService = AuthServiceImpl<
     RealmRepo,
     ClientRepo,
     RedirectUriRepo,
@@ -715,9 +727,66 @@ pub struct ApplicationService {
     pub(crate) db: DatabaseConnection,
     pub email_verification_service: ApplicationEmailVerificationService,
     pub(crate) user_session_management_service: ApplicationUserSessionManagementService,
+    pub(crate) account_chooser_service: ApplicationAccountChooserService,
     /// Held directly so facade methods that are not backed by a single domain
     /// service (session revocation) can still write to the audit trail.
     pub(crate) security_event_repository: Arc<SecurityEventRepo>,
+}
+
+impl crate::domain::device_session::ports::AccountChooserService for ApplicationService {
+    async fn attach_session_to_device(
+        &self,
+        device_token: Option<&str>,
+        scope: &RealmScope,
+        user_session_id: uuid::Uuid,
+    ) -> Result<
+        (
+            crate::domain::device_session::entities::DeviceSession,
+            Option<String>,
+        ),
+        CoreError,
+    > {
+        self.account_chooser_service
+            .attach_session_to_device(device_token, scope, user_session_id)
+            .await
+    }
+
+    async fn list_entries(
+        &self,
+        device_token: Option<&str>,
+        scope: &RealmScope,
+        active_sso_token: Option<&str>,
+        max_age: Option<i64>,
+        client_id: uuid::Uuid,
+    ) -> Result<Vec<crate::domain::device_session::entities::AccountEntry>, CoreError> {
+        self.account_chooser_service
+            .list_entries(device_token, scope, active_sso_token, max_age, client_id)
+            .await
+    }
+
+    async fn select_entry(
+        &self,
+        device_token: Option<&str>,
+        scope: &RealmScope,
+        session_id: uuid::Uuid,
+        max_age: Option<i64>,
+        client_id: uuid::Uuid,
+    ) -> Result<crate::domain::device_session::entities::SelectedAccount, CoreError> {
+        self.account_chooser_service
+            .select_entry(device_token, scope, session_id, max_age, client_id)
+            .await
+    }
+
+    async fn detach_entry(
+        &self,
+        device_token: Option<&str>,
+        scope: &RealmScope,
+        session_id: uuid::Uuid,
+    ) -> Result<(), CoreError> {
+        self.account_chooser_service
+            .detach_entry(device_token, scope, session_id)
+            .await
+    }
 }
 
 impl CoreService for ApplicationService {

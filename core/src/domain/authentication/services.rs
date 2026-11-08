@@ -64,7 +64,7 @@ use crate::domain::{
             EvaluateClientScopesInput, EvaluateClientScopesResult, EvaluatedMapper, EvaluatedRoles,
             EvaluatedScope, GenerateTokenInput, GenerateTokensForUserInput, GetUserInfoInput,
             GrantTypeParams, Identity, IntrospectTokenInput, RegisterUserInput, RegisterUserOutput,
-            RegisterUserUrlContext, RevokeTokenInput, UserInfoResponse,
+            RegisterUserUrlContext, RegistrationSsoCookie, RevokeTokenInput, UserInfoResponse,
         },
     },
     client::{
@@ -2016,16 +2016,34 @@ where
             return Ok(());
         }
 
-        let reason = client
-            .maintenance_reason
-            .clone()
-            .unwrap_or_else(|| "This service is currently under maintenance".to_string());
         warn!(
             "User {} denied access to client {} (maintenance mode)",
             username, client.name
         );
 
-        Err(CoreError::ClientUnderMaintenance(reason))
+        Err(Self::maintenance_denial(client))
+    }
+
+    fn maintenance_denial(client: &Client) -> CoreError {
+        let reason = client
+            .maintenance_reason
+            .clone()
+            .unwrap_or_else(|| "This service is currently under maintenance".to_string());
+
+        CoreError::ClientUnderMaintenance(reason)
+    }
+
+    fn refuse_registration_in_maintenance(client: &Client) -> Result<(), CoreError> {
+        if !client.maintenance_enabled {
+            return Ok(());
+        }
+
+        warn!(
+            "Registration refused for client {} (maintenance mode)",
+            client.name
+        );
+
+        Err(Self::maintenance_denial(client))
     }
 
     /// The SSO session an authorization code was minted against, if any.
@@ -3078,6 +3096,37 @@ where
             .in_realm(scope)
             .map_err(|_| CoreError::InvalidClient)
             .map(|client| client.into_inner())
+    }
+
+    async fn resumable_registration_flow(
+        &self,
+        scope: &RealmScope,
+        session_code: Option<Uuid>,
+    ) -> Result<Option<(AuthSession, Client)>, CoreError> {
+        let Some(session_code) = session_code else {
+            return Ok(None);
+        };
+
+        let Ok(unscoped_session) = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+        else {
+            return Ok(None);
+        };
+
+        let Ok(scoped_session) = unscoped_session.in_realm(scope) else {
+            return Ok(None);
+        };
+
+        if !auth_session_can_resume(scoped_session.get(), scope.id(), Utc::now()) {
+            return Ok(None);
+        }
+
+        let auth_session = scoped_session.into_inner();
+        let client = self.client_of_session(scope, &auth_session).await?;
+
+        Ok(Some((auth_session, client)))
     }
 
     async fn realm_settings_of<'s>(
@@ -4342,15 +4391,12 @@ where
         }
     }
 
-    /// The live SSO session a `FERRISKEY_SSO` cookie names in this realm, with
-    /// its user, refusing an expired session or a disabled account.
-    async fn load_sso_session_user(
+    async fn find_sso_session(
         &self,
         cookie: &str,
         scope: &RealmScope,
-    ) -> Result<(Scoped<UserSession>, User), CoreError> {
-        let session = self
-            .user_session_repository
+    ) -> Result<Scoped<UserSession>, CoreError> {
+        self.user_session_repository
             .find_by_sso_token_hash(&sso_token_hash(cookie))
             .await
             .map_err(|e| {
@@ -4358,8 +4404,26 @@ where
                 CoreError::InternalServerError
             })?
             .in_realm(scope)?
-            .ok_or(CoreError::SessionNotFound)?;
+            .ok_or(CoreError::SessionNotFound)
+    }
 
+    /// The live SSO session a `FERRISKEY_SSO` cookie names in this realm, with
+    /// its user, refusing an expired session or a disabled account.
+    async fn load_sso_session_user(
+        &self,
+        cookie: &str,
+        scope: &RealmScope,
+    ) -> Result<(Scoped<UserSession>, User), CoreError> {
+        let session = self.find_sso_session(cookie, scope).await?;
+
+        self.live_session_user(session, scope).await
+    }
+
+    async fn live_session_user(
+        &self,
+        session: Scoped<UserSession>,
+        scope: &RealmScope,
+    ) -> Result<(Scoped<UserSession>, User), CoreError> {
         if session.get().is_expired() {
             return Err(CoreError::SessionExpired);
         }
@@ -4382,19 +4446,16 @@ where
         Ok((session, user))
     }
 
-    async fn handle_sso_session(
+    pub(crate) async fn resumable_session(
         &self,
-        cookie: String,
+        session: Scoped<UserSession>,
+        scope: &RealmScope,
         max_age: Option<i64>,
-        scope: RealmScope,
-        auth_session: AuthSession,
-        session_code: Uuid,
-        webapp_base_url: &str,
-    ) -> Result<AuthenticateOutput, CoreError> {
+        client_id: Uuid,
+    ) -> Result<(Scoped<UserSession>, User, Client), CoreError> {
         let realm_id = scope.id();
 
-        let (session, user) = self.load_sso_session_user(&cookie, &scope).await?;
-        let user_session_id = session.get().id;
+        let (session, user) = self.live_session_user(session, scope).await?;
 
         if let Some(max_age) = max_age
             && (Utc::now() - session.get().authenticated_at).num_seconds() > max_age
@@ -4404,10 +4465,10 @@ where
 
         let client = self
             .client_repository
-            .get_by_id(realm_id, auth_session.client_id)
+            .get_by_id(realm_id, client_id)
             .await
             .map_err(|_| CoreError::InvalidClient)?
-            .in_realm(&scope)
+            .in_realm(scope)
             .map_err(|_| CoreError::InvalidClient)?
             .into_inner();
 
@@ -4447,6 +4508,26 @@ where
                 "an authentication step is still due for this user".to_string(),
             ));
         }
+
+        Ok((session, user, client))
+    }
+
+    async fn handle_sso_session(
+        &self,
+        cookie: String,
+        max_age: Option<i64>,
+        scope: RealmScope,
+        auth_session: AuthSession,
+        session_code: Uuid,
+        webapp_base_url: &str,
+    ) -> Result<AuthenticateOutput, CoreError> {
+        let realm_id = scope.id();
+
+        let session = self.find_sso_session(&cookie, &scope).await?;
+        let (session, user, client) = self
+            .resumable_session(session, &scope, max_age, auth_session.client_id)
+            .await?;
+        let user_session_id = session.get().id;
 
         if let Err(e) = self
             .user_session_repository
@@ -5011,7 +5092,11 @@ where
             urlencoding::encode(&input.state.unwrap_or_default())
         );
 
-        Ok(AuthOutput { login_url, session })
+        Ok(AuthOutput {
+            login_url,
+            session,
+            registration_enabled: scope.user_registration_enabled(),
+        })
     }
 
     async fn get_certs(&self, realm_name: String) -> Result<Vec<JwkKey>, CoreError> {
@@ -5482,6 +5567,14 @@ where
             .map(|s| s.email_verification_enabled)
             .unwrap_or(false);
 
+        let resumable = self
+            .resumable_registration_flow(&scope, input.session_code)
+            .await?;
+
+        if let Some((_, client)) = &resumable {
+            Self::refuse_registration_in_maintenance(client)?;
+        }
+
         self.refuse_login_identifier_collision(&realm, &username, &email)
             .await?;
 
@@ -5608,21 +5701,16 @@ where
             .map_err(|err| warn!("Failed to notify UserCreated webhook: {}", err))
             .ok();
 
+        let pending_step = self.resolve_pending_auth_step(&user, &scope).await?.0;
+
         // If the registration happened inside an active OIDC authorization flow
         // (a FERRISKEY_SESSION cookie was present), resume that flow by
         // finalizing the auth session and returning the redirect URL back to
         // the original client, mirroring the behavior of the login handler.
         if let Some(session_code) = input.session_code
-            && let Ok(unscoped_session) = self
-                .auth_session_repository
-                .get_by_session_code(session_code)
-                .await
-            && let Ok(scoped_session) = unscoped_session.in_realm(&scope)
-            && auth_session_can_resume(scoped_session.get(), realm.id, Utc::now())
+            && let Some((auth_session, client)) = resumable
+            && pending_step.is_none()
         {
-            let auth_session = scoped_session.into_inner();
-            let client = self.client_of_session(&scope, &auth_session).await?;
-
             let output = match self
                 .consent_gate(
                     user.id,
@@ -5648,10 +5736,17 @@ where
                 }
             };
             let redirect_url = output.redirect_url.ok_or(CoreError::InternalServerError)?;
-            return Ok(RegisterUserOutput::Redirect { url: redirect_url });
+            let sso_cookie = output.sso_cookie.map(|secret| RegistrationSsoCookie {
+                secret,
+                max_age_secs: output.sso_session_max_age_secs,
+            });
+            return Ok(RegisterUserOutput::Redirect {
+                url: redirect_url,
+                sso_cookie,
+            });
         }
 
-        if let Some(step) = self.resolve_pending_auth_step(&user, &scope).await?.0 {
+        if let Some(step) = pending_step {
             return Ok(RegisterUserOutput::PendingAction {
                 message: pending_step_message(&step),
                 user_id: user.id,
@@ -7380,6 +7475,7 @@ mod tests {
             sso_token_hash: None,
             persistent: false,
             authenticated_at: chrono::Utc::now(),
+            device_session_id: None,
         }
     }
 
@@ -8040,6 +8136,7 @@ mod bound_session_tests {
             sso_token_hash: Some("hash".to_string()),
             persistent: false,
             authenticated_at: chrono::Utc::now(),
+            device_session_id: None,
         }
     }
 

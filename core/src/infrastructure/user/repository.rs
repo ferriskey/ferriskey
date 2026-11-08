@@ -309,7 +309,10 @@ impl UserRepository for PostgresUserRepository {
             .filter(crate::entity::users::Column::ClientId.eq(client_id))
             .one(&self.db)
             .await
-            .map_err(|_| CoreError::NotFound)?
+            .map_err(|e| {
+                error!("Error retrieving user by client ID: {:?}", e);
+                CoreError::InternalServerError
+            })?
             .ok_or(CoreError::NotFound)?;
 
         let user = user.into();
@@ -324,7 +327,7 @@ impl UserRepository for PostgresUserRepository {
             .await
             .map_err(|e| {
                 error!("Error retrieving user by ID: {:?}", e);
-                CoreError::NotFound
+                CoreError::InternalServerError
             })?;
 
         let (user_model, realm_model) =

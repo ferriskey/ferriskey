@@ -28,6 +28,7 @@ pub struct GetOpenIdConfigurationResponse {
     pub id_token_signing_alg_values_supported: Vec<String>,
     pub token_endpoint_auth_methods_supported: Vec<String>,
     pub code_challenge_methods_supported: Vec<String>,
+    pub prompt_values_supported: Vec<String>,
     /// OIDC Back-Channel Logout 1.0: clients may register a
     /// `backchannel_logout_uri` to be told when a session ends.
     pub backchannel_logout_supported: bool,
@@ -90,6 +91,9 @@ pub async fn get_openid_configuration(
         id_token_signing_alg_values_supported: vec!["RS256".to_string()],
         token_endpoint_auth_methods_supported: supported_token_endpoint_auth_methods(),
         code_challenge_methods_supported: vec!["S256".to_string()],
+        prompt_values_supported: ["none", "login", "consent", "create"]
+            .map(String::from)
+            .to_vec(),
         backchannel_logout_supported: true,
         backchannel_logout_session_supported: true,
         scopes_supported: settings.scopes_supported,

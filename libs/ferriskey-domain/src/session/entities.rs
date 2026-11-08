@@ -31,6 +31,7 @@ pub struct UserSession {
     pub persistent: bool,
     /// When the user last authenticated interactively in this session.
     pub authenticated_at: DateTime<Utc>,
+    pub device_session_id: Option<Uuid>,
 }
 
 impl UserSession {
@@ -56,6 +57,7 @@ impl UserSession {
             sso_token_hash: None,
             persistent: false,
             authenticated_at: now,
+            device_session_id: None,
         }
     }
 

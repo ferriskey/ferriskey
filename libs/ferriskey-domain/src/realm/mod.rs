@@ -248,6 +248,8 @@ pub struct RealmSetting {
     pub dcr_enabled: bool,
     pub cimd_allowed_hosts: Vec<String>,
     pub allowed_resources: Vec<String>,
+    pub account_chooser_enabled: bool,
+    pub account_chooser_show_email: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -298,6 +300,8 @@ impl RealmSetting {
             dcr_enabled: false,
             cimd_allowed_hosts: Vec::new(),
             allowed_resources: Vec::new(),
+            account_chooser_enabled: false,
+            account_chooser_show_email: false,
         }
     }
 }
