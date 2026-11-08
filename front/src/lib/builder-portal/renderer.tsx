@@ -16,6 +16,7 @@ import ProviderIcon, {
   isProviderIconKey,
 } from '@/components/provider-icon'
 import type { BuilderNode } from '../builder-core'
+import { withAuthFlow } from '@/lib/auth-flow-query'
 import { PortalInput } from './components/portal-input'
 
 type RenderOptions = {
@@ -74,6 +75,18 @@ type RenderOptions = {
    * take. Computed by `treeToReactNode`; callers never pass it.
    */
   fillPath?: Set<string>
+  /**
+   * The current page's query string (`useLocation().search`). The inline links between sign-in
+   * pages keep its `client_id`, `redirect_uri` and `state`, so a sign-in started by an
+   * application stays that application's.
+   */
+  authFlowSearch?: string
+  /**
+   * Drops `back_to_login_link` from the live portal. Set by a page that cannot tell which client a
+   * sign-in would be for ("Email verified" reached from the email link): the link would start the
+   * console's sign-in instead of the application's. The builder preview still shows the block.
+   */
+  hideSignInLink?: boolean
 }
 
 export function treeToReactNode(tree: BuilderNode[], options: RenderOptions = {}): ReactNode {
@@ -443,7 +456,7 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
         <a
           key={node.id}
           {...idAttr}
-          href='./forgot-password'
+          href={withAuthFlow('./forgot-password', options.authFlowSearch ?? '')}
           onClick={options.runtime ? undefined : (e) => e.preventDefault()}
           style={forgotPasswordLinkStyle(node)}
         >
@@ -458,11 +471,12 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
     // auth-flow navigation hints, same visual weight makes them feel like a
     // pair when both appear on the same page.
     case 'back_to_login_link':
+      if (options.runtime && options.hideSignInLink) return null
       return (
         <a
           key={node.id}
           {...idAttr}
-          href='./login'
+          href={withAuthFlow('./login', options.authFlowSearch ?? '')}
           onClick={options.runtime ? undefined : (e) => e.preventDefault()}
           style={forgotPasswordLinkStyle(node)}
         >
@@ -477,7 +491,7 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
         <a
           key={node.id}
           {...idAttr}
-          href='./register'
+          href={withAuthFlow('./register', options.authFlowSearch ?? '')}
           onClick={options.runtime ? undefined : (e) => e.preventDefault()}
           style={forgotPasswordLinkStyle(node)}
         >

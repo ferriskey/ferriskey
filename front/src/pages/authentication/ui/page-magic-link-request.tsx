@@ -4,11 +4,12 @@ import { FormField } from '@/components/ui/form'
 import { InputText } from '@/components/ui/input-text'
 import type { UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { Link, useParams } from 'react-router'
+import { Link, useLocation, useParams } from 'react-router'
 import type { MagicLinkSchema } from '@/pages/authentication/schemas/magic-link.schema'
 import { ArrowLeft, Mail } from 'lucide-react'
 import './page-login.css'
 import { AUTH_NAMESPACE, BRAND_NAME } from '../constants'
+import { withAuthFlow } from '@/lib/auth-flow-query'
 
 export interface PageMagicLinkRequestProps {
   form: UseFormReturn<MagicLinkSchema>
@@ -35,6 +36,7 @@ export default function PageMagicLinkRequest({
   isPending,
 }: PageMagicLinkRequestProps) {
   const { realm_name } = useParams()
+  const { search } = useLocation()
   const { t } = useTranslation(AUTH_NAMESPACE)
 
   return (
@@ -108,7 +110,7 @@ export default function PageMagicLinkRequest({
 
                   <div className='text-center text-xs text-muted-foreground md:text-sm'>
                     <Link
-                      to={`/realms/${realm_name}/authentication/login`}
+                      to={withAuthFlow(`/realms/${realm_name}/authentication/login`, search)}
                       className='inline-flex items-center gap-1 font-semibold text-foreground underline underline-offset-4'
                     >
                       <ArrowLeft className='h-3 w-3' />

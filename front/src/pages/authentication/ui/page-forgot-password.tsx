@@ -4,7 +4,8 @@ import { FormField } from '@/components/ui/form'
 import { InputText } from '@/components/ui/input-text'
 import type { UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { Link, useParams } from 'react-router'
+import { Link, useLocation, useParams } from 'react-router'
+import { withAuthFlow } from '@/lib/auth-flow-query'
 import { type ForgotPasswordSchema } from '../schemas/forgot-password.schema'
 import { CheckCircle } from 'lucide-react'
 import './page-login.css'
@@ -19,6 +20,7 @@ export interface PageForgotPasswordProps {
 
 export default function PageForgotPassword({ form, onSubmit, submitted, isPending }: PageForgotPasswordProps) {
   const { realm_name } = useParams()
+  const { search } = useLocation()
   const { t } = useTranslation(AUTH_NAMESPACE)
 
   return (
@@ -87,7 +89,7 @@ export default function PageForgotPassword({ form, onSubmit, submitted, isPendin
 
                   <div className='text-center text-xs text-muted-foreground md:text-sm'>
                     <Link
-                      to={`/realms/${realm_name}/authentication/login`}
+                      to={withAuthFlow(`/realms/${realm_name}/authentication/login`, search)}
                       className='font-semibold text-foreground underline underline-offset-4'
                     >
                       {t('actions.back_to_login')}

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import PageRegister from '../ui/page-register'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useRegistrationMutation } from '@/api/auth.api'
@@ -20,6 +20,7 @@ import {
 import { translate } from '@/lib/i18n'
 import { AUTH_NAMESPACE } from '../constants'
 import { followServerRedirect } from '@/lib/follow-server-redirect'
+import { withAuthFlow } from '@/lib/auth-flow-query'
 
 function buildRegisterSchema(policy: typeof DEFAULT_PASSWORD_POLICY) {
   return z
@@ -70,6 +71,7 @@ const FIELD_BY_REASON: Record<string, keyof RegisterSchema> = {
 
 export default function PageRegisterFeature() {
   const navigate = useNavigate()
+  const { search } = useLocation()
   const { t } = useTranslation(AUTH_NAMESPACE)
   const { realm_name } = useParams<RouterParams>()
   const { mutate: registration, data } = useRegistrationMutation()
@@ -81,7 +83,7 @@ export default function PageRegisterFeature() {
   const registerSchema = useMemo(() => buildRegisterSchema(resolvedPolicy), [resolvedPolicy])
 
   const backToLogin = () => {
-    navigate('../login')
+    navigate(withAuthFlow('../login', search))
   }
 
   const form = useForm<RegisterSchema>({
@@ -167,12 +169,12 @@ export default function PageRegisterFeature() {
       )
       navigate(`/realms/${realm_name}/overview`, { replace: true })
     } else {
-      navigate(`/realms/${realm_name}/authentication/check-your-email`, {
+      navigate(withAuthFlow(`/realms/${realm_name}/authentication/check-your-email`, search), {
         replace: true,
         state: { email: form.getValues('email') },
       })
     }
-  }, [data, setAuthTokens, navigate, realm_name, form])
+  }, [data, setAuthTokens, navigate, realm_name, form, search])
 
   return (
     <PageRegister

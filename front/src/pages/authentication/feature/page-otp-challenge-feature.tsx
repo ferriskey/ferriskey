@@ -12,11 +12,12 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AUTH_NAMESPACE } from '../constants'
 import { continueLogin } from '../utils/continue-login'
+import { withAuthFlow } from '@/lib/auth-flow-query'
 
 export default function PageOtpChallengeFeature() {
   const { realm_name } = useParams<RouterParams>()
   const { t } = useTranslation(AUTH_NAMESPACE)
-  const { state } = useLocation()
+  const { state, search } = useLocation()
   const navigate = useNavigate()
   const { mutate: challengeOtp, data: challengeOtpData, isPending, error } = useChallengeOtp()
 
@@ -30,7 +31,7 @@ export default function PageOtpChallengeFeature() {
   })
 
   const handleCancelClick = () => {
-    navigate(`/realms/${realm_name}/authentication/login`)
+    navigate(withAuthFlow(`/realms/${realm_name}/authentication/login`, search))
   }
 
   const handleClick = (values: ChallengeOtpSchema) => {
