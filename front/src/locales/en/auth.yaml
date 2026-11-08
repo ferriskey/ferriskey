@@ -105,6 +105,8 @@ reset_password:
   invalid: This reset link is invalid or has expired.
   request_new: Request a new reset link
   failed: Could not reset your password.
+  changed_title: Password changed
+  changed: Your password has been changed. You can now sign in with it from your application.
 
 update_password:
   title: Update your password

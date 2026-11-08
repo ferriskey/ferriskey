@@ -121,6 +121,8 @@ reset_password:
   invalid: 此重置链接无效或已过期。
   request_new: 申请新的重置链接
   failed: 无法重置您的密码。
+  changed_title: 密码已更改
+  changed: 您的密码已更改。现在可以在您的应用程序中使用新密码登录。
 
 update_password:
   title: 更新您的密码

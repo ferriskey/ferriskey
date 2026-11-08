@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useNavigate, useParams } from 'react-router'
+import { useLocation, useParams } from 'react-router'
 import { buildResetPasswordSchema, type ResetPasswordSchema } from '../schemas/reset-password.schema'
 import PageResetPassword from '../ui/page-reset-password'
 import { usePublicPasswordPolicy, DEFAULT_PASSWORD_POLICY } from '@/api/password-policy.api'
@@ -24,7 +24,6 @@ const FIELD_BY_API_FIELD: Record<string, keyof ResetPasswordSchema> = {
 export default function PageResetPasswordFeature() {
   const { realm_name } = useParams()
   const { t } = useTranslation(AUTH_NAMESPACE)
-  const navigate = useNavigate()
   const location = useLocation()
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
 
@@ -34,6 +33,7 @@ export default function PageResetPasswordFeature() {
 
   const [tokenStatus, setTokenStatus] = useState<TokenStatus>(missingParams ? 'invalid' : 'loading')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isCompleted, setIsCompleted] = useState(false)
   const { mutate: verifyToken } = useVerifyResetToken()
   const { mutate: resetPassword, isPending } = useResetPassword()
   const { setAuthTokens } = useAuth()
@@ -99,7 +99,7 @@ export default function PageResetPasswordFeature() {
             return
           }
 
-          navigate(`/realms/${realm_name}/overview`)
+          setIsCompleted(true)
         },
         onError: (error) => {
           const { byField, unattached } = partitionFieldErrors(
@@ -128,6 +128,7 @@ export default function PageResetPasswordFeature() {
         onSubmit={onSubmit}
         isPending={isPending}
         tokenStatus={tokenStatus}
+        isCompleted={isCompleted}
         errorMessage={errorMessage}
         policy={resolvedPolicy}
       />

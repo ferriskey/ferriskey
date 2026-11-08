@@ -6,7 +6,7 @@ import type { UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 import { type ResetPasswordSchema } from '../schemas/reset-password.schema'
-import { AlertTriangle, Loader2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
 import './page-login.css'
 import type { PublicPasswordPolicy } from '@/api/password-policy.api'
 import PasswordRequirements from '../components/password-requirements'
@@ -17,6 +17,7 @@ export interface PageResetPasswordProps {
   onSubmit: (data: ResetPasswordSchema) => void
   isPending: boolean
   tokenStatus: 'loading' | 'valid' | 'invalid'
+  isCompleted: boolean
   errorMessage: string | null
   policy: PublicPasswordPolicy
 }
@@ -26,6 +27,7 @@ export default function PageResetPassword({
   onSubmit,
   isPending,
   tokenStatus,
+  isCompleted,
   errorMessage,
   policy,
 }: PageResetPasswordProps) {
@@ -54,11 +56,13 @@ export default function PageResetPassword({
                       </p>
                     </div>
                     <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
-                      {t('reset_password.title')}
+                      {isCompleted ? t('reset_password.changed_title') : t('reset_password.title')}
                     </h1>
                   </div>
 
-                  {tokenStatus === 'loading' ? (
+                  {isCompleted ? (
+                    <PasswordChangedMessage />
+                  ) : tokenStatus === 'loading' ? (
                     <LoadingMessage />
                   ) : tokenStatus === 'invalid' ? (
                     <InvalidTokenMessage realmName={realm_name} />
@@ -140,6 +144,21 @@ function LoadingMessage() {
       <Loader2 className='h-6 w-6 animate-spin text-muted-foreground' />
       <p className='text-center text-sm text-muted-foreground'>
         {t('reset_password.checking')}
+      </p>
+    </div>
+  )
+}
+
+function PasswordChangedMessage() {
+  const { t } = useTranslation(AUTH_NAMESPACE)
+
+  return (
+    <div className='flex flex-col items-center gap-4 py-4'>
+      <div className='flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100'>
+        <CheckCircle2 className='h-6 w-6 text-emerald-600' />
+      </div>
+      <p className='text-center text-sm text-muted-foreground'>
+        {t('reset_password.changed')}
       </p>
     </div>
   )
