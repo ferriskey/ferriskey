@@ -102,8 +102,8 @@ spec:
               readOnly: false
               subPath: tmp
             - name: webapp-config
-              mountPath: /usr/share/nginx/html/config.json
-              subPath: config.json
+              mountPath: /usr/share/nginx/html/runtime.json
+              subPath: runtime.json
               readOnly: true
             - name: nginx-conf
               mountPath: /etc/nginx/conf.d
@@ -221,8 +221,8 @@ spec:
           configMap:
             name: {{ include "ferriskey.webapp.configJsonName" . }}
             items:
-              - key: config.json
-                path: config.json
+              - key: runtime.json
+                path: runtime.json
         {{- with $volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
