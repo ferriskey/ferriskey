@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::Utc;
+use uuid::Uuid;
 
 use crate::domain::{
     authentication::value_objects::Identity,
@@ -42,7 +43,7 @@ use crate::domain::{
         policies::{FerriskeyPolicy, ensure_policy},
     },
     realm::{
-        entities::{RealmScope, Scoped},
+        entities::{Realm, RealmScope, Scoped},
         ports::RealmRepository,
     },
     role::{
@@ -144,6 +145,40 @@ where
             scope_mapping_repository,
             policy,
         }
+    }
+
+    // A client secret is the credential of the client's service account, so
+    // handing it over hands that account over: the subject must hold what
+    // the account holds, as for a password reset.
+    async fn ensure_covers_service_account(
+        &self,
+        identity: &Identity,
+        realm: &Realm,
+        client_id: Uuid,
+        action: &'static str,
+    ) -> Result<(), CoreError> {
+        let service_account = match self.user_repository.get_by_client_id(client_id).await {
+            Ok(user) => user.across_realms(),
+            Err(CoreError::NotFound) => return Ok(()),
+            Err(error) => return Err(error),
+        };
+
+        if self
+            .policy
+            .can_manage_user(identity, realm, &service_account)
+            .await?
+        {
+            return Ok(());
+        }
+
+        warn!(
+            %client_id,
+            action,
+            "Refused to hand over the secret of a client whose service account holds permissions the subject does not hold"
+        );
+        Err(CoreError::Forbidden(format!(
+            "cannot {action} the secret of a client holding permissions you do not hold"
+        )))
     }
 }
 
@@ -885,30 +920,8 @@ where
             .map_err(|_| CoreError::NotFound)?
             .in_realm(&scope)?;
 
-        // The secret is the credential of the client's service account, so
-        // revealing it hands that account over: the subject must hold what
-        // the account holds, as for a password reset.
-        let service_account = match self.user_repository.get_by_client_id(client.get().id).await {
-            Ok(user) => Some(user.across_realms()),
-            Err(CoreError::NotFound) => None,
-            Err(error) => return Err(error),
-        };
-
-        if let Some(service_account) = service_account
-            && !self
-                .policy
-                .can_manage_user(&identity, &realm, &service_account)
-                .await?
-        {
-            warn!(
-                client_id = %client.get().id,
-                "Refused to reveal the secret of a client whose service account holds permissions the subject does not hold"
-            );
-            return Err(CoreError::Forbidden(
-                "cannot reveal the secret of a client holding permissions you do not hold"
-                    .to_string(),
-            ));
-        }
+        self.ensure_covers_service_account(&identity, &realm, client.get().id, "reveal")
+            .await?;
 
         self.security_event_repository
             .store_event(
@@ -963,6 +976,9 @@ where
         if client.get().public_client || client.get().secret.is_none() {
             return Err(CoreError::ClientHasNoSecret);
         }
+
+        self.ensure_covers_service_account(&identity, &realm, client.get().id, "rotate")
+            .await?;
 
         let new_secret = generate_random_string();
         let previous_expires_at = grace_period.map(|grace| Utc::now() + grace);
@@ -1791,7 +1807,7 @@ mod tests {
             });
         }
 
-        fn expect_service_account_holding(
+        pub(super) fn expect_service_account_holding(
             mocks: &mut Mocks,
             realm: &Realm,
             permission: Permissions,
@@ -1830,7 +1846,8 @@ mod tests {
 
             assert!(
                 matches!(result, Err(CoreError::Forbidden(_))),
-                "got {:?}", result.err()
+                "got {:?}",
+                result.err()
             );
         }
 
@@ -1877,7 +1894,8 @@ mod tests {
 
             assert!(
                 matches!(result, Err(CoreError::InternalServerError)),
-                "got {:?}", result.err()
+                "got {:?}",
+                result.err()
             );
         }
 
@@ -1929,6 +1947,13 @@ mod tests {
             });
         }
 
+        fn without_service_account(mocks: &mut Mocks) {
+            mocks
+                .user
+                .expect_get_by_client_id()
+                .returning(|_| Box::pin(async { Err(CoreError::NotFound) }));
+        }
+
         fn recording(mocks: &mut Mocks, expected: SecurityEventType) {
             mocks
                 .security_event
@@ -1954,6 +1979,7 @@ mod tests {
             let client = confidential(&realm);
             let client_id = client.id;
             serving(&mut mocks, client.clone());
+            without_service_account(&mut mocks);
             let rotated = client.clone();
             mocks
                 .client
@@ -1985,6 +2011,34 @@ mod tests {
         }
 
         #[tokio::test]
+        async fn rotating_refuses_a_service_account_that_holds_more_than_the_caller() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = confidential(&realm);
+            let client_id = client.id;
+            serving(&mut mocks, client);
+            super::reveal_client_secret::expect_service_account_holding(
+                &mut mocks,
+                &realm,
+                Permissions::ManageRealm,
+            );
+            mocks.client.expect_rotate_secret().never();
+            mocks.security_event.expect_store_event().never();
+
+            let result = mocks
+                .build()
+                .rotate_client_secret(identity, rotation(client_id, Some(3_600)))
+                .await;
+
+            assert!(
+                matches!(result, Err(CoreError::Forbidden(_))),
+                "got {:?}",
+                result.err()
+            );
+        }
+
+        #[tokio::test]
         async fn rotating_without_a_grace_period_keeps_no_previous_secret() {
             let realm = create_test_realm_with_name("acme");
             let identity = create_test_user_identity_with_realm(&realm);
@@ -1992,6 +2046,7 @@ mod tests {
             let client = confidential(&realm);
             let client_id = client.id;
             serving(&mut mocks, client.clone());
+            without_service_account(&mut mocks);
             mocks
                 .client
                 .expect_rotate_secret()
