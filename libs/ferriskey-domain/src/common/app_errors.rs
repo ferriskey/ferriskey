@@ -1010,7 +1010,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 136);
+        assert_eq!(every_variant_with_expected_reason().len(), 137);
     }
 
     #[test]
