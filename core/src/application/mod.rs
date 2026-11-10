@@ -185,6 +185,7 @@ pub mod services;
 pub mod abyss;
 pub mod account_chooser;
 pub mod account_security;
+pub mod account_selection;
 pub mod aegis;
 pub mod auth;
 pub mod authz;

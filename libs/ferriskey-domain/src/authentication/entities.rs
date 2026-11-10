@@ -296,6 +296,7 @@ pub struct AuthInput {
     pub prompt_consent: bool,
     pub issuer: Option<String>,
     pub resource: Option<String>,
+    pub max_age: Option<i64>,
 }
 
 pub struct ExchangeTokenInput {
