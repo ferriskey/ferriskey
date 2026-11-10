@@ -54,6 +54,7 @@ pub struct Model {
     pub allowed_resources: Vec<String>,
     pub account_chooser_enabled: bool,
     pub account_chooser_show_email: bool,
+    pub acr_loa_map: Json,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -99,6 +100,7 @@ pub enum Column {
     AllowedResources,
     AccountChooserEnabled,
     AccountChooserShowEmail,
+    AcrLoaMap,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -167,6 +169,7 @@ impl ColumnTrait for Column {
             Self::AllowedResources => ColumnType::Array(RcOrArc::new(ColumnType::Text)).def(),
             Self::AccountChooserEnabled => ColumnType::Boolean.def(),
             Self::AccountChooserShowEmail => ColumnType::Boolean.def(),
+            Self::AcrLoaMap => ColumnType::JsonBinary.def(),
         }
     }
 }

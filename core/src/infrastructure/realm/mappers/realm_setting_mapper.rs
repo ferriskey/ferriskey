@@ -1,4 +1,5 @@
 use chrono::{DateTime, TimeZone, Utc};
+use ferriskey_domain::authentication::assurance::AcrLoaMap;
 
 use crate::{
     domain::common::locale::{Locale, SupportedLocales},
@@ -79,6 +80,10 @@ impl From<Model> for RealmSetting {
             allowed_resources: value.allowed_resources,
             account_chooser_enabled: value.account_chooser_enabled,
             account_chooser_show_email: value.account_chooser_show_email,
+            acr_loa_map: serde_json::from_value(value.acr_loa_map).unwrap_or_else(|e| {
+                tracing::warn!(error = %e, "Ignoring an unreadable acr_loa_map");
+                AcrLoaMap::default()
+            }),
         }
     }
 }
@@ -131,6 +136,7 @@ mod tests {
             allowed_resources: vec![],
             account_chooser_enabled: false,
             account_chooser_show_email: false,
+            acr_loa_map: serde_json::json!({}),
         }
     }
 

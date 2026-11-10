@@ -724,6 +724,7 @@ mod tests {
             persistent: false,
             authenticated_at: chrono::Utc::now(),
             device_session_id: None,
+            authentication_factors: Vec::new(),
         }
     }
 
@@ -808,6 +809,7 @@ mod tests {
             persistent: false,
             authenticated_at: chrono::Utc::now() - Duration::hours(2),
             device_session_id: None,
+            authentication_factors: Vec::new(),
         };
         assert!(session.is_expired());
         assert_eq!(

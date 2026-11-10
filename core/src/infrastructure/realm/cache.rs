@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use ferriskey_domain::authentication::assurance::AcrLoaMap;
 use ferriskey_domain::realm::LoginAliases;
 use uuid::Uuid;
 
@@ -156,6 +157,7 @@ impl<R: RealmRepository> RealmRepository for CachedRealmRepository<R> {
         dcr_enabled: Option<bool>,
         cimd_allowed_hosts: Option<Vec<String>>,
         allowed_resources: Option<Vec<String>>,
+        acr_loa_map: Option<AcrLoaMap>,
     ) -> Result<RealmSetting, CoreError> {
         let updated = self
             .inner
@@ -194,6 +196,7 @@ impl<R: RealmRepository> RealmRepository for CachedRealmRepository<R> {
                 dcr_enabled,
                 cimd_allowed_hosts,
                 allowed_resources,
+                acr_loa_map,
             )
             .await;
         self.invalidate();

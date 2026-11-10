@@ -225,6 +225,7 @@ mod tests {
             persistent: false,
             authenticated_at: Utc::now(),
             device_session_id: None,
+            authentication_factors: Vec::new(),
         }
     }
 

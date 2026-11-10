@@ -97,6 +97,12 @@ pub struct IdTokenClaims {
     pub auth_time: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
+    pub acr: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub amr: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub nonce: Option<String>,
     pub typ: ClaimsTyp,
 

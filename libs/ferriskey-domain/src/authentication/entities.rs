@@ -296,6 +296,12 @@ pub struct AuthInput {
     pub prompt_consent: bool,
     pub issuer: Option<String>,
     pub resource: Option<String>,
+    /// The `acr` values the client asked for, space-separated in its order
+    /// of preference.
+    pub acr_values: Option<String>,
+    /// The `acr` was requested as an essential claim: refuse the request
+    /// when the realm knows none of the values.
+    pub acr_essential: bool,
 }
 
 pub struct ExchangeTokenInput {

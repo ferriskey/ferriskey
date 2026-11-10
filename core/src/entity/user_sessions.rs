@@ -25,6 +25,7 @@ pub struct Model {
     pub persistent: bool,
     pub authenticated_at: DateTimeWithTimeZone,
     pub device_session_id: Option<Uuid>,
+    pub authentication_factors: Json,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -41,6 +42,7 @@ pub enum Column {
     Persistent,
     AuthenticatedAt,
     DeviceSessionId,
+    AuthenticationFactors,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -83,6 +85,7 @@ impl ColumnTrait for Column {
             Self::Persistent => ColumnType::Boolean.def(),
             Self::AuthenticatedAt => ColumnType::TimestampWithTimeZone.def(),
             Self::DeviceSessionId => ColumnType::Uuid.def().null(),
+            Self::AuthenticationFactors => ColumnType::JsonBinary.def(),
         }
     }
 }
