@@ -71,6 +71,8 @@ const DEFAULT_LOGIN: LoginDraft = {
   passkey: false,
   magicLink: false,
   magicLinkTtl: 15,
+  accountChooser: false,
+  accountChooserShowEmail: false,
   loginAliases: ['username'],
 }
 
@@ -156,6 +158,8 @@ export default function PageRealmSettingsFeature() {
         passkey: loginSettings.passkey_enabled,
         magicLink: loginSettings.magic_link_enabled,
         magicLinkTtl: loginSettings.magic_link_ttl,
+        accountChooser: settings?.account_chooser_enabled ?? loginSettings.account_chooser_enabled,
+        accountChooserShowEmail: settings?.account_chooser_show_email ?? false,
         loginAliases:
           loginSettings.login_aliases.length > 0
             ? loginSettings.login_aliases
@@ -263,6 +267,8 @@ export default function PageRealmSettingsFeature() {
     login.value.passkey !== pristineLogin.passkey ||
     login.value.magicLink !== pristineLogin.magicLink ||
     login.value.magicLinkTtl !== pristineLogin.magicLinkTtl ||
+    login.value.accountChooser !== pristineLogin.accountChooser ||
+    login.value.accountChooserShowEmail !== pristineLogin.accountChooserShowEmail ||
     login.value.loginAliases.join() !== pristineLogin.loginAliases.join()
   const tokensDirty =
     tokensDraft.value.accessTokenLifetime !== pristineTokens.accessTokenLifetime ||
@@ -342,6 +348,8 @@ export default function PageRealmSettingsFeature() {
                 passkey_enabled: login.value.passkey,
                 magic_link_enabled: login.value.magicLink,
                 magic_link_ttl: login.value.magicLinkTtl,
+                account_chooser_enabled: login.value.accountChooser,
+                account_chooser_show_email: login.value.accountChooserShowEmail,
                 login_aliases: login.value.loginAliases,
               }
             : {}),

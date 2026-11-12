@@ -21,6 +21,8 @@ export interface SignInDraft {
   emailVerification: boolean
   forgotPassword: boolean
   rememberMe: boolean
+  accountChooser: boolean
+  accountChooserShowEmail: boolean
   lockoutThreshold: number
   lockoutDuration: number
 }
@@ -303,6 +305,31 @@ export default function PageSignInMethods({
           description={t('authentication.sign_in.access.description')}
         >
           <CapabilityRows capabilities={access(t)} value={value} onChange={onChange} />
+        </Section>
+
+        <Section
+          title={t('authentication.sign_in.account_chooser.title')}
+          description={t('authentication.sign_in.account_chooser.description')}
+        >
+          <FieldRow
+            label={t('authentication.sign_in.account_chooser.enabled_label')}
+            description={t('authentication.sign_in.account_chooser.enabled_description')}
+          >
+            <SwitchField
+              checked={value.accountChooser}
+              onCheckedChange={(v) => onChange({ accountChooser: v })}
+            />
+          </FieldRow>
+          <FieldRow
+            label={t('authentication.sign_in.account_chooser.show_email_label')}
+            description={t('authentication.sign_in.account_chooser.show_email_description')}
+          >
+            <SwitchField
+              checked={value.accountChooserShowEmail}
+              disabled={!value.accountChooser}
+              onCheckedChange={(v) => onChange({ accountChooserShowEmail: v })}
+            />
+          </FieldRow>
         </Section>
 
         <Section

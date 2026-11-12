@@ -1,5 +1,16 @@
 export namespace Schemas {
   // <Schemas>
+  export type AccountEntryState = "active" | "soft_expired" | "expired";
+  export type AccountEntryDto = {
+    display_name: string;
+    is_active: boolean;
+    last_seen_at?: (string | null) | undefined;
+    masked_email?: (string | null) | undefined;
+    requires_reauthentication: boolean;
+    session_id: string;
+    state: AccountEntryState;
+  };
+  export type AccountListResponse = { data: Array<AccountEntryDto> };
   export type AccountPublicKeyCredentialCreationOptionsJSON = Record<string, unknown>;
   export type AcsUrl = string;
   export type ActivateThemeResponse = { message: string };
@@ -94,7 +105,9 @@ export namespace Schemas {
     | { Conflict: string }
     | { ServiceUnavailable: string }
     | { OAuthError: { error: string; error_description: string } }
-    | { OAuthUnauthorized: { error: string; error_description: string } };
+    | { OAuthUnauthorized: { error: string; error_description: string } }
+    | { OAuthTooManyRequests: { error: string; error_description: string; retry_after_seconds: number } }
+    | { OAuthUnavailable: { error: string; error_description: string; retry_after_seconds: number } };
   export type ApiErrorResponse = { code: string; message: string; reason: string; status: number };
   export type AssignGroupRoleValidator = { role_id: string };
   export type AssignMemberRoleValidator = { role_id: string };
@@ -127,12 +140,30 @@ export namespace Schemas {
     token_endpoint: string;
     token_endpoint_auth_methods_supported: Array<string>;
   };
+  export type AuthzStateBody = { enabled: boolean; version: number };
+  export type AuthzenAction = { name: string; properties?: (Record<string, unknown> | null) | undefined };
+  export type AuthzenConfiguration = {
+    access_evaluation_endpoint: string;
+    access_evaluations_endpoint: string;
+    policy_decision_point: string;
+  };
+  export type AuthzenEntity = { id: string; properties?: (Record<string, unknown> | null) | undefined; type: string };
+  export type EvaluationError = { message: string; status: number };
+  export type ReasonAdmin = { policies: Array<string> };
+  export type BatchDecisionContext = Partial<{ error: EvaluationError | null; reason_admin: ReasonAdmin | null }>;
+  export type BatchDecision = { context?: (BatchDecisionContext | null) | undefined; decision: boolean };
+  export type BuiltinSchemaBody = { namespace: string; source: string };
   export type BulkDeleteUserResponse = { count: number; realm_name: string };
   export type BulkDeleteUserValidator = Partial<{ ids: Array<string> }>;
   export type BurnRecoveryCodeRequest = { recovery_code: string; recovery_code_format: string };
-  export type BurnRecoveryCodeResponse = Partial<{ login_url: string | null; required_actions: Array<RequiredAction> }>;
-  export type ChallengeOtpRequest = Partial<{ code: string }>;
   export type RequiredAction = "configure_otp" | "verify_email" | "update_password" | "configure_passkey";
+  export type BurnRecoveryCodeResponse = Partial<{ login_url: string | null; required_actions: Array<RequiredAction> }>;
+  export type EntityRefBody = { id: string; type: string };
+  export type PolicyBodyBody =
+    | { source: string; type: "static" }
+    | { links: Record<string, unknown>; template_id: string; type: "linked" };
+  export type CandidateValidator = { body: PolicyBodyBody; name: string };
+  export type ChallengeOtpRequest = Partial<{ code: string }>;
   export type ChallengeOtpResponse = Partial<{ required_actions: Array<RequiredAction>; url: string | null }>;
   export type ChangeOwnPasswordResponse = { message: string };
   export type ChangeOwnPasswordValidator = {
@@ -168,7 +199,7 @@ export namespace Schemas {
     refresh_token_lifetime?: (number | null) | undefined;
     registration_source: ClientRegistrationSource;
     require_pkce: boolean;
-    secret?: (null | Masked_String) | undefined;
+    secret?: (Masked_String | null) | undefined;
     service_account_enabled: boolean;
     temporary_token_lifetime?: (number | null) | undefined;
     token_exchange_enabled: boolean;
@@ -378,7 +409,7 @@ export namespace Schemas {
   export type CreateRealmValidator = Partial<{ display_name: string | null; name: string }>;
   export type CreateRedirectUriValidator = Partial<{ enabled: boolean; value: string }>;
   export type Role = {
-    client?: (null | Client) | undefined;
+    client?: (Client | null) | undefined;
     client_id?: (string | null) | undefined;
     created_at: string;
     description?: (string | null) | undefined;
@@ -437,6 +468,8 @@ export namespace Schemas {
   export type LoginAliases = Array<LoginAlias>;
   export type RealmSetting = {
     access_token_lifetime: number;
+    account_chooser_enabled: boolean;
+    account_chooser_show_email: boolean;
     allowed_resources: Array<string>;
     cimd_allowed_hosts: Array<string>;
     cimd_enabled: boolean;
@@ -478,7 +511,7 @@ export namespace Schemas {
     display_name?: (string | null) | undefined;
     id: RealmId;
     name: string;
-    settings?: (null | RealmSetting) | undefined;
+    settings?: (RealmSetting | null) | undefined;
     updated_at: string;
   };
   export type User = {
@@ -488,12 +521,13 @@ export namespace Schemas {
     email_verified: boolean;
     enabled: boolean;
     failed_login_attempts: number;
+    federation_provider_id?: (string | null) | undefined;
     firstname?: (string | null) | undefined;
     id: string;
     lastname?: (string | null) | undefined;
     locale?: (string | null) | undefined;
     locked_until?: (string | null) | undefined;
-    realm?: (null | Realm) | undefined;
+    realm?: (Realm | null) | undefined;
     realm_id: RealmId;
     required_actions: Array<RequiredAction>;
     roles?: (Array<Role> | null) | undefined;
@@ -559,7 +593,7 @@ export namespace Schemas {
   export type Webhook = {
     created_at: string;
     description?: (string | null) | undefined;
-    effective_retry_policy?: (null | RetryPolicyOverride) | undefined;
+    effective_retry_policy?: (RetryPolicyOverride | null) | undefined;
     endpoint: string;
     id: string;
     name?: (string | null) | undefined;
@@ -574,7 +608,7 @@ export namespace Schemas {
     endpoint: string;
     headers: Record<string, string>;
     name: string | null;
-    retry_policy: null | RetryPolicyOverride;
+    retry_policy: RetryPolicyOverride | null;
     subscribers: Array<WebhookTrigger>;
   }>;
   export type CredentialDataOverview =
@@ -601,6 +635,7 @@ export namespace Schemas {
     total_flows: number;
     unique_login_users: number;
   };
+  export type DecisionContext = { reason_admin: ReasonAdmin };
   export type DeleteClientResponse = { message: string; realm_name: string };
   export type DeleteClientScopeResponse = { message: string };
   export type DeleteEmailTemplateResponse = { message: string };
@@ -658,6 +693,24 @@ export namespace Schemas {
     userinfo: unknown;
   };
   export type EvaluateScopesValidator = { scope?: (string | null) | undefined; user_id: string };
+  export type EvaluationItem = Partial<{
+    action: AuthzenAction | null;
+    context: Record<string, unknown> | null;
+    resource: AuthzenEntity | null;
+    subject: AuthzenEntity | null;
+  }>;
+  export type EvaluationResponse = { context?: (DecisionContext | null) | undefined; decision: boolean };
+  export type EvaluationValidator = {
+    action: AuthzenAction;
+    context?: (Record<string, unknown> | null) | undefined;
+    resource: AuthzenEntity;
+    subject: AuthzenEntity;
+  };
+  export type EvaluationsSemanticBody = "execute_all" | "deny_on_first_deny" | "permit_on_first_permit";
+  export type EvaluationsOptions = Partial<{ evaluations_semantic: EvaluationsSemanticBody | null }>;
+  export type EvaluationsResponse = { evaluations: Array<BatchDecision> };
+  export type EvaluationsValidator = EvaluationItem &
+    Partial<{ evaluations: Array<EvaluationItem> | null; options: EvaluationsOptions | null }>;
   export type EventStatus = "success" | "failure";
   export type ExportEnvelope = {
     email_type?: (string | null) | undefined;
@@ -718,8 +771,8 @@ export namespace Schemas {
     userinfo_endpoint: string;
   };
   export type GetPortalLayoutResponse = { data: PortalLayout };
-  export type GetPublicDefaultPortalLayoutResponse = Partial<{ data: null | PortalLayout }>;
-  export type GetPublicPortalLayoutResponse = Partial<{ data: null | PortalLayout }>;
+  export type GetPublicDefaultPortalLayoutResponse = Partial<{ data: PortalLayout | null }>;
+  export type GetPublicPortalLayoutResponse = Partial<{ data: PortalLayout | null }>;
   export type GetRealmWhitelistResponse = { data: Array<RealmMaintenanceWhitelistEntry> };
   export type GetRoleResponse = { data: Role };
   export type GetStatsResponse = { data: FlowStats };
@@ -744,7 +797,7 @@ export namespace Schemas {
     id: GroupId;
     name: string;
     organization_id: OrganizationId;
-    parent_group_id?: (null | GroupId) | undefined;
+    parent_group_id?: (GroupId | null) | undefined;
     updated_at: string;
   };
   export type GroupAttribute = { created_at: string; group_id: GroupId; id: string; key: string; value: string };
@@ -823,7 +876,7 @@ export namespace Schemas {
   export type ImportPortalThemeValidator = {
     config?: Record<string, unknown> | undefined;
     ferriskey?: (string | null) | undefined;
-    layout?: (null | ImportPortalThemeLayoutValidator) | undefined;
+    layout?: (ImportPortalThemeLayoutValidator | null) | undefined;
     name: string;
     pages?: Record<string, unknown> | undefined;
     version?: (number | null) | undefined;
@@ -842,6 +895,12 @@ export namespace Schemas {
     token: string;
     token_type_hint: string | null;
   }>;
+  export type IssueBody = {
+    column?: (number | null) | undefined;
+    line?: (number | null) | undefined;
+    message: string;
+    policy?: (string | null) | undefined;
+  };
   export type OrganizationAttribute = {
     created_at: string;
     id: string;
@@ -930,7 +989,7 @@ export namespace Schemas {
       refresh_token_lifetime?: (number | null) | undefined;
       registration_source: ClientRegistrationSource;
       require_pkce: boolean;
-      secret?: (null | Masked_String) | undefined;
+      secret?: (Masked_String | null) | undefined;
       service_account_enabled: boolean;
       temporary_token_lifetime?: (number | null) | undefined;
       token_exchange_enabled: boolean;
@@ -1097,14 +1156,14 @@ export namespace Schemas {
       display_name?: (string | null) | undefined;
       id: RealmId;
       name: string;
-      settings?: (null | RealmSetting) | undefined;
+      settings?: (RealmSetting | null) | undefined;
       updated_at: string;
     }>;
     metadata: PageMetadata;
   };
   export type Paginated_Role = {
     data: Array<{
-      client?: (null | Client) | undefined;
+      client?: (Client | null) | undefined;
       client_id?: (string | null) | undefined;
       created_at: string;
       description?: (string | null) | undefined;
@@ -1152,7 +1211,7 @@ export namespace Schemas {
   export type Paginated_SecurityEvent = {
     data: Array<{
       actor_id?: (string | null) | undefined;
-      actor_type?: (null | ActorType) | undefined;
+      actor_type?: (ActorType | null) | undefined;
       details?: unknown | undefined;
       event_hash?: (Array<number> | null) | undefined;
       event_type: SecurityEventType;
@@ -1178,12 +1237,13 @@ export namespace Schemas {
       email_verified: boolean;
       enabled: boolean;
       failed_login_attempts: number;
+      federation_provider_id?: (string | null) | undefined;
       firstname?: (string | null) | undefined;
       id: string;
       lastname?: (string | null) | undefined;
       locale?: (string | null) | undefined;
       locked_until?: (string | null) | undefined;
-      realm?: (null | Realm) | undefined;
+      realm?: (Realm | null) | undefined;
       realm_id: RealmId;
       required_actions: Array<RequiredAction>;
       roles?: (Array<Role> | null) | undefined;
@@ -1210,7 +1270,7 @@ export namespace Schemas {
     data: Array<{
       created_at: string;
       description?: (string | null) | undefined;
-      effective_retry_policy?: (null | RetryPolicyOverride) | undefined;
+      effective_retry_policy?: (RetryPolicyOverride | null) | undefined;
       endpoint: string;
       id: string;
       name?: (string | null) | undefined;
@@ -1272,6 +1332,21 @@ export namespace Schemas {
     | "manage_organizations"
     | "view_organizations"
     | "evaluate_authorization";
+  export type PolicyResponse = {
+    body: PolicyBodyBody;
+    description?: (string | null) | undefined;
+    enabled: boolean;
+    id: string;
+    managed_by?: (string | null) | undefined;
+    name: string;
+    origin: string;
+  };
+  export type PolicyValidator = {
+    body: PolicyBodyBody;
+    description?: (string | null) | undefined;
+    enabled?: boolean | undefined;
+    name: string;
+  };
   export type PortalLayoutListItem = PortalLayout & { theme_count: number };
   export type PostConsentRequest = { approved_scopes?: Array<string> | undefined; consent_token: string };
   export type PostConsentResponse = { redirect_url: string };
@@ -1310,6 +1385,7 @@ export namespace Schemas {
     require_uppercase: boolean;
   };
   export type RealmLoginSetting = {
+    account_chooser_enabled: boolean;
     default_locale: string;
     display_name?: (string | null) | undefined;
     email_verification_enabled: boolean;
@@ -1350,6 +1426,7 @@ export namespace Schemas {
   export type RemoveRealmWhitelistEntryResponse = { message: string };
   export type ResourceOwner = { client_id: string; uri: string };
   export type ReplaceResourceOwnersValidator = { owners: Array<ResourceOwner> };
+  export type ReplaceSchemaValidator = { namespace?: (string | null) | undefined; source: string };
   export type RequestElevationValidator = Partial<{ otp_code: string | null; password: string | null }>;
   export type ResendVerificationEmailResponse = { message: string };
   export type ResetPasswordRequest = { new_password: string; token: string; token_id: string };
@@ -1380,9 +1457,10 @@ export namespace Schemas {
     updated_at: string;
   };
   export type SamlAuthnRequestParams = { RelayState?: (string | null) | undefined; SAMLRequest: string };
+  export type SchemaBody = { namespace: string; source: string; updated_at: string };
   export type SecurityEvent = {
     actor_id?: (string | null) | undefined;
-    actor_type?: (null | ActorType) | undefined;
+    actor_type?: (ActorType | null) | undefined;
     details?: unknown | undefined;
     event_hash?: (Array<number> | null) | undefined;
     event_type: SecurityEventType;
@@ -1398,6 +1476,9 @@ export namespace Schemas {
     trace_id?: (string | null) | undefined;
     user_agent?: (string | null) | undefined;
   };
+  export type SelectAccountRequest = { session_id: string };
+  export type SelectAccountStatus = "requires_credentials";
+  export type SelectAccountRequiresCredentials = { login_hint: string; status: SelectAccountStatus };
   export type SendMagicLinkRequest = { email: string; remember_me?: boolean | undefined };
   export type SendMagicLinkResponse = { message: string };
   export type SetClientSamlConfigValidator = Partial<{
@@ -1409,6 +1490,7 @@ export namespace Schemas {
     want_authn_requests_signed: boolean;
   }>;
   export type SetDefaultPortalLayoutResponse = { data: PortalLayout };
+  export type SetStateValidator = { enabled: boolean };
   export type UserAttribute = {
     created_at: string;
     id: string;
@@ -1421,6 +1503,23 @@ export namespace Schemas {
   export type SetUserAttributesResponse = { data: Array<UserAttribute> };
   export type SetUserAttributesValidator = { attributes: Record<string, string> };
   export type SetupOtpResponse = { issuer: string; otpauth_url: string; secret: string };
+  export type SimulatedEntity = {
+    id: string;
+    parents?: (Array<EntityRefBody> | null) | undefined;
+    properties?: (Record<string, unknown> | null) | undefined;
+    type: string;
+  };
+  export type SimulatedRequest = {
+    action: AuthzenAction;
+    context?: (Record<string, unknown> | null) | undefined;
+    resource: SimulatedEntity;
+    subject: SimulatedEntity;
+  };
+  export type SimulateValidator = {
+    entities?: Array<SimulatedEntity> | undefined;
+    policies?: (Array<CandidateValidator> | null) | undefined;
+    request: SimulatedRequest;
+  };
   export type SmtpEncryption = "tls" | "starttls" | "none";
   export type SmtpConfig = {
     created_at: string;
@@ -1445,12 +1544,19 @@ export namespace Schemas {
     total_processed: number;
     updated: number;
   };
+  export type TemplateResponse = {
+    description?: (string | null) | undefined;
+    id: string;
+    name: string;
+    source: string;
+  };
+  export type TemplateValidator = { description?: (string | null) | undefined; name: string; source: string };
   export type TestConnectionResponse = { details?: unknown | undefined; message: string; success: boolean };
   export type ThemeExportLayout = { name: string; tree: Array<Record<string, unknown>> };
   export type ThemeExportEnvelope = {
     config: Record<string, unknown>;
     ferriskey: string;
-    layout?: (null | ThemeExportLayout) | undefined;
+    layout?: (ThemeExportLayout | null) | undefined;
     name: string;
     pages: Record<string, unknown>;
     version: number;
@@ -1459,7 +1565,7 @@ export namespace Schemas {
   export type ToggleMaintenanceValidator = {
     enabled: boolean;
     reason?: (string | null) | undefined;
-    session_strategy?: (null | MaintenanceSessionStrategy) | undefined;
+    session_strategy?: (MaintenanceSessionStrategy | null) | undefined;
   };
   export type TokenType =
     | "urn:ietf:params:oauth:token-type:access_token"
@@ -1600,7 +1706,11 @@ export namespace Schemas {
     require_uppercase: boolean | null;
   }>;
   export type UpdatePasswordRequest = Partial<{ value: string }>;
-  export type UpdatePasswordResponse = { message: string } & Partial<{ required_actions: Array<RequiredAction>; url: string | null }>;
+  export type UpdatePasswordResponse = {
+    message: string;
+    required_actions?: Array<RequiredAction> | undefined;
+    url?: (string | null) | undefined;
+  };
   export type UpdatePortalLayoutResponse = { data: PortalLayout };
   export type UpdatePortalLayoutValidator = { name: string; tree: unknown };
   export type UpdatePostLogoutRedirectUriResponse = { data: RedirectUri };
@@ -1624,6 +1734,8 @@ export namespace Schemas {
   export type UpdateRealmSettingResponse = { data: Realm };
   export type UpdateRealmSettingValidator = Partial<{
     access_token_lifetime: number | null;
+    account_chooser_enabled: boolean | null;
+    account_chooser_show_email: boolean | null;
     allowed_resources: Array<string> | null;
     cimd_allowed_hosts: Array<string> | null;
     cimd_enabled: boolean | null;
@@ -1694,7 +1806,7 @@ export namespace Schemas {
     endpoint: string;
     headers: Record<string, string> | null;
     name: string | null;
-    retry_policy: null | RetryPolicyOverride;
+    retry_policy: RetryPolicyOverride | null;
     subscribers: Array<WebhookTrigger>;
   }>;
   export type UpsertAttributeValidator = { value: string };
@@ -1730,11 +1842,17 @@ export namespace Schemas {
     user_agent?: (string | null) | undefined;
     user_id: string;
   };
+  export type ValidatePoliciesValidator = { policies: Array<CandidateValidator> };
   export type ValidatePublicKeyResponse = Partial<{ required_actions: Array<RequiredAction>; url: string | null }>;
   export type ValidationErrorResponse = { errors: Array<ValidationError> };
+  export type ValidationResponse = { issues: Array<IssueBody>; valid: boolean };
   export type VerifyEmailRequest = { token: string };
   export type VerifyEmailResult = { user_id: string; verified: boolean };
-  export type VerifyOtpResponse = { message: string } & Partial<{ required_actions: Array<RequiredAction>; url: string | null }>;
+  export type VerifyOtpResponse = {
+    message: string;
+    required_actions?: Array<RequiredAction> | undefined;
+    url?: (string | null) | undefined;
+  };
   export type VerifyResetTokenRequest = { token_id: string };
   export type VerifyResetTokenResponse = { valid: boolean };
   export type WebOriginValue = string;
@@ -1752,6 +1870,15 @@ export namespace Schemas {
 export namespace Endpoints {
   // <Endpoints>
 
+  export type get_Get_authzen_configuration = {
+    method: "GET";
+    path: "/.well-known/authzen-configuration/realms/{realm_name}/authzen";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: { 200: Schemas.AuthzenConfiguration; 404: Schemas.ApiErrorResponse };
+  };
   export type get_Get_variables = {
     method: "GET";
     path: "/email-templates/variables/{email_type}";
@@ -1892,6 +2019,316 @@ export namespace Endpoints {
     };
     responses: { 200: Schemas.PostConsentResponse; 404: Schemas.ApiErrorResponse };
   };
+  export type get_List_policies = {
+    method: "GET";
+    path: "/realms/{realm_name}/authz/policies";
+    requestFormat: "json";
+    parameters: {
+      query: Partial<{ managed_by: string }>;
+      path: { realm_name: string };
+    };
+    responses: {
+      200: Array<Schemas.PolicyResponse>;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Create_policy = {
+    method: "POST";
+    path: "/realms/{realm_name}/authz/policies";
+    requestFormat: "json";
+    parameters: {
+      query: Partial<{ managed_by: string }>;
+      path: { realm_name: string };
+
+      body: Schemas.PolicyValidator;
+    };
+    responses: {
+      201: Schemas.PolicyResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
+      422: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Validate_policies = {
+    method: "POST";
+    path: "/realms/{realm_name}/authz/policies/validate";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.ValidatePoliciesValidator;
+    };
+    responses: {
+      200: Schemas.ValidationResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_policy = {
+    method: "GET";
+    path: "/realms/{realm_name}/authz/policies/{policy_id}";
+    requestFormat: "json";
+    parameters: {
+      query: Partial<{ managed_by: string }>;
+      path: { realm_name: string; policy_id: string };
+    };
+    responses: {
+      200: Schemas.PolicyResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+    };
+  };
+  export type put_Update_policy = {
+    method: "PUT";
+    path: "/realms/{realm_name}/authz/policies/{policy_id}";
+    requestFormat: "json";
+    parameters: {
+      query: Partial<{ managed_by: string }>;
+      path: { realm_name: string; policy_id: string };
+
+      body: Schemas.PolicyValidator;
+    };
+    responses: {
+      200: Schemas.PolicyResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
+      422: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Delete_policy = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/authz/policies/{policy_id}";
+    requestFormat: "json";
+    parameters: {
+      query: Partial<{ managed_by: string }>;
+      path: { realm_name: string; policy_id: string };
+    };
+    responses: {
+      204: unknown;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_schema = {
+    method: "GET";
+    path: "/realms/{realm_name}/authz/schema";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: {
+      200: Schemas.SchemaBody;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+    };
+  };
+  export type put_Put_schema = {
+    method: "PUT";
+    path: "/realms/{realm_name}/authz/schema";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.ReplaceSchemaValidator;
+    };
+    responses: {
+      200: Schemas.SchemaBody;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
+      422: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_builtin_schema = {
+    method: "GET";
+    path: "/realms/{realm_name}/authz/schema/builtin";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: {
+      200: Schemas.BuiltinSchemaBody;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Simulate = {
+    method: "POST";
+    path: "/realms/{realm_name}/authz/simulate";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.SimulateValidator;
+    };
+    responses: {
+      200: Schemas.EvaluationResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      422: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_state = {
+    method: "GET";
+    path: "/realms/{realm_name}/authz/state";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: {
+      200: Schemas.AuthzStateBody;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+    };
+  };
+  export type put_Set_state = {
+    method: "PUT";
+    path: "/realms/{realm_name}/authz/state";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.SetStateValidator;
+    };
+    responses: {
+      200: Schemas.AuthzStateBody;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_List_templates = {
+    method: "GET";
+    path: "/realms/{realm_name}/authz/templates";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: {
+      200: Array<Schemas.TemplateResponse>;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Create_policy_template = {
+    method: "POST";
+    path: "/realms/{realm_name}/authz/templates";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.TemplateValidator;
+    };
+    responses: {
+      201: Schemas.TemplateResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
+      422: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_policy_template = {
+    method: "GET";
+    path: "/realms/{realm_name}/authz/templates/{template_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; template_id: string };
+    };
+    responses: {
+      200: Schemas.TemplateResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+    };
+  };
+  export type put_Update_policy_template = {
+    method: "PUT";
+    path: "/realms/{realm_name}/authz/templates/{template_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; template_id: string };
+
+      body: Schemas.TemplateValidator;
+    };
+    responses: {
+      200: Schemas.TemplateResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
+      422: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Delete_policy_template = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/authz/templates/{template_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; template_id: string };
+    };
+    responses: {
+      204: unknown;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Evaluate = {
+    method: "POST";
+    path: "/realms/{realm_name}/authzen/access/v1/evaluation";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.EvaluationValidator;
+    };
+    responses: {
+      200: Schemas.EvaluationResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Evaluations = {
+    method: "POST";
+    path: "/realms/{realm_name}/authzen/access/v1/evaluations";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.EvaluationsValidator;
+    };
+    responses: {
+      200: Schemas.EvaluationsResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
   export type post_Broker_callback = {
     method: "POST";
     path: "/realms/{realm_name}/broker/{alias}/endpoint";
@@ -1924,7 +2361,6 @@ export namespace Endpoints {
         scope: string;
         state: string;
         nonce: string;
-        session_id: string;
         code_challenge: string;
         code_challenge_method: string;
       }>;
@@ -3021,6 +3457,43 @@ export namespace Endpoints {
       path: { realm_name: string; alias: string };
     };
     responses: { 200: Schemas.DeleteIdentityProviderResponse; 401: unknown; 403: unknown; 404: unknown; 409: unknown };
+  };
+  export type get_List_accounts = {
+    method: "GET";
+    path: "/realms/{realm_name}/login-actions/accounts";
+    requestFormat: "json";
+    parameters: {
+      query: { client_id: string; max_age?: number | undefined };
+      path: { realm_name: string };
+    };
+    responses: { 200: Schemas.AccountListResponse; 500: Schemas.ApiErrorResponse };
+  };
+  export type post_Select_account = {
+    method: "POST";
+    path: "/realms/{realm_name}/login-actions/accounts/select";
+    requestFormat: "json";
+    parameters: {
+      query: Partial<{ max_age: number }>;
+      path: { realm_name: string };
+
+      body: Schemas.SelectAccountRequest;
+    };
+    responses: {
+      200: Schemas.SelectAccountRequiresCredentials;
+      302: unknown;
+      401: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Remove_account = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/login-actions/accounts/{session_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; session_id: string };
+    };
+    responses: { 204: unknown; 404: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse };
   };
   export type post_Authenticate = {
     method: "POST";
@@ -4227,6 +4700,7 @@ export namespace Endpoints {
         prompt: string;
         max_age: number;
         resource: string;
+        login_hint: string;
       }>;
       path: { realm_name: string };
     };
@@ -4340,6 +4814,7 @@ export namespace Endpoints {
       400: Schemas.OAuth2ErrorResponse;
       401: Schemas.TokenUnauthorizedResponse;
       404: Schemas.ApiErrorResponse;
+      429: Schemas.OAuth2ErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
@@ -5488,12 +5963,20 @@ export namespace Endpoints {
 // <EndpointByMethod>
 export type EndpointByMethod = {
   get: {
+    "/.well-known/authzen-configuration/realms/{realm_name}/authzen": Endpoints.get_Get_authzen_configuration;
     "/email-templates/variables/{email_type}": Endpoints.get_Get_variables;
     "/realms/{name}": Endpoints.get_Get_realm;
     "/realms/{name}/login-settings": Endpoints.get_Get_login_realm_settings_handler;
     "/realms/{realm_name}/.well-known/oauth-authorization-server/realms/{realm_name}": Endpoints.get_Get_authorization_server_metadata;
     "/realms/{realm_name}/.well-known/openid-configuration": Endpoints.get_Get_openid_configuration;
     "/realms/{realm_name}/auth/consent": Endpoints.get_Get_consent;
+    "/realms/{realm_name}/authz/policies": Endpoints.get_List_policies;
+    "/realms/{realm_name}/authz/policies/{policy_id}": Endpoints.get_Get_policy;
+    "/realms/{realm_name}/authz/schema": Endpoints.get_Get_schema;
+    "/realms/{realm_name}/authz/schema/builtin": Endpoints.get_Get_builtin_schema;
+    "/realms/{realm_name}/authz/state": Endpoints.get_Get_state;
+    "/realms/{realm_name}/authz/templates": Endpoints.get_List_templates;
+    "/realms/{realm_name}/authz/templates/{template_id}": Endpoints.get_Get_policy_template;
     "/realms/{realm_name}/broker/{alias}/login": Endpoints.get_Broker_login;
     "/realms/{realm_name}/client-scopes": Endpoints.get_Get_client_scopes;
     "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.get_Get_client_scope;
@@ -5522,6 +6005,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/federation/providers/{id}": Endpoints.get_Get_provider;
     "/realms/{realm_name}/identity-providers": Endpoints.get_List_identity_providers;
     "/realms/{realm_name}/identity-providers/{alias}": Endpoints.get_Get_identity_provider;
+    "/realms/{realm_name}/login-actions/accounts": Endpoints.get_List_accounts;
     "/realms/{realm_name}/login-actions/setup-otp": Endpoints.get_Setup_otp;
     "/realms/{realm_name}/login-actions/verify-magic-link": Endpoints.get_Verify_magic_link;
     "/realms/{realm_name}/organizations": Endpoints.get_List_organizations;
@@ -5581,6 +6065,12 @@ export type EndpointByMethod = {
   post: {
     "/realms": Endpoints.post_Create_realm;
     "/realms/{realm_name}/auth/consent": Endpoints.post_Post_consent;
+    "/realms/{realm_name}/authz/policies": Endpoints.post_Create_policy;
+    "/realms/{realm_name}/authz/policies/validate": Endpoints.post_Validate_policies;
+    "/realms/{realm_name}/authz/simulate": Endpoints.post_Simulate;
+    "/realms/{realm_name}/authz/templates": Endpoints.post_Create_policy_template;
+    "/realms/{realm_name}/authzen/access/v1/evaluation": Endpoints.post_Evaluate;
+    "/realms/{realm_name}/authzen/access/v1/evaluations": Endpoints.post_Evaluations;
     "/realms/{realm_name}/broker/{alias}/endpoint": Endpoints.post_Broker_callback;
     "/realms/{realm_name}/client-scopes": Endpoints.post_Create_client_scope;
     "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers": Endpoints.post_Create_protocol_mapper;
@@ -5601,6 +6091,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/federation/providers/{id}/sync-users": Endpoints.post_Sync_users;
     "/realms/{realm_name}/federation/providers/{id}/test-connection": Endpoints.post_Test_connection;
     "/realms/{realm_name}/identity-providers": Endpoints.post_Create_identity_provider;
+    "/realms/{realm_name}/login-actions/accounts/select": Endpoints.post_Select_account;
     "/realms/{realm_name}/login-actions/authenticate": Endpoints.post_Authenticate;
     "/realms/{realm_name}/login-actions/burn-recovery-code": Endpoints.post_Burn_recovery_code;
     "/realms/{realm_name}/login-actions/challenge-otp": Endpoints.post_Challenge_otp;
@@ -5654,6 +6145,10 @@ export type EndpointByMethod = {
   put: {
     "/realms/{name}": Endpoints.put_Update_realm;
     "/realms/{name}/settings": Endpoints.put_Update_realm_setting;
+    "/realms/{realm_name}/authz/policies/{policy_id}": Endpoints.put_Update_policy;
+    "/realms/{realm_name}/authz/schema": Endpoints.put_Put_schema;
+    "/realms/{realm_name}/authz/state": Endpoints.put_Set_state;
+    "/realms/{realm_name}/authz/templates/{template_id}": Endpoints.put_Update_policy_template;
     "/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}": Endpoints.put_Assign_default_scope;
     "/realms/{realm_name}/clients/{client_id}/maintenance": Endpoints.put_Toggle_maintenance;
     "/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}": Endpoints.put_Assign_optional_scope;
@@ -5687,6 +6182,8 @@ export type EndpointByMethod = {
   };
   delete: {
     "/realms/{name}": Endpoints.delete_Delete_realm;
+    "/realms/{realm_name}/authz/policies/{policy_id}": Endpoints.delete_Delete_policy;
+    "/realms/{realm_name}/authz/templates/{template_id}": Endpoints.delete_Delete_policy_template;
     "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.delete_Delete_client_scope;
     "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}": Endpoints.delete_Delete_protocol_mapper;
     "/realms/{realm_name}/clients/{client_id}": Endpoints.delete_Delete_client;
@@ -5701,6 +6198,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/email-templates/{template_id}": Endpoints.delete_Delete_template;
     "/realms/{realm_name}/federation/providers/{id}": Endpoints.delete_Delete_provider;
     "/realms/{realm_name}/identity-providers/{alias}": Endpoints.delete_Delete_identity_provider;
+    "/realms/{realm_name}/login-actions/accounts/{session_id}": Endpoints.delete_Remove_account;
     "/realms/{realm_name}/organizations/{organization_id}": Endpoints.delete_Delete_organization;
     "/realms/{realm_name}/organizations/{organization_id}/attributes/{key}": Endpoints.delete_Delete_attribute;
     "/realms/{realm_name}/organizations/{organization_id}/groups/{group_id}": Endpoints.delete_Delete_group;
