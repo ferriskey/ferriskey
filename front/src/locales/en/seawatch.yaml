@@ -40,6 +40,9 @@ event:
   webhook_delivery_exhausted: Webhook delivery gave up
   identity_provider_link_removed: Identity provider link removed
   token_exchanged: Token exchanged
+  account_selected: Account selected
+  account_selection_denied: Account selection refused
+  device_session_created: Device remembered
   unknown: Unrecognised event
 
 metrics:

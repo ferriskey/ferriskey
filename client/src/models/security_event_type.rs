@@ -23,8 +23,16 @@ pub enum SecurityEventType {
     LoginFailure,
     #[serde(rename = "password_reset")]
     PasswordReset,
+    #[serde(rename = "password_reset_requested")]
+    PasswordResetRequested,
+    #[serde(rename = "password_reset_completed")]
+    PasswordResetCompleted,
+    #[serde(rename = "password_imported")]
+    PasswordImported,
     #[serde(rename = "user_created")]
     UserCreated,
+    #[serde(rename = "user_email_verified")]
+    UserEmailVerified,
     #[serde(rename = "user_deleted")]
     UserDeleted,
     #[serde(rename = "role_assigned")]
@@ -35,14 +43,46 @@ pub enum SecurityEventType {
     RoleCreated,
     #[serde(rename = "role_removed")]
     RoleRemoved,
+    #[serde(rename = "role_updated")]
+    RoleUpdated,
+    #[serde(rename = "role_permission_updated")]
+    RolePermissionUpdated,
     #[serde(rename = "client_created")]
     ClientCreated,
     #[serde(rename = "client_deleted")]
     ClientDeleted,
     #[serde(rename = "client_secret_rotated")]
     ClientSecretRotated,
+    #[serde(rename = "client_secret_viewed")]
+    ClientSecretViewed,
     #[serde(rename = "realm_config_changed")]
     RealmConfigChanged,
+    #[serde(rename = "email_not_sent")]
+    EmailNotSent,
+    #[serde(rename = "email_sent")]
+    EmailSent,
+    #[serde(rename = "client_maintenance_enabled")]
+    ClientMaintenanceEnabled,
+    #[serde(rename = "client_maintenance_disabled")]
+    ClientMaintenanceDisabled,
+    #[serde(rename = "session_created")]
+    SessionCreated,
+    #[serde(rename = "session_revoked")]
+    SessionRevoked,
+    #[serde(rename = "identity_provider_link_removed")]
+    IdentityProviderLinkRemoved,
+    #[serde(rename = "webhook_delivery_exhausted")]
+    WebhookDeliveryExhausted,
+    #[serde(rename = "token_exchanged")]
+    TokenExchanged,
+    #[serde(rename = "account_selected")]
+    AccountSelected,
+    #[serde(rename = "account_selection_denied")]
+    AccountSelectionDenied,
+    #[serde(rename = "device_session_created")]
+    DeviceSessionCreated,
+    #[serde(rename = "unknown")]
+    Unknown,
 }
 
 impl std::fmt::Display for SecurityEventType {
@@ -51,16 +91,36 @@ impl std::fmt::Display for SecurityEventType {
             Self::LoginSuccess => write!(f, "login_success"),
             Self::LoginFailure => write!(f, "login_failure"),
             Self::PasswordReset => write!(f, "password_reset"),
+            Self::PasswordResetRequested => write!(f, "password_reset_requested"),
+            Self::PasswordResetCompleted => write!(f, "password_reset_completed"),
+            Self::PasswordImported => write!(f, "password_imported"),
             Self::UserCreated => write!(f, "user_created"),
+            Self::UserEmailVerified => write!(f, "user_email_verified"),
             Self::UserDeleted => write!(f, "user_deleted"),
             Self::RoleAssigned => write!(f, "role_assigned"),
             Self::RoleUnassigned => write!(f, "role_unassigned"),
             Self::RoleCreated => write!(f, "role_created"),
             Self::RoleRemoved => write!(f, "role_removed"),
+            Self::RoleUpdated => write!(f, "role_updated"),
+            Self::RolePermissionUpdated => write!(f, "role_permission_updated"),
             Self::ClientCreated => write!(f, "client_created"),
             Self::ClientDeleted => write!(f, "client_deleted"),
             Self::ClientSecretRotated => write!(f, "client_secret_rotated"),
+            Self::ClientSecretViewed => write!(f, "client_secret_viewed"),
             Self::RealmConfigChanged => write!(f, "realm_config_changed"),
+            Self::EmailNotSent => write!(f, "email_not_sent"),
+            Self::EmailSent => write!(f, "email_sent"),
+            Self::ClientMaintenanceEnabled => write!(f, "client_maintenance_enabled"),
+            Self::ClientMaintenanceDisabled => write!(f, "client_maintenance_disabled"),
+            Self::SessionCreated => write!(f, "session_created"),
+            Self::SessionRevoked => write!(f, "session_revoked"),
+            Self::IdentityProviderLinkRemoved => write!(f, "identity_provider_link_removed"),
+            Self::WebhookDeliveryExhausted => write!(f, "webhook_delivery_exhausted"),
+            Self::TokenExchanged => write!(f, "token_exchanged"),
+            Self::AccountSelected => write!(f, "account_selected"),
+            Self::AccountSelectionDenied => write!(f, "account_selection_denied"),
+            Self::DeviceSessionCreated => write!(f, "device_session_created"),
+            Self::Unknown => write!(f, "unknown"),
         }
     }
 }

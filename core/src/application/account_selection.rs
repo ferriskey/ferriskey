@@ -1,17 +1,69 @@
 use chrono::Utc;
+use ferriskey_compass::entities::{FlowId, FlowStepName};
+use ferriskey_compass::value_objects::StepOutcome;
+use tracing::warn;
 use uuid::Uuid;
 
 use crate::ApplicationService;
 use crate::domain::authentication::ports::{
     AccountSelectionService, AttachedDevice, AuthorizeAccounts, ListAccountsInput,
-    SelectAccountInput, SelectAccountOutcome,
+    SelectAccountInput, SelectAccountOutcome, SessionOrigin,
 };
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::device_session::entities::AccountEntry;
 use crate::domain::device_session::ports::AccountChooserService;
 use crate::domain::realm::entities::RealmScope;
+use crate::domain::seawatch::{
+    ActorType, EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType,
+};
+
+struct AccountAudit {
+    event_type: SecurityEventType,
+    session_id: Uuid,
+    device_session_id: Option<Uuid>,
+    reason: Option<&'static str>,
+    origin: Option<SessionOrigin>,
+}
 
 impl ApplicationService {
+    async fn record_account_audit(&self, scope: &RealmScope, audit: AccountAudit) {
+        let Some(session) = self
+            .auth_service
+            .session_in_scope(scope, audit.session_id)
+            .await
+        else {
+            return;
+        };
+
+        let mut details = serde_json::json!({
+            "via": "account_chooser",
+            "device_session_id": audit.device_session_id,
+        });
+        if let Some(reason) = audit.reason {
+            details["reason"] = serde_json::Value::from(reason);
+        }
+
+        let (ip_address, user_agent) = match audit.origin {
+            Some(origin) => (origin.ip_address, origin.user_agent),
+            None => (session.ip_address, session.user_agent),
+        };
+
+        let status = match audit.reason {
+            Some(_) => EventStatus::Failure,
+            None => EventStatus::Success,
+        };
+
+        let event = SecurityEvent::new(scope.id(), audit.event_type, status, session.user_id)
+            .with_actor(session.user_id, ActorType::User)
+            .with_target("session".to_string(), session.id, None)
+            .with_context(ip_address, user_agent, None)
+            .with_details(details);
+
+        if let Err(e) = self.security_event_repository.store_event(event).await {
+            warn!(session_id = %audit.session_id, error = %e, "Failed to record an account chooser event in the audit log");
+        }
+    }
+
     async fn scope_of_realm(&self, realm_name: &str) -> Result<RealmScope, CoreError> {
         RealmScope::resolve(self.auth_service.realm_repository.as_ref(), realm_name).await
     }
@@ -67,11 +119,13 @@ fn stricter_max_age(stored: Option<i64>, requested: Option<i64>) -> Option<i64> 
     }
 }
 
-fn is_refusal(error: &CoreError) -> bool {
-    matches!(
-        error,
-        CoreError::ReauthenticationRequired | CoreError::Forbidden(_) | CoreError::AccountLocked
-    )
+fn refusal_reason(error: &CoreError) -> Option<&'static str> {
+    match error {
+        CoreError::ReauthenticationRequired => Some("reauthentication_required"),
+        CoreError::Forbidden(_) => Some("forbidden"),
+        CoreError::AccountLocked => Some("account_locked"),
+        _ => None,
+    }
 }
 
 impl AccountSelectionService for ApplicationService {
@@ -121,7 +175,31 @@ impl AccountSelectionService for ApplicationService {
             .await
         {
             Ok(selected) => selected,
-            Err(error) if is_refusal(&error) => {
+            Err(error) if refusal_reason(&error).is_some() => {
+                let device_session_id = self
+                    .account_chooser_service
+                    .device_session_id(input.device_token.as_deref(), &scope)
+                    .await
+                    .ok()
+                    .flatten();
+                let reason = refusal_reason(&error);
+                self.record_account_audit(
+                    &scope,
+                    AccountAudit {
+                        event_type: SecurityEventType::AccountSelectionDenied,
+                        session_id: input.session_id,
+                        device_session_id,
+                        reason,
+                        origin: Some(input.origin.clone()),
+                    },
+                )
+                .await;
+                self.flow_recorder.record_step(
+                    auth_session.compass_flow_id.map(FlowId),
+                    FlowStepName::AccountSelection,
+                    StepOutcome::failure(reason.unwrap_or("refused")),
+                );
+
                 let login_hint = self
                     .auth_service
                     .remember_reauthentication_into(&scope, input.session_code, input.session_id)
@@ -131,6 +209,30 @@ impl AccountSelectionService for ApplicationService {
             }
             Err(error) => return Err(error),
         };
+
+        let device_session_id = self
+            .account_chooser_service
+            .device_session_id(input.device_token.as_deref(), &scope)
+            .await
+            .ok()
+            .flatten();
+
+        self.record_account_audit(
+            &scope,
+            AccountAudit {
+                event_type: SecurityEventType::AccountSelected,
+                session_id: input.session_id,
+                device_session_id,
+                reason: None,
+                origin: Some(input.origin.clone()),
+            },
+        )
+        .await;
+        self.flow_recorder.record_step(
+            auth_session.compass_flow_id.map(FlowId),
+            FlowStepName::AccountSelection,
+            StepOutcome::success(),
+        );
 
         let output = self
             .auth_service
@@ -196,6 +298,20 @@ impl AccountSelectionService for ApplicationService {
             .account_chooser_service
             .attach_session_to_device(device_token.as_deref(), &scope, session_id)
             .await?;
+
+        if token.is_some() {
+            self.record_account_audit(
+                &scope,
+                AccountAudit {
+                    event_type: SecurityEventType::DeviceSessionCreated,
+                    session_id,
+                    device_session_id: Some(device.id),
+                    reason: None,
+                    origin: None,
+                },
+            )
+            .await;
+        }
 
         Ok(Some(AttachedDevice {
             token,

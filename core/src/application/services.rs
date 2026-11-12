@@ -751,6 +751,16 @@ impl crate::domain::device_session::ports::AccountChooserService for Application
             .await
     }
 
+    async fn device_session_id(
+        &self,
+        device_token: Option<&str>,
+        scope: &RealmScope,
+    ) -> Result<Option<uuid::Uuid>, CoreError> {
+        self.account_chooser_service
+            .device_session_id(device_token, scope)
+            .await
+    }
+
     async fn list_entries(
         &self,
         device_token: Option<&str>,
