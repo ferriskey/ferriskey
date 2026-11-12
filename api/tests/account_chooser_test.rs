@@ -875,7 +875,7 @@ fn prompt_select_account_shows_the_chooser_even_with_one_live_session() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn the_chooser_url_carries_max_age_only_when_requested() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let (server, client, _alice, browser) = alice_only(app).await;
 
         let with = authorize_with(
