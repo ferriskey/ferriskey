@@ -252,11 +252,7 @@ where
             .realm_maintenance_whitelist_repository
             .get_whitelisted_role_ids(realm_id)
             .await?;
-        if user_role_ids.iter().any(|r| realm_role_ids.contains(r)) {
-            return Ok(true);
-        }
-
-        Ok(false)
+        Ok(user_role_ids.iter().any(|r| realm_role_ids.contains(r)))
     }
 
     async fn add_client_whitelist_user(
