@@ -87,18 +87,6 @@ async fn handle_logout_request(
         .map(|c| c.value().trim().to_string())
         .filter(|value| !value.is_empty());
 
-    let logged_out_session = match (&sso_cookie, &device_token) {
-        (Some(sso_cookie), Some(_)) => state
-            .service
-            .session_id_of_sso_cookie(realm_name.clone(), sso_cookie.clone())
-            .await
-            .unwrap_or_else(|e| {
-                warn!(error = %e, "Failed to resolve the session being logged out");
-                None
-            }),
-        _ => None,
-    };
-
     let detach_realm = realm_name.clone();
 
     let expected_issuer = format!(
@@ -120,7 +108,7 @@ async fn handle_logout_request(
         })
         .await?;
 
-    if let Some(session_id) = logged_out_session
+    if let (Some(session_id), Some(_)) = (end_session.ended_session_id, &device_token)
         && let Err(e) = state
             .service
             .detach_account(detach_realm, device_token, session_id)

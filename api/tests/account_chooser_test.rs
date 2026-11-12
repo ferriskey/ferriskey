@@ -659,6 +659,50 @@ fn logging_out_removes_the_account_from_the_chooser() {
     });
 }
 
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn logging_out_with_an_id_token_hint_keeps_the_cookie_account_in_the_chooser() {
+    rt().block_on(async {
+        let (app, _shared) = chooser_app().await;
+        let f = alice_then_bob(app).await;
+        let bob_session = session_of_user(app, &f.bob).await;
+
+        let direct = app.client(ClientSpec::public().with_direct_access()).await;
+        let tokens = common::password_grant(
+            &f.server,
+            app,
+            &direct.client_id,
+            None,
+            &f.alice.username,
+            &f.alice.password,
+        )
+        .await;
+        assert_eq!(tokens.status_code(), 200, "{}", tokens.text());
+        let id_token = tokens.json::<Value>()["id_token"]
+            .as_str()
+            .expect("id_token")
+            .to_string();
+
+        let logout = f
+            .server
+            .post(&app.oidc("logout"))
+            .add_header("Cookie", f.browser.cookies(None))
+            .form(&json!({ "id_token_hint": id_token }))
+            .await;
+        assert_eq!(logout.status_code(), 204, "{}", logout.text());
+
+        let response = list(&f.server, app, &app.realm, &f.client, &f.browser, None).await;
+        let entries = entries(&response);
+
+        assert!(
+            entries
+                .iter()
+                .any(|entry| entry["session_id"] == bob_session.to_string()),
+            "the session the logout did not end must stay listed: {entries:?}"
+        );
+    });
+}
+
 const OTP_SECRET: &str = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
 
 fn current_totp() -> String {
