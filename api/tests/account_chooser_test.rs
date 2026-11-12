@@ -5,6 +5,7 @@ use axum_test::{TestResponse, TestServer};
 use chrono::{DateTime, Utc};
 use common::{ClientSpec, SeededClient, SeededUser, TestApp, app, query_param, rt};
 use serde_json::{Value, json};
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use uuid::Uuid;
 
 const PASSWORD: &str = "Str0ng!P@ssword#2024";
@@ -69,10 +70,22 @@ async fn set_chooser(app: &TestApp, realm_id: Uuid, enabled: bool) {
         .expect("set account chooser");
 }
 
-async fn chooser_app() -> &'static TestApp {
+// The tests share one realm: those that flip its settings run alone, the
+// others run side by side.
+static REALM: RwLock<()> = RwLock::const_new(());
+
+async fn chooser_app() -> (&'static TestApp, RwLockReadGuard<'static, ()>) {
+    let shared = REALM.read().await;
     let app = app();
     set_chooser(app, app.realm_id, true).await;
-    app
+    (app, shared)
+}
+
+async fn exclusive_chooser_app() -> (&'static TestApp, RwLockWriteGuard<'static, ()>) {
+    let exclusive = REALM.write().await;
+    let app = app();
+    set_chooser(app, app.realm_id, true).await;
+    (app, exclusive)
 }
 
 async fn begin(
@@ -223,7 +236,7 @@ async fn alice_then_bob(app: &'static TestApp) -> Fixture {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn a_second_account_on_the_same_browser_is_remembered() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
 
         let response = list(&f.server, app, &app.realm, &f.client, &f.browser, None).await;
@@ -262,7 +275,7 @@ fn a_second_account_on_the_same_browser_is_remembered() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn the_device_cookie_is_re_set_on_every_login_with_safe_attributes() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let server = app.server();
         let client = app.client(ClientSpec::public()).await;
         let alice = app.user(&server, PASSWORD).await;
@@ -317,7 +330,7 @@ fn the_device_cookie_is_re_set_on_every_login_with_safe_attributes() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn the_chooser_list_is_empty_without_a_device_cookie() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let server = app.server();
         let client = app.client(ClientSpec::public()).await;
 
@@ -343,7 +356,7 @@ fn the_chooser_list_is_empty_without_a_device_cookie() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn selecting_an_account_resumes_its_session_without_credentials() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
         let alice_session = session_of_user(app, &f.alice).await;
         let before_hash = sso_hash(app, alice_session).await;
@@ -388,7 +401,7 @@ fn selecting_an_account_resumes_its_session_without_credentials() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn max_age_forces_re_authentication_from_the_chooser() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
         let alice_session = session_of_user(app, &f.alice).await;
 
@@ -444,7 +457,7 @@ fn max_age_forces_re_authentication_from_the_chooser() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn a_revoked_session_disappears_from_the_chooser() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
         let alice_session = session_of_user(app, &f.alice).await;
         let token = app.admin_token(&f.server).await;
@@ -472,7 +485,7 @@ fn a_revoked_session_disappears_from_the_chooser() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn removing_an_account_from_the_device_keeps_the_session_row() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
         let alice_session = session_of_user(app, &f.alice).await;
         let bob_session = session_of_user(app, &f.bob).await;
@@ -513,7 +526,7 @@ fn removing_an_account_from_the_device_keeps_the_session_row() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn a_realm_with_the_chooser_off_remembers_nothing() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _exclusive) = exclusive_chooser_app().await;
         let server = app.server();
         let client = app.client(ClientSpec::public()).await;
         let alice = app.user(&server, PASSWORD).await;
@@ -548,7 +561,7 @@ fn a_realm_with_the_chooser_off_remembers_nothing() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn a_device_cookie_from_another_realm_resolves_to_nothing() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
         assert!(f.browser.device.is_some());
 
@@ -584,7 +597,7 @@ fn a_device_cookie_from_another_realm_resolves_to_nothing() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn a_session_not_on_this_device_is_a_404_to_select_and_to_remove() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
 
         let server = &f.server;
@@ -625,7 +638,7 @@ fn a_session_not_on_this_device_is_a_404_to_select_and_to_remove() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn logging_out_removes_the_account_from_the_chooser() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
         let bob_session = session_of_user(app, &f.bob).await;
 
@@ -677,7 +690,7 @@ fn current_totp() -> String {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn a_login_completed_through_an_otp_challenge_is_remembered() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let server = app.server();
         let client = app.client(ClientSpec::public()).await;
         let user = app.user(&server, PASSWORD).await;
@@ -740,7 +753,7 @@ fn a_login_completed_through_an_otp_challenge_is_remembered() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn turning_the_chooser_off_stops_select_and_remove() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _exclusive) = exclusive_chooser_app().await;
         let f = alice_then_bob(app).await;
         let alice_session = session_of_user(app, &f.alice).await;
 
@@ -834,7 +847,7 @@ async fn alice_only(app: &'static TestApp) -> (TestServer, SeededClient, SeededU
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn prompt_select_account_shows_the_chooser_even_with_one_live_session() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let (server, client, _alice, browser) = alice_only(app).await;
 
         let response = authorize_with(
@@ -865,7 +878,7 @@ fn prompt_select_account_shows_the_chooser_even_with_one_live_session() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn prompt_select_account_without_any_entry_falls_back_to_the_login_page() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let server = app.server();
         let client = app.client(ClientSpec::public()).await;
 
@@ -886,7 +899,7 @@ fn prompt_select_account_without_any_entry_falls_back_to_the_login_page() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn prompt_none_with_two_accounts_and_none_active_needs_a_selection() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
         let mut browser = f.browser.clone();
         browser.sso = None;
@@ -909,7 +922,7 @@ fn prompt_none_with_two_accounts_and_none_active_needs_a_selection() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn prompt_none_with_one_account_owing_mfa_is_interaction_required() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _exclusive) = exclusive_chooser_app().await;
         let (server, client, _alice, browser) = alice_only(app).await;
 
         sqlx::query("UPDATE realm_settings SET require_mfa = true WHERE realm_id = $1")
@@ -945,7 +958,7 @@ fn prompt_none_with_one_account_owing_mfa_is_interaction_required() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn prompt_none_without_any_entry_is_login_required() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let server = app.server();
         let client = app.client(ClientSpec::public()).await;
 
@@ -971,7 +984,7 @@ fn prompt_none_without_any_entry_is_login_required() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn prompt_none_with_one_resumable_entry_and_no_cookie_resumes_it() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let (server, client, alice, mut browser) = alice_only(app).await;
         let session = session_of_user(app, &alice).await;
         let before_hash = sso_hash(app, session).await;
@@ -995,7 +1008,7 @@ fn prompt_none_with_one_resumable_entry_and_no_cookie_resumes_it() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn prompt_none_with_several_entries_resumes_the_active_one() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
 
         let response =
@@ -1011,7 +1024,7 @@ fn prompt_none_with_several_entries_resumes_the_active_one() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn a_login_hint_is_not_an_existence_oracle() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let server = app.server();
         let client = app.client(ClientSpec::public()).await;
         let existing = app.user(&server, PASSWORD).await;
@@ -1044,7 +1057,7 @@ fn a_login_hint_is_not_an_existence_oracle() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn with_the_chooser_off_select_account_redirects_to_the_login_page_as_before() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _exclusive) = exclusive_chooser_app().await;
         let f = alice_then_bob(app).await;
         let mut browser = f.browser.clone();
         browser.sso = None;
@@ -1078,7 +1091,7 @@ fn with_the_chooser_off_select_account_redirects_to_the_login_page_as_before() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn prompt_none_with_a_live_session_owing_mfa_and_no_device_cookie_is_interaction_required() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _exclusive) = exclusive_chooser_app().await;
         let (server, client, _alice, mut browser) = alice_only(app).await;
         browser.device = None;
 
@@ -1158,7 +1171,7 @@ fn assert_requires_credentials(response: &TestResponse) {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn the_authorize_request_max_age_is_enforced_when_the_select_request_omits_it() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
         let alice_session = session_of_user(app, &f.alice).await;
         age_session(app, alice_session, 600).await;
@@ -1184,7 +1197,7 @@ fn the_authorize_request_max_age_is_enforced_when_the_select_request_omits_it() 
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn a_select_request_cannot_loosen_the_authorize_request_max_age() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
         let alice_session = session_of_user(app, &f.alice).await;
         age_session(app, alice_session, 600).await;
@@ -1218,7 +1231,7 @@ fn a_select_request_cannot_loosen_the_authorize_request_max_age() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn max_age_zero_always_re_authenticates_from_the_chooser() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
         let alice_session = session_of_user(app, &f.alice).await;
 
@@ -1241,9 +1254,34 @@ fn max_age_zero_always_re_authenticates_from_the_chooser() {
 
 #[test]
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn prompt_login_with_select_account_still_demands_credentials_on_selection() {
+    rt().block_on(async {
+        let (app, _shared) = chooser_app().await;
+        let f = alice_then_bob(app).await;
+        let alice_session = session_of_user(app, &f.alice).await;
+
+        let mut browser = f.browser.clone();
+        browser.sso = None;
+        let auth_session = begin_with(
+            &f.server,
+            app,
+            &f.client,
+            &browser,
+            &[("prompt", "login select_account")],
+        )
+        .await;
+
+        let selected = select(&f.server, app, &browser, &auth_session, alice_session, None).await;
+
+        assert_requires_credentials(&selected);
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn a_fresh_session_still_resumes_when_it_is_within_the_authorize_request_max_age() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
         let alice_session = session_of_user(app, &f.alice).await;
 
@@ -1268,7 +1306,7 @@ fn a_fresh_session_still_resumes_when_it_is_within_the_authorize_request_max_age
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn the_list_applies_the_stored_max_age_of_the_auth_session() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
         let alice_session = session_of_user(app, &f.alice).await;
         age_session(app, alice_session, 600).await;
@@ -1304,7 +1342,7 @@ fn the_list_applies_the_stored_max_age_of_the_auth_session() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn selecting_an_account_that_needs_consent_still_rotates_the_browser_cookie() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let f = alice_then_bob(app).await;
         sqlx::query("UPDATE clients SET consent_required = TRUE WHERE id = $1")
             .bind(f.client.id)

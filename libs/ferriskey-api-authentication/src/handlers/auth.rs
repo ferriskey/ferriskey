@@ -362,6 +362,14 @@ pub async fn auth_handler(
     let prompt = Prompt::parse(params.prompt.as_deref());
     let issuer = realm_issuer(&base_url, &state.args.server.root_path, &realm_name);
 
+    // `prompt=login` is kept on the session as `max_age=0`, so choosing an
+    // account in the chooser re-authenticates instead of resuming it.
+    let stored_max_age = if prompt.as_ref().is_some_and(|prompt| prompt.login) {
+        Some(0)
+    } else {
+        params.max_age
+    };
+
     let result = match state
         .service
         .auth(AuthInput {
@@ -379,7 +387,7 @@ pub async fn auth_handler(
             prompt_consent: prompt.as_ref().is_some_and(|prompt| prompt.consent),
             issuer: Some(issuer.clone()),
             resource: params.resource.clone(),
-            max_age: params.max_age,
+            max_age: stored_max_age,
         })
         .await
     {
