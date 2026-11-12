@@ -3,8 +3,8 @@ use uuid::Uuid;
 
 use crate::ApplicationService;
 use crate::domain::authentication::ports::{
-    AccountSelectionService, AttachedDevice, ListAccountsInput, SelectAccountInput,
-    SelectAccountOutcome,
+    AccountSelectionService, AttachedDevice, AuthorizeAccounts, ListAccountsInput,
+    SelectAccountInput, SelectAccountOutcome,
 };
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::device_session::entities::AccountEntry;
@@ -14,6 +14,41 @@ use crate::domain::realm::entities::RealmScope;
 impl ApplicationService {
     async fn scope_of_realm(&self, realm_name: &str) -> Result<RealmScope, CoreError> {
         RealmScope::resolve(self.auth_service.realm_repository.as_ref(), realm_name).await
+    }
+
+    async fn entries_in_scope(
+        &self,
+        scope: &RealmScope,
+        input: ListAccountsInput,
+    ) -> Result<Vec<AccountEntry>, CoreError> {
+        let Some(client_id) = self
+            .auth_service
+            .client_uuid_of(scope, &input.client_id)
+            .await
+        else {
+            return Ok(Vec::new());
+        };
+
+        let stored_max_age = match input.session_code {
+            Some(session_code) => self
+                .auth_service
+                .open_selection_auth_session(scope, session_code)
+                .await
+                .ok()
+                .filter(|auth_session| auth_session.client_id == client_id)
+                .and_then(|auth_session| auth_session.max_age),
+            None => None,
+        };
+
+        self.account_chooser_service
+            .list_entries(
+                input.device_token.as_deref(),
+                scope,
+                input.active_sso_token.as_deref(),
+                stricter_max_age(stored_max_age, input.max_age),
+                client_id,
+            )
+            .await
     }
 }
 
@@ -40,6 +75,25 @@ fn is_refusal(error: &CoreError) -> bool {
 }
 
 impl AccountSelectionService for ApplicationService {
+    async fn authorize_accounts(
+        &self,
+        input: ListAccountsInput,
+    ) -> Result<AuthorizeAccounts, CoreError> {
+        let scope = self.scope_of_realm(&input.realm_name).await?;
+
+        if !chooser_enabled(&scope) {
+            return Ok(AuthorizeAccounts {
+                chooser_enabled: false,
+                entries: Vec::new(),
+            });
+        }
+
+        Ok(AuthorizeAccounts {
+            chooser_enabled: true,
+            entries: self.entries_in_scope(&scope, input).await?,
+        })
+    }
+
     async fn select_account(
         &self,
         input: SelectAccountInput,
@@ -98,34 +152,7 @@ impl AccountSelectionService for ApplicationService {
     ) -> Result<Vec<AccountEntry>, CoreError> {
         let scope = self.scope_of_realm(&input.realm_name).await?;
 
-        let Some(client_id) = self
-            .auth_service
-            .client_uuid_of(&scope, &input.client_id)
-            .await
-        else {
-            return Ok(Vec::new());
-        };
-
-        let stored_max_age = match input.session_code {
-            Some(session_code) => self
-                .auth_service
-                .open_selection_auth_session(&scope, session_code)
-                .await
-                .ok()
-                .filter(|auth_session| auth_session.client_id == client_id)
-                .and_then(|auth_session| auth_session.max_age),
-            None => None,
-        };
-
-        self.account_chooser_service
-            .list_entries(
-                input.device_token.as_deref(),
-                &scope,
-                input.active_sso_token.as_deref(),
-                stricter_max_age(stored_max_age, input.max_age),
-                client_id,
-            )
-            .await
+        self.entries_in_scope(&scope, input).await
     }
 
     async fn detach_account(

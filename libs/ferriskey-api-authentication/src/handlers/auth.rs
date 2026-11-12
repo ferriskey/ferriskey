@@ -11,15 +11,20 @@ use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_core::domain::authentication::entities::{
     AuthInput, AuthenticateInput, AuthenticateOutput, AuthenticationStepStatus,
 };
-use ferriskey_core::domain::authentication::ports::AuthService;
+use ferriskey_core::domain::authentication::ports::{
+    AccountSelectionService, AuthService, AuthorizeAccounts, ListAccountsInput, SelectAccountInput,
+    SelectAccountOutcome,
+};
 use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
+use ferriskey_core::domain::device_session::entities::AccountEntry;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 use validator::Validate;
 
+use ferriskey_api_core::device_cookie::device_token;
 use ferriskey_api_core::request_context::RequestContext;
 pub use ferriskey_api_core::url::root_scoped_base_url;
 use ferriskey_api_core::url::{FullUrl, WebappUrl};
@@ -47,6 +52,7 @@ fn mark_session_expired(login_url: &str) -> String {
 enum EntryPage {
     Login,
     Register,
+    AccountChooser,
 }
 
 impl EntryPage {
@@ -62,6 +68,7 @@ impl EntryPage {
         match self {
             Self::Login => "login",
             Self::Register => "register",
+            Self::AccountChooser => "account-chooser",
         }
     }
 }
@@ -159,12 +166,15 @@ pub struct AuthRequest {
     /// Must be one of the realm's allowed resources.
     #[serde(default)]
     pub resource: Option<String>,
+    #[serde(default)]
+    pub login_hint: Option<String>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
 struct Prompt {
     none: bool,
     login: bool,
+    select_account: bool,
     consent: bool,
     create: bool,
 }
@@ -181,6 +191,7 @@ impl Prompt {
         Some(Self {
             none,
             login: values.contains(&"login"),
+            select_account: values.contains(&"select_account"),
             consent: values.contains(&"consent"),
             create: values.contains(&"create"),
         })
@@ -209,6 +220,65 @@ fn sso_fast_path_outcome(result: &AuthenticateOutput, prompt_none: bool) -> SsoF
     SsoFastPathOutcome::Redirect
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum PromptNoneDecision {
+    Error(&'static str),
+    Resume(Uuid),
+}
+
+struct PromptNoneFacts<'a> {
+    chooser_enabled: bool,
+    sso_refusal: Option<&'a CoreError>,
+    entries: &'a [AccountEntry],
+}
+
+fn prompt_none_decision(facts: &PromptNoneFacts<'_>) -> PromptNoneDecision {
+    if !facts.chooser_enabled {
+        return PromptNoneDecision::Error(match facts.sso_refusal {
+            Some(CoreError::Forbidden(_)) => "interaction_required",
+            _ => "login_required",
+        });
+    }
+
+    match facts.entries {
+        [] => PromptNoneDecision::Error(match facts.sso_refusal {
+            Some(CoreError::Forbidden(_) | CoreError::ReauthenticationRequired) => {
+                "interaction_required"
+            }
+            _ => "login_required",
+        }),
+        [entry] if entry.requires_reauthentication => {
+            PromptNoneDecision::Error("interaction_required")
+        }
+        [entry] => PromptNoneDecision::Resume(entry.session_id),
+        entries => entries
+            .iter()
+            .find(|entry| entry.is_active && !entry.requires_reauthentication)
+            .map_or(
+                PromptNoneDecision::Error("account_selection_required"),
+                |entry| PromptNoneDecision::Resume(entry.session_id),
+            ),
+    }
+}
+
+fn resume_error_code(error: &CoreError) -> &'static str {
+    match error {
+        CoreError::AccountSelectionRequired => "account_selection_required",
+        CoreError::Forbidden(_) | CoreError::ReauthenticationRequired => "interaction_required",
+        _ => "login_required",
+    }
+}
+
+fn with_login_hint(url: String, login_hint: Option<&str>) -> String {
+    match login_hint.filter(|hint| !hint.is_empty()) {
+        Some(hint) => {
+            let separator = if url.contains('?') { '&' } else { '?' };
+            format!("{url}{separator}login_hint={}", urlencoding::encode(hint))
+        }
+        None => url,
+    }
+}
+
 /// An authorization error handed back to the client on its (already
 /// validated) redirect URI, as RFC 6749 §4.1.2.1 describes.
 /// It carries the issuer as `iss` (RFC 9207).
@@ -228,6 +298,34 @@ fn authorization_error_response(
     location.push_str(&format!("&iss={}", urlencoding::encode(issuer)));
 
     (StatusCode::FOUND, [(LOCATION, location)]).into_response()
+}
+
+async fn load_device_accounts(
+    state: &AppState,
+    realm_name: &str,
+    params: &AuthRequest,
+    cookie: &CookieManager,
+    active_sso_token: Option<String>,
+) -> AuthorizeAccounts {
+    let loaded = state
+        .service
+        .authorize_accounts(ListAccountsInput {
+            realm_name: realm_name.to_string(),
+            device_token: device_token(cookie),
+            active_sso_token,
+            max_age: params.max_age,
+            client_id: params.client_id.clone(),
+            session_code: None,
+        })
+        .await;
+
+    loaded.unwrap_or_else(|e| {
+        warn!(realm = %realm_name, error = ?e, "Failed to list the device accounts");
+        AuthorizeAccounts {
+            chooser_enabled: false,
+            entries: Vec::new(),
+        }
+    })
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema, PartialEq, Eq)]
@@ -264,6 +362,14 @@ pub async fn auth_handler(
     let prompt = Prompt::parse(params.prompt.as_deref());
     let issuer = realm_issuer(&base_url, &state.args.server.root_path, &realm_name);
 
+    // `prompt=login` is kept on the session as `max_age=0`, so choosing an
+    // account in the chooser re-authenticates instead of resuming it.
+    let stored_max_age = if prompt.as_ref().is_some_and(|prompt| prompt.login) {
+        Some(0)
+    } else {
+        params.max_age
+    };
+
     let result = match state
         .service
         .auth(AuthInput {
@@ -281,7 +387,7 @@ pub async fn auth_handler(
             prompt_consent: prompt.as_ref().is_some_and(|prompt| prompt.consent),
             issuer: Some(issuer.clone()),
             resource: params.resource.clone(),
-            max_age: params.max_age,
+            max_age: stored_max_age,
         })
         .await
     {
@@ -339,9 +445,25 @@ pub async fn auth_handler(
         .map(|c| c.value().trim().to_string())
         .filter(|value| !value.is_empty());
 
+    let device_accounts = if prompt.select_account {
+        Some(load_device_accounts(&state, &realm_name, &params, &cookie, sso_cookie.clone()).await)
+    } else {
+        None
+    };
+
+    let chooser_forced = device_accounts
+        .as_ref()
+        .is_some_and(|accounts| accounts.chooser_enabled);
+    let show_chooser = device_accounts
+        .as_ref()
+        .is_some_and(|accounts| accounts.chooser_enabled && !accounts.entries.is_empty());
+
     let mut sso_refusal = None;
 
-    if let Some(sso_cookie) = sso_cookie.clone().filter(|_| !reauthenticate) {
+    if let Some(sso_cookie) = sso_cookie
+        .clone()
+        .filter(|_| !reauthenticate && !chooser_forced)
+    {
         let auth_result = state
             .service
             .authenticate(AuthenticateInput::with_sso_session(
@@ -385,9 +507,52 @@ pub async fn auth_handler(
 
     // `prompt=none` never shows a login page: the client learns why instead.
     if prompt.none {
-        let error = match sso_refusal {
-            Some(CoreError::Forbidden(_)) => "interaction_required",
-            _ => "login_required",
+        let accounts =
+            load_device_accounts(&state, &realm_name, &params, &cookie, sso_cookie.clone()).await;
+
+        let decision = prompt_none_decision(&PromptNoneFacts {
+            chooser_enabled: accounts.chooser_enabled,
+            sso_refusal: sso_refusal.as_ref(),
+            entries: &accounts.entries,
+        });
+
+        let error = match decision {
+            PromptNoneDecision::Error(error) => error,
+            PromptNoneDecision::Resume(session_id) => {
+                let outcome = state
+                    .service
+                    .select_account(SelectAccountInput {
+                        realm_name: realm_name.clone(),
+                        device_token: device_token(&cookie),
+                        session_code: result.session.id,
+                        session_id,
+                        max_age: params.max_age,
+                        webapp_base_url: webapp_url.clone(),
+                    })
+                    .await;
+
+                match outcome {
+                    Ok(SelectAccountOutcome::Resumed(output)) => {
+                        match sso_fast_path_outcome(&output, true) {
+                            SsoFastPathOutcome::Redirect => {
+                                return sso_success_response(*output, result.session.id, is_secure);
+                            }
+                            SsoFastPathOutcome::ConsentRequired => "consent_required",
+                            SsoFastPathOutcome::NotApplicable => "interaction_required",
+                        }
+                    }
+                    Ok(SelectAccountOutcome::RequiresCredentials { .. }) => "interaction_required",
+                    Err(e) => {
+                        warn!(
+                            realm = %realm_name,
+                            client_id = %params.client_id,
+                            error = ?e,
+                            "Device account refused under prompt=none"
+                        );
+                        resume_error_code(&e)
+                    }
+                }
+            }
         };
 
         return Ok(authorization_error_response(
@@ -413,11 +578,15 @@ pub async fn auth_handler(
         None => false,
     };
 
-    let mut full_url = webapp_entry_url(
-        &webapp_url,
-        &realm_name,
-        EntryPage::for_prompt(&prompt, result.registration_enabled),
-        &result.login_url,
+    let entry_page = if show_chooser {
+        EntryPage::AccountChooser
+    } else {
+        EntryPage::for_prompt(&prompt, result.registration_enabled)
+    };
+
+    let mut full_url = with_login_hint(
+        webapp_entry_url(&webapp_url, &realm_name, entry_page, &result.login_url),
+        params.login_hint.as_deref(),
     );
 
     let stale_sso_cookie = cookie.get(SSO_SESSION_COOKIE).is_some() && !keeps_live_session;
@@ -475,13 +644,17 @@ pub async fn auth_handler(
 #[cfg(test)]
 mod tests {
     use super::{
-        EntryPage, Prompt, SsoFastPathOutcome, authorization_error_response, mark_session_expired,
-        sso_fast_path_outcome, webapp_entry_url,
+        EntryPage, Prompt, PromptNoneDecision, PromptNoneFacts, SsoFastPathOutcome,
+        authorization_error_response, mark_session_expired, prompt_none_decision,
+        resume_error_code, sso_fast_path_outcome, webapp_entry_url, with_login_hint,
     };
     use axum::http::{StatusCode, header::LOCATION};
     use ferriskey_core::domain::authentication::entities::{
         AuthCompletion, AuthenticateOutput, AuthenticationStepStatus,
     };
+    use ferriskey_core::domain::common::entities::app_errors::CoreError;
+    use ferriskey_core::domain::device_session::entities::AccountEntry;
+    use ferriskey_core::domain::session::entities::SessionState;
     use uuid::Uuid;
 
     fn output(status: AuthenticationStepStatus, redirect_url: Option<&str>) -> AuthenticateOutput {
@@ -578,6 +751,7 @@ mod tests {
             Some(Prompt {
                 none: true,
                 login: false,
+                select_account: false,
                 consent: false,
                 create: false,
             })
@@ -587,6 +761,7 @@ mod tests {
             Some(Prompt {
                 none: false,
                 login: true,
+                select_account: false,
                 consent: true,
                 create: false,
             })
@@ -596,6 +771,7 @@ mod tests {
             Some(Prompt {
                 none: false,
                 login: false,
+                select_account: false,
                 consent: false,
                 create: true,
             })
@@ -713,6 +889,182 @@ mod tests {
         assert_eq!(
             sso_fast_path_outcome(&result, true),
             SsoFastPathOutcome::Redirect
+        );
+    }
+
+    #[test]
+    fn select_account_and_consent_are_parsed_alongside_the_other_values() {
+        let prompt = Prompt::parse(Some("select_account consent login")).expect("valid prompt");
+
+        assert!(prompt.select_account && prompt.consent && prompt.login);
+        assert!(!prompt.none && !prompt.create);
+        assert!(Prompt::parse(Some("select_account")).is_some_and(|p| p.select_account));
+    }
+
+    #[test]
+    fn prompt_none_cannot_be_combined_with_select_account() {
+        assert_eq!(Prompt::parse(Some("none select_account")), None);
+        assert_eq!(Prompt::parse(Some("select_account none")), None);
+    }
+
+    #[test]
+    fn the_account_chooser_page_keeps_the_same_query_as_the_login_page() {
+        let full_url = webapp_entry_url(
+            "https://login.example.com/",
+            "demo",
+            EntryPage::AccountChooser,
+            "?client_id=test-client&state=s1",
+        );
+
+        assert_eq!(
+            full_url,
+            "https://login.example.com/realms/demo/authentication/account-chooser?client_id=test-client&state=s1"
+        );
+    }
+
+    #[test]
+    fn a_login_hint_is_appended_verbatim_and_encoded() {
+        assert_eq!(
+            with_login_hint("https://w/login?client_id=c".into(), Some("a+b@x.io")),
+            "https://w/login?client_id=c&login_hint=a%2Bb%40x.io"
+        );
+        assert_eq!(
+            with_login_hint("https://w/login?client_id=c".into(), None),
+            "https://w/login?client_id=c"
+        );
+        assert_eq!(
+            with_login_hint("https://w/login?client_id=c".into(), Some("")),
+            "https://w/login?client_id=c"
+        );
+    }
+
+    fn entry(is_active: bool, requires_reauthentication: bool) -> AccountEntry {
+        AccountEntry {
+            session_id: Uuid::new_v4(),
+            display_name: "Alice".into(),
+            masked_email: None,
+            state: SessionState::Active,
+            last_seen_at: None,
+            is_active,
+            requires_reauthentication,
+        }
+    }
+
+    fn decide(
+        chooser_enabled: bool,
+        sso_refusal: Option<&CoreError>,
+        entries: &[AccountEntry],
+    ) -> PromptNoneDecision {
+        prompt_none_decision(&PromptNoneFacts {
+            chooser_enabled,
+            sso_refusal,
+            entries,
+        })
+    }
+
+    #[test]
+    fn with_the_chooser_off_prompt_none_keeps_the_legacy_mapping() {
+        let entries = [entry(true, false), entry(false, false)];
+        let forbidden = CoreError::Forbidden("owed".into());
+
+        assert_eq!(
+            decide(false, Some(&forbidden), &entries),
+            PromptNoneDecision::Error("interaction_required")
+        );
+        assert_eq!(
+            decide(false, Some(&CoreError::ReauthenticationRequired), &entries),
+            PromptNoneDecision::Error("login_required")
+        );
+        assert_eq!(
+            decide(false, None, &entries),
+            PromptNoneDecision::Error("login_required")
+        );
+    }
+
+    #[test]
+    fn no_entry_means_login_required() {
+        assert_eq!(
+            decide(true, None, &[]),
+            PromptNoneDecision::Error("login_required")
+        );
+    }
+
+    #[test]
+    fn no_entry_but_a_live_session_owing_a_step_means_interaction_required() {
+        let forbidden = CoreError::Forbidden("owed".into());
+
+        assert_eq!(
+            decide(true, Some(&forbidden), &[]),
+            PromptNoneDecision::Error("interaction_required")
+        );
+        assert_eq!(
+            decide(true, Some(&CoreError::ReauthenticationRequired), &[]),
+            PromptNoneDecision::Error("interaction_required")
+        );
+        assert_eq!(
+            decide(true, Some(&CoreError::DeviceSessionNotFound), &[]),
+            PromptNoneDecision::Error("login_required")
+        );
+    }
+
+    #[test]
+    fn a_single_resumable_entry_is_resumed() {
+        let only = entry(false, false);
+
+        assert_eq!(
+            decide(true, None, std::slice::from_ref(&only)),
+            PromptNoneDecision::Resume(only.session_id)
+        );
+    }
+
+    #[test]
+    fn a_single_entry_owing_a_step_means_interaction_required() {
+        assert_eq!(
+            decide(true, None, &[entry(true, true)]),
+            PromptNoneDecision::Error("interaction_required")
+        );
+    }
+
+    #[test]
+    fn several_entries_resume_the_resumable_active_one() {
+        let active = entry(true, false);
+        let entries = [entry(false, false), active.clone(), entry(false, false)];
+
+        assert_eq!(
+            decide(true, None, &entries),
+            PromptNoneDecision::Resume(active.session_id)
+        );
+    }
+
+    #[test]
+    fn several_entries_without_a_resumable_active_one_need_a_selection() {
+        assert_eq!(
+            decide(true, None, &[entry(false, false), entry(false, false)]),
+            PromptNoneDecision::Error("account_selection_required")
+        );
+        assert_eq!(
+            decide(true, None, &[entry(true, true), entry(false, false)]),
+            PromptNoneDecision::Error("account_selection_required")
+        );
+    }
+
+    #[test]
+    fn a_refused_device_resume_maps_to_the_matching_error() {
+        assert_eq!(
+            resume_error_code(&CoreError::AccountSelectionRequired),
+            "account_selection_required"
+        );
+        assert_eq!(
+            resume_error_code(&CoreError::Forbidden("x".into())),
+            "interaction_required"
+        );
+        assert_eq!(
+            resume_error_code(&CoreError::ReauthenticationRequired),
+            "interaction_required"
+        );
+        assert_eq!(
+            resume_error_code(&CoreError::DeviceSessionNotFound),
+            "login_required"
         );
     }
 }
