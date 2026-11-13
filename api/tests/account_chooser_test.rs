@@ -1503,3 +1503,103 @@ fn selecting_an_account_that_needs_consent_still_rotates_the_browser_cookie() {
         );
     });
 }
+
+async fn list_in_flight(
+    server: &TestServer,
+    app: &TestApp,
+    client: &SeededClient,
+    browser: &Browser,
+    session: &str,
+) -> TestResponse {
+    server
+        .get(&format!("/realms/{}/login-actions/accounts", app.realm))
+        .add_query_param("client_id", &client.client_id)
+        .add_header("Cookie", browser.cookies(Some(session)))
+        .await
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn the_client_name_is_shown_to_a_browser_in_flight_for_that_client() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let server = app.server();
+        let client = app.client(ClientSpec::public()).await;
+        let browser = Browser::default();
+
+        let session = begin(&server, app, &client, &browser, false).await;
+        let response = list_in_flight(&server, app, &client, &browser, &session).await;
+
+        assert_eq!(response.status_code(), 200, "{}", response.text());
+        let name = response.json::<Value>()["client_name"]
+            .as_str()
+            .expect("a client name")
+            .to_string();
+        assert!(!name.is_empty());
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn the_client_name_is_omitted_without_a_session_cookie() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let server = app.server();
+        let client = app.client(ClientSpec::public()).await;
+
+        let response = list(&server, app, &app.realm, &client, &Browser::default(), None).await;
+
+        assert_eq!(response.json::<Value>(), json!({ "data": [] }));
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn the_client_name_is_omitted_for_a_session_of_another_client() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let server = app.server();
+        let asked = app.client(ClientSpec::public()).await;
+        let other = app.client(ClientSpec::public()).await;
+        let browser = Browser::default();
+
+        let session = begin(&server, app, &other, &browser, false).await;
+        let response = list_in_flight(&server, app, &asked, &browser, &session).await;
+
+        assert_eq!(response.status_code(), 200, "{}", response.text());
+        assert_eq!(response.json::<Value>(), json!({ "data": [] }));
+        let forged =
+            list_in_flight(&server, app, &asked, &browser, &Uuid::new_v4().to_string()).await;
+        assert_eq!(forged.json::<Value>(), json!({ "data": [] }));
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn an_absent_and_a_forged_device_cookie_stay_identical_with_or_without_a_session() {
+    rt().block_on(async {
+        let app = chooser_app().await;
+        let server = app.server();
+        let client = app.client(ClientSpec::public()).await;
+        let none = Browser::default();
+        let forged = Browser {
+            device: Some("ab".repeat(32)),
+            sso: None,
+        };
+
+        let absent = list(&server, app, &app.realm, &client, &none, None).await;
+        let random = list(&server, app, &app.realm, &client, &forged, None).await;
+        assert_eq!(random.text(), absent.text());
+
+        let session = begin(&server, app, &client, &none, false).await;
+        let absent = list_in_flight(&server, app, &client, &none, &session).await;
+        let random = list_in_flight(&server, app, &client, &forged, &session).await;
+        assert_eq!(absent.status_code(), 200);
+        assert!(absent.json::<Value>().get("client_name").is_some());
+        assert_eq!(random.text(), absent.text());
+        assert_eq!(
+            random.headers().get("content-type"),
+            absent.headers().get("content-type")
+        );
+    });
+}

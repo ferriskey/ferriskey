@@ -288,6 +288,13 @@ pub trait AccountSelectionService: Send + Sync {
         input: ListAccountsInput,
     ) -> impl Future<Output = Result<Vec<AccountEntry>, CoreError>> + Send;
 
+    fn client_name_of_auth_session(
+        &self,
+        realm_name: String,
+        session_code: Uuid,
+        client_id: String,
+    ) -> impl Future<Output = Result<Option<String>, CoreError>> + Send;
+
     fn detach_account(
         &self,
         realm_name: String,

@@ -33,9 +33,13 @@ login:
 account_chooser:
   title: Choose an account
   description: Continue with an account you already used on this device.
+  continue_to: to continue to <app>{{name}}</app>
+  remembered_one: '{{count}} account remembered on this device'
+  remembered_other: '{{count}} accounts remembered on this device'
   loading: Loading your accounts
   last_used: 'Last used {{when}}'
   reauthentication: Confirm your password
+  signed_out: Signed out
   continue_as: Continue as {{name}}
   remove: Remove from this device
   remove_named: Remove {{name}} from this device
