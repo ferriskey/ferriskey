@@ -13,7 +13,7 @@ import {
   formatTimestamp,
 } from '@/pages/iam/seawatch/event-catalogue'
 
-type SecurityEvent = Schemas.SecurityEvent
+type SecurityEvent = Schemas.Paginated_SecurityEvent['data'][number]
 
 export type ConsoleTranslate = TFunction<'console'>
 

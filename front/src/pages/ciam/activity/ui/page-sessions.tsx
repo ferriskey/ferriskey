@@ -12,7 +12,7 @@ import type { EventJournal } from '../feature/use-event-journal'
 import { eventCard, eventColumns } from './event-journal'
 import { JournalSection } from './journal-section'
 
-type SecurityEvent = Schemas.SecurityEvent
+type SecurityEvent = Schemas.Paginated_SecurityEvent['data'][number]
 
 const CONSOLE_NAMESPACES = ['console', 'seawatch'] as const
 

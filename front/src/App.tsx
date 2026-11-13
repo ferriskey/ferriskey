@@ -171,7 +171,7 @@ function App() {
         withCredentials: true,
       })
       window.api = api
-      window.tanstackApi = new TanstackQueryApiClient(api)
+      window.tanstackApi = new TanstackQueryApiClient(api, { consumeQuerySignal: true })
       window.apiUrl = apiUrl
       window.axios = axiosClient
 

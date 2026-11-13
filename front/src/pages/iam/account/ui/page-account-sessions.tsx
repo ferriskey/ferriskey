@@ -25,7 +25,7 @@ import { formatDate, formatDateTime } from '@/utils/format-date'
 import type { Schemas } from '@/api/api.client'
 
 type User = Schemas.User
-type UserSessionDto = Schemas.UserSessionDto
+type UserSessionDto = Schemas.Paginated_UserSessionDto['data'][number]
 
 const SESSION_VIEW: ViewMode = 'list'
 

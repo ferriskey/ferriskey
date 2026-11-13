@@ -13,7 +13,7 @@ export interface RealmDirectory {
 const USER_KINDS: readonly (string | null | undefined)[] = ['user', 'service_account', 'admin']
 const NO_IDS: readonly string[] = []
 
-export function eventUserIds(events: readonly Schemas.SecurityEvent[]): string[] {
+export function eventUserIds(events: readonly Schemas.Paginated_SecurityEvent['data'][number][]): string[] {
   return events.flatMap((event) => [
     ...(event.actor_id && USER_KINDS.includes(event.actor_type) ? [event.actor_id] : []),
     ...(event.target_id && USER_KINDS.includes(event.target_type) ? [event.target_id] : []),
