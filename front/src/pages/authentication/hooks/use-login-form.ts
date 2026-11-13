@@ -11,6 +11,7 @@ import { translate } from '@/lib/i18n'
 import { AUTH_NAMESPACE } from '../constants'
 import { followServerRedirect } from '@/lib/follow-server-redirect'
 import { withAuthFlow } from '@/lib/auth-flow-query'
+import { readLoginHint } from '../utils/login-hint'
 
 const MAINTENANCE_REASON = 'client_under_maintenance'
 
@@ -58,7 +59,7 @@ export function useLoginForm({ realm_name, loginError, getAuthParamsFromUrl }: O
 
   const form = useForm<AuthenticateSchema>({
     resolver: zodResolver(authenticateSchema),
-    defaultValues: { username: '', password: '', remember_me: false },
+    defaultValues: { username: readLoginHint(search), password: '', remember_me: false },
   })
 
   useEffect(() => {

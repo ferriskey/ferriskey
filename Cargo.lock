@@ -476,17 +476,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "axum-macros"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7aa268c23bfbbd2c4363b9cd302a4f504fb2a9dfe7e3451d66f35dd392e20aca"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
 name = "axum-prometheus"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1167,15 +1156,6 @@ name = "constant_time_eq"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
-
-[[package]]
-name = "convert_case"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
-dependencies = [
- "unicode-segmentation",
-]
 
 [[package]]
 name = "cookie"
@@ -1914,28 +1894,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "enum-display"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40f4d8927f0f19dc99da4506dca2b26f6c2a089887cf2cc424df114f3a2585ab"
-dependencies = [
- "enum-display-macro",
-]
-
-[[package]]
-name = "enum-display-macro"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e2e13c29d91e61ec78280847036d13cdc585e75ea2458274362d5d8467f1641"
-dependencies = [
- "convert_case",
- "proc-macro2",
- "quote",
- "regex",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "enum-ordinalize"
 version = "4.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2111,7 +2069,6 @@ dependencies = [
  "axum",
  "axum-cookie",
  "axum-extra",
- "axum-macros",
  "axum-prometheus",
  "axum-server",
  "axum-test",
@@ -2336,7 +2293,6 @@ dependencies = [
  "axum",
  "axum-cookie",
  "axum-extra",
- "axum-macros",
  "base32",
  "base64 0.23.1",
  "chrono",
@@ -2650,7 +2606,6 @@ dependencies = [
  "base64 0.23.1",
  "bcrypt",
  "chrono",
- "enum-display",
  "ferriskey-abyss",
  "ferriskey-aegis",
  "ferriskey-authz",
@@ -2765,7 +2720,6 @@ dependencies = [
  "kube-derive",
  "mockall",
  "rand 0.10.3",
- "reqwest",
  "rustls",
  "schemars 1.2.3",
  "serde",
@@ -2774,7 +2728,6 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tower",
- "tower-http 0.7.1",
  "tracing",
  "tracing-subscriber",
 ]
@@ -2875,7 +2828,6 @@ dependencies = [
 name = "ferriskey-security"
 version = "0.10.0"
 dependencies = [
- "argon2",
  "aws-lc-rs",
  "base64 0.23.1",
  "chrono",
@@ -2886,7 +2838,6 @@ dependencies = [
  "rcgen",
  "serde",
  "serde_json",
- "sha1 0.11.0",
  "thiserror 2.0.21",
  "tokio",
  "tracing",
@@ -8158,12 +8109,6 @@ dependencies = [
  "unicode-normalization",
  "unicode-script",
 ]
-
-[[package]]
-name = "unicode-segmentation"
-version = "1.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6ccf251212114b54433ec949fd6a7841275f9ada20dddd2f29e9ceea4501493"
 
 [[package]]
 name = "unicode-width"

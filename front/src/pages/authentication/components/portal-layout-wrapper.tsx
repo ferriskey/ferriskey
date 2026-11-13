@@ -65,9 +65,10 @@ function layoutHasPageContent(tree: BuilderNode[]): boolean {
 interface Props {
   children: ReactNode
   pageType: Schemas.PortalPageType
+  keepChildren?: boolean
 }
 
-export function PortalLayoutWrapper({ children, pageType }: Props) {
+export function PortalLayoutWrapper({ children, pageType, keepChildren = false }: Props) {
   const { realm_name } = useParams<RouterParams>()
   const realm = realm_name ?? 'master'
   const { search } = useLocation()
@@ -478,7 +479,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
     )
   }
 
-  if (!pageIsValid || (layoutTree.length > 0 && !layoutIsValid)) {
+  if (keepChildren || !pageIsValid || (layoutTree.length > 0 && !layoutIsValid)) {
     return (
       <div style={pageSurface}>
         {responsiveStyle}

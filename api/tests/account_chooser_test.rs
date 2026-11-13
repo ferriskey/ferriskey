@@ -369,14 +369,11 @@ fn selecting_an_account_resumes_its_session_without_credentials() {
 
         let response = select(&f.server, app, &browser, &auth_session, alice_session, None).await;
 
-        assert_eq!(response.status_code(), 302, "{}", response.text());
-        let location = response
-            .headers()
-            .get("location")
-            .expect("location")
-            .to_str()
-            .expect("ascii")
-            .to_string();
+        assert_eq!(response.status_code(), 200, "{}", response.text());
+        assert!(response.headers().get("location").is_none());
+        let body: Value = response.json();
+        assert_eq!(body["status"], "Success", "{body}");
+        let location = body["url"].as_str().expect("url").to_string();
         assert!(location.starts_with(common::CALLBACK), "{location}");
         assert!(query_param(&location, "code").is_some(), "{location}");
         assert_eq!(
@@ -662,6 +659,50 @@ fn logging_out_removes_the_account_from_the_chooser() {
     });
 }
 
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn logging_out_with_an_id_token_hint_keeps_the_cookie_account_in_the_chooser() {
+    rt().block_on(async {
+        let (app, _shared) = chooser_app().await;
+        let f = alice_then_bob(app).await;
+        let bob_session = session_of_user(app, &f.bob).await;
+
+        let direct = app.client(ClientSpec::public().with_direct_access()).await;
+        let tokens = common::password_grant(
+            &f.server,
+            app,
+            &direct.client_id,
+            None,
+            &f.alice.username,
+            &f.alice.password,
+        )
+        .await;
+        assert_eq!(tokens.status_code(), 200, "{}", tokens.text());
+        let id_token = tokens.json::<Value>()["id_token"]
+            .as_str()
+            .expect("id_token")
+            .to_string();
+
+        let logout = f
+            .server
+            .post(&app.oidc("logout"))
+            .add_header("Cookie", f.browser.cookies(None))
+            .form(&json!({ "id_token_hint": id_token }))
+            .await;
+        assert_eq!(logout.status_code(), 204, "{}", logout.text());
+
+        let response = list(&f.server, app, &app.realm, &f.client, &f.browser, None).await;
+        let entries = entries(&response);
+
+        assert!(
+            entries
+                .iter()
+                .any(|entry| entry["session_id"] == bob_session.to_string()),
+            "the session the logout did not end must stay listed: {entries:?}"
+        );
+    });
+}
+
 const OTP_SECRET: &str = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
 
 fn current_totp() -> String {
@@ -871,6 +912,49 @@ fn prompt_select_account_shows_the_chooser_even_with_one_live_session() {
         );
         assert!(set_cookie_value(&response, "FERRISKEY_SESSION").is_some());
         assert!(set_cookie_raw(&response, "FERRISKEY_SSO").is_none());
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn the_chooser_url_carries_max_age_only_when_requested() {
+    rt().block_on(async {
+        let (app, _shared) = chooser_app().await;
+        let (server, client, _alice, browser) = alice_only(app).await;
+
+        let with = authorize_with(
+            &server,
+            app,
+            &client,
+            &browser,
+            &[("prompt", "select_account"), ("max_age", "300")],
+        )
+        .await;
+        let without = authorize_with(
+            &server,
+            app,
+            &client,
+            &browser,
+            &[("prompt", "select_account")],
+        )
+        .await;
+        let zero = authorize_with(
+            &server,
+            app,
+            &client,
+            &browser,
+            &[("prompt", "select_account"), ("max_age", "0")],
+        )
+        .await;
+
+        let with = location_of(&with);
+        assert!(
+            path_of(&with).ends_with("/authentication/account-chooser"),
+            "{with}"
+        );
+        assert_eq!(query_param(&with, "max_age").as_deref(), Some("300"));
+        assert!(query_param(&location_of(&without), "max_age").is_none());
+        assert!(query_param(&location_of(&zero), "max_age").is_none());
     });
 }
 
@@ -1298,7 +1382,13 @@ fn a_fresh_session_still_resumes_when_it_is_within_the_authorize_request_max_age
 
         let selected = select(&f.server, app, &browser, &auth_session, alice_session, None).await;
 
-        assert_eq!(selected.status_code(), 302, "{}", selected.text());
+        assert_eq!(selected.status_code(), 200, "{}", selected.text());
+        let body: Value = selected.json();
+        assert_eq!(body["status"], "Success", "{body}");
+        assert!(
+            query_param(body["url"].as_str().expect("url"), "code").is_some(),
+            "{body}"
+        );
     });
 }
 
@@ -1375,14 +1465,9 @@ fn selecting_an_account_that_needs_consent_still_rotates_the_browser_cookie() {
         )
         .await;
 
-        assert_eq!(selected.status_code(), 302, "{}", selected.text());
-        let location = selected
-            .headers()
-            .get("location")
-            .expect("location")
-            .to_str()
-            .expect("ascii")
-            .to_string();
+        assert_eq!(selected.status_code(), 200, "{}", selected.text());
+        let body: Value = selected.json();
+        let location = body["url"].as_str().expect("url").to_string();
         assert!(location.contains("authentication/consent"), "{location}");
         assert!(query_param(&location, "code").is_none(), "{location}");
 

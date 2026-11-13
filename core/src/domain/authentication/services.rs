@@ -6304,9 +6304,12 @@ where
             None => None,
         };
 
+        let mut ended_session_id = None;
+
         if let Some((session, user_id)) = hinted_session {
             self.revoke_session_cascade(&session, scope.id(), user_id)
                 .await?;
+            ended_session_id = Some(session.get().id);
         } else if let Some(cookie) = input.sso_cookie.as_deref() {
             let session = self
                 .user_session_repository
@@ -6322,6 +6325,7 @@ where
                 let user_id = session.get().user_id;
                 self.revoke_session_cascade(&session, scope.id(), user_id)
                     .await?;
+                ended_session_id = Some(session.get().id);
             }
         }
 
@@ -6361,10 +6365,14 @@ where
                     &post_logout_redirect_uri,
                     input.state.as_deref(),
                 )),
+                ended_session_id,
             });
         }
 
-        Ok(EndSessionOutput { redirect_uri: None })
+        Ok(EndSessionOutput {
+            redirect_uri: None,
+            ended_session_id,
+        })
     }
 
     async fn remember_reauthentication(

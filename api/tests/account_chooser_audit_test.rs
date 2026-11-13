@@ -227,7 +227,16 @@ fn selecting_an_account_is_audited_and_traced() {
         browser.sso = None;
         let auth_session = begin(&f.server, app, &f.client, &browser, false).await;
         let response = select(&f.server, app, &browser, &auth_session, alice_session, None).await;
-        assert_eq!(response.status_code(), 302, "{}", response.text());
+        assert_eq!(response.status_code(), 200, "{}", response.text());
+        let body: Value = response.json();
+        assert_eq!(body["status"], "Success", "{body}");
+        let url = body["url"].as_str().expect("url");
+        assert!(url.starts_with(common::CALLBACK), "{url}");
+        assert!(common::query_param(url, "code").is_some(), "{url}");
+        assert_eq!(
+            common::query_param(url, "state").as_deref(),
+            Some("audit-state")
+        );
 
         let selected = events_of(app, "account_selected", alice_session).await;
         assert_eq!(selected.len(), 1, "{selected:?}");
