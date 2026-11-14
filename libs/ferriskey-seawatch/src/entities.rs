@@ -108,6 +108,12 @@ pub enum SecurityEventType {
     #[serde(rename = "device_session_created")]
     DeviceSessionCreated,
 
+    #[serde(rename = "signing_key_rotated")]
+    SigningKeyRotated,
+
+    #[serde(rename = "signing_key_revoked")]
+    SigningKeyRevoked,
+
     /// A row whose persisted `event_type` does not match any known variant —
     /// a typo, a variant removed in a refactor, or a row written by a newer
     /// version. Never constructed by write-path code; the read path falls
@@ -155,6 +161,8 @@ impl SecurityEventType {
             "account_selected" => Self::AccountSelected,
             "account_selection_denied" => Self::AccountSelectionDenied,
             "device_session_created" => Self::DeviceSessionCreated,
+            "signing_key_rotated" => Self::SigningKeyRotated,
+            "signing_key_revoked" => Self::SigningKeyRevoked,
             _ => Self::Unknown,
         }
     }
@@ -203,6 +211,8 @@ impl Display for SecurityEventType {
             SecurityEventType::AccountSelected => write!(f, "account_selected"),
             SecurityEventType::AccountSelectionDenied => write!(f, "account_selection_denied"),
             SecurityEventType::DeviceSessionCreated => write!(f, "device_session_created"),
+            SecurityEventType::SigningKeyRotated => write!(f, "signing_key_rotated"),
+            SecurityEventType::SigningKeyRevoked => write!(f, "signing_key_revoked"),
             SecurityEventType::Unknown => write!(f, "unknown"),
         }
     }

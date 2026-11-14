@@ -12,8 +12,8 @@ impl SamlService for ApplicationService {
         self.saml_service.start_sso(input).await
     }
 
-    async fn idp_signing_certificate(&self, realm_name: String) -> Result<String, CoreError> {
-        self.saml_service.idp_signing_certificate(realm_name).await
+    async fn idp_signing_certificates(&self, realm_name: String) -> Result<Vec<String>, CoreError> {
+        self.saml_service.idp_signing_certificates(realm_name).await
     }
 
     async fn finish_sso(&self, input: FinishSsoInput) -> Result<SamlAssertionDelivery, CoreError> {

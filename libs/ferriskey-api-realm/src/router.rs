@@ -16,6 +16,10 @@ use super::handlers::resource_owners::{
     __path_get_resource_owners, __path_replace_resource_owners, get_resource_owners,
     replace_resource_owners,
 };
+use super::handlers::signing_keys::{
+    __path_list_signing_keys, __path_revoke_signing_key, __path_rotate_signing_key,
+    list_signing_keys, revoke_signing_key, rotate_signing_key,
+};
 use super::handlers::update_password_policy::{
     __path_update_password_policy, update_password_policy,
 };
@@ -45,6 +49,9 @@ use utoipa::OpenApi;
     get_password_policy,
     update_password_policy,
     get_public_password_policy,
+    list_signing_keys,
+    rotate_signing_key,
+    revoke_signing_key,
 ))]
 pub struct RealmApiDoc;
 
@@ -109,6 +116,24 @@ pub fn realm_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             get(get_password_policy).put(update_password_policy),
+        )
+        .route(
+            &format!("{}/realms/{{realm_name}}/keys", state.args.server.root_path),
+            get(list_signing_keys),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/keys/rotate",
+                state.args.server.root_path
+            ),
+            post(rotate_signing_key),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/keys/{{kid}}/revoke",
+                state.args.server.root_path
+            ),
+            post(revoke_signing_key),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .route(

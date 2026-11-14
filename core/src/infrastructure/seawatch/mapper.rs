@@ -121,6 +121,8 @@ mod tests {
         SecurityEventType::AccountSelected,
         SecurityEventType::AccountSelectionDenied,
         SecurityEventType::DeviceSessionCreated,
+        SecurityEventType::SigningKeyRotated,
+        SecurityEventType::SigningKeyRevoked,
         SecurityEventType::Unknown,
     ];
 
@@ -186,6 +188,8 @@ mod tests {
                 | SecurityEventType::AccountSelected
                 | SecurityEventType::AccountSelectionDenied
                 | SecurityEventType::DeviceSessionCreated
+                | SecurityEventType::SigningKeyRotated
+                | SecurityEventType::SigningKeyRevoked
                 | SecurityEventType::Unknown => true,
             };
 
