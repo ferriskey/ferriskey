@@ -1,6 +1,7 @@
 import { XCircle, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { match } from 'ts-pattern'
+import AuthShell, { AuthShellCenter } from '../components/auth-shell'
 import { AUTH_NAMESPACE } from '../constants'
 
 const VERIFY_STATE = {
@@ -34,42 +35,38 @@ export default function PageVerifyEmail({
 }) {
   const { t } = useTranslation(AUTH_NAMESPACE)
 
-  return (
-    <div className='flex flex-col items-center justify-center min-h-screen p-4'>
-      <div className='max-w-md w-full space-y-6 text-center'>
-        {match(state)
-          .with(VERIFY_STATE.LOADING, () => (
-            <>
-              <Loader2 className='w-12 h-12 animate-spin mx-auto text-primary' />
-              <p>{t('verify_email_state.checking')}</p>
-            </>
-          ))
-          .with(VERIFY_STATE.SUCCESS, () => (
-            <>
-              <Loader2 className='w-12 h-12 animate-spin mx-auto text-primary' />
-              <p>{t('verify_email_state.finishing')}</p>
-            </>
-          ))
-          .with(VERIFY_STATE.EXPIRED, () => (
-            <>
-              <XCircle className='w-16 h-16 mx-auto text-amber-500' />
-              <h1 className='text-2xl font-bold'>{t('verify_email_state.expired.title')}</h1>
-              <p className='text-muted-foreground'>
-                {t('verify_email_state.expired.description')}
-              </p>
-            </>
-          ))
-          .with(VERIFY_STATE.ERROR, () => (
-            <>
-              <XCircle className='w-16 h-16 mx-auto text-red-500' />
-              <h1 className='text-2xl font-bold'>{t('verify_email_state.failed.title')}</h1>
-              <p className='text-muted-foreground'>
-                {t('verify_email_state.failed.description')}
-              </p>
-            </>
-          ))
-          .exhaustive()}
-      </div>
-    </div>
-  )
+  return match(state)
+    .with(VERIFY_STATE.LOADING, () => (
+      <AuthShellCenter>
+        <div className='relative z-10 w-full max-w-md space-y-6 text-center'>
+          <Loader2 className='w-12 h-12 animate-spin mx-auto text-primary' />
+          <p>{t('verify_email_state.checking')}</p>
+        </div>
+      </AuthShellCenter>
+    ))
+    .with(VERIFY_STATE.SUCCESS, () => (
+      <AuthShellCenter>
+        <div className='relative z-10 w-full max-w-md space-y-6 text-center'>
+          <Loader2 className='w-12 h-12 animate-spin mx-auto text-primary' />
+          <p>{t('verify_email_state.finishing')}</p>
+        </div>
+      </AuthShellCenter>
+    ))
+    .with(VERIFY_STATE.EXPIRED, () => (
+      <AuthShell
+        title={t('verify_email_state.expired.title')}
+        description={t('verify_email_state.expired.description')}
+      >
+        <XCircle className='w-16 h-16 mx-auto text-amber-500' />
+      </AuthShell>
+    ))
+    .with(VERIFY_STATE.ERROR, () => (
+      <AuthShell
+        title={t('verify_email_state.failed.title')}
+        description={t('verify_email_state.failed.description')}
+      >
+        <XCircle className='w-16 h-16 mx-auto text-red-500' />
+      </AuthShell>
+    ))
+    .exhaustive()
 }

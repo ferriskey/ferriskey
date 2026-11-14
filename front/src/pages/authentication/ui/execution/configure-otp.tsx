@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { InputText } from '@/components/ui/input-text'
 import { Separator } from '@/components/ui/separator'
 import { CheckCircle, Copy, ShieldCheck } from 'lucide-react'
@@ -12,8 +11,8 @@ import type { VerifyOtpSchema } from '../../schemas/verify-otp.schema'
 import { useFormContext } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { FormControl, FormField, FormItem } from '@/components/ui/form'
-import '../page-login.css'
-import { AUTH_NAMESPACE, BRAND_NAME } from '../../constants'
+import { AUTH_NAMESPACE } from '../../constants'
+import AuthShell from '../../components/auth-shell'
 
 const QR_BACKGROUND_COLOR = 'transparent'
 const QR_FOREGROUND_COLOR = 'currentColor'
@@ -43,170 +42,135 @@ export default function ConfigureOtp({
   }
 
   return (
-    <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
-      <div className='relative z-10 w-full max-w-sm md:max-w-md lg:max-w-lg'>
-        <div className='flex flex-col gap-6'>
-          <Card className='login-card overflow-hidden border p-0 shadow-sm'>
-            <CardContent className='grid gap-0 p-0'>
-              <form onSubmit={form.handleSubmit(handleSubmit)}>
-                <div className='p-6 md:p-10'>
-                  <div className='flex flex-col gap-7'>
-                    <div className='space-y-2'>
-                      <div className='flex items-center gap-3'>
-                        <img
-                          src='/logo_ferriskey.png'
-                          alt={BRAND_NAME}
-                          className='h-7 w-7 object-contain'
-                        />
-                        <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
-                          {BRAND_NAME}
-                        </p>
-                      </div>
-                      <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
-                        {t('configure_otp.title')}
-                      </h1>
-                      <p className='text-sm text-muted-foreground'>
-                        {t('configure_otp.description')}
-                      </p>
-                    </div>
+    <AuthShell title={t('configure_otp.title')} description={t('configure_otp.description')}>
+      <form onSubmit={form.handleSubmit(handleSubmit)}>
+        <div className='flex flex-col gap-7'>
+          <Step number={1} title={t('configure_otp.step_app.title')}>
+            <p className='text-sm text-muted-foreground'>
+              {t('configure_otp.step_app.description')}
+            </p>
+          </Step>
 
-                    <Step number={1} title={t('configure_otp.step_app.title')}>
-                      <p className='text-sm text-muted-foreground'>
-                        {t('configure_otp.step_app.description')}
-                      </p>
-                    </Step>
+          <Separator />
 
-                    <Separator />
+          <Step number={2} title={t('configure_otp.step_qr.title')}>
+            <div className='flex justify-center rounded-lg border bg-background p-4'>
+              {qrCodeUrl ? (
+                <QRCodeSVG
+                  value={qrCodeUrl}
+                  size={160}
+                  bgColor={QR_BACKGROUND_COLOR}
+                  fgColor={QR_FOREGROUND_COLOR}
+                />
+              ) : (
+                <Skeleton className='h-40 w-40' />
+              )}
+            </div>
+            <div className='space-y-2'>
+              <p className='text-xs text-muted-foreground'>{t('configure_otp.step_qr.manual')}</p>
+              <div className='flex items-center gap-2'>
+                {secret ? (
+                  <code className='flex-1 break-all rounded-md bg-muted p-2 font-mono text-xs'>
+                    {secret}
+                  </code>
+                ) : (
+                  <Skeleton className='h-8 w-full' />
+                )}
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={copySecret}
+                  className='shrink-0'
+                >
+                  {secretCopied ? (
+                    <CheckCircle className='h-4 w-4 text-green-500' />
+                  ) : (
+                    <Copy className='h-4 w-4' />
+                  )}
+                </Button>
+              </div>
+            </div>
+          </Step>
 
-                    <Step number={2} title={t('configure_otp.step_qr.title')}>
-                      <div className='flex justify-center rounded-lg border bg-background p-4'>
-                        {qrCodeUrl ? (
-                          <QRCodeSVG
-                            value={qrCodeUrl}
-                            size={160}
-                            bgColor={QR_BACKGROUND_COLOR}
-                            fgColor={QR_FOREGROUND_COLOR}
-                          />
-                        ) : (
-                          <Skeleton className='h-40 w-40' />
-                        )}
-                      </div>
-                      <div className='space-y-2'>
-                        <p className='text-xs text-muted-foreground'>
-                          {t('configure_otp.step_qr.manual')}
-                        </p>
-                        <div className='flex items-center gap-2'>
-                          {secret ? (
-                            <code className='flex-1 break-all rounded-md bg-muted p-2 font-mono text-xs'>
-                              {secret}
-                            </code>
-                          ) : (
-                            <Skeleton className='h-8 w-full' />
-                          )}
-                          <Button
-                            type='button'
-                            variant='outline'
-                            size='sm'
-                            onClick={copySecret}
-                            className='shrink-0'
-                          >
-                            {secretCopied ? (
-                              <CheckCircle className='h-4 w-4 text-green-500' />
-                            ) : (
-                              <Copy className='h-4 w-4' />
-                            )}
-                          </Button>
+          <Separator />
+
+          <Step number={3} title={t('configure_otp.step_verify.title')}>
+            <div className='flex flex-col items-center gap-3'>
+              <FormField
+                control={form.control}
+                name='pin'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <InputOTP {...field} maxLength={6} pattern={REGEXP_ONLY_DIGITS}>
+                        <div className='flex items-center gap-1 sm:gap-3'>
+                          <InputOTPGroup>
+                            <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={0} />
+                          </InputOTPGroup>
+                          <InputOTPGroup>
+                            <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={1} />
+                          </InputOTPGroup>
+                          <InputOTPGroup>
+                            <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={2} />
+                          </InputOTPGroup>
+                          <InputOTPGroup>
+                            <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={3} />
+                          </InputOTPGroup>
+                          <InputOTPGroup>
+                            <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={4} />
+                          </InputOTPGroup>
+                          <InputOTPGroup>
+                            <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={5} />
+                          </InputOTPGroup>
                         </div>
-                      </div>
-                    </Step>
+                      </InputOTP>
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={form.control}
+              name='deviceName'
+              render={({ field }) => (
+                <InputText
+                  label={t('configure_otp.step_verify.device_label')}
+                  name='deviceName'
+                  value={field.value}
+                  onChange={field.onChange}
+                  className='w-full'
+                />
+              )}
+            />
+            <div className='flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400'>
+              <ShieldCheck className='mt-0.5 h-4 w-4 shrink-0' />
+              <span>{t('configure_otp.step_verify.backup_hint')}</span>
+            </div>
+          </Step>
 
-                    <Separator />
-
-                    <Step number={3} title={t('configure_otp.step_verify.title')}>
-                      <div className='flex flex-col items-center gap-3'>
-                        <FormField
-                          control={form.control}
-                          name='pin'
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <InputOTP
-                                  {...field}
-                                  maxLength={6}
-                                  pattern={REGEXP_ONLY_DIGITS}
-                                >
-                                  <div className='flex items-center gap-1 sm:gap-3'>
-                                    <InputOTPGroup>
-                                      <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={0} />
-                                    </InputOTPGroup>
-                                    <InputOTPGroup>
-                                      <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={1} />
-                                    </InputOTPGroup>
-                                    <InputOTPGroup>
-                                      <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={2} />
-                                    </InputOTPGroup>
-                                    <InputOTPGroup>
-                                      <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={3} />
-                                    </InputOTPGroup>
-                                    <InputOTPGroup>
-                                      <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={4} />
-                                    </InputOTPGroup>
-                                    <InputOTPGroup>
-                                      <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={5} />
-                                    </InputOTPGroup>
-                                  </div>
-                                </InputOTP>
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      <FormField
-                        control={form.control}
-                        name='deviceName'
-                        render={({ field }) => (
-                          <InputText
-                            label={t('configure_otp.step_verify.device_label')}
-                            name='deviceName'
-                            value={field.value}
-                            onChange={field.onChange}
-                            className='w-full'
-                          />
-                        )}
-                      />
-                      <div className='flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400'>
-                        <ShieldCheck className='mt-0.5 h-4 w-4 shrink-0' />
-                        <span>{t('configure_otp.step_verify.backup_hint')}</span>
-                      </div>
-                    </Step>
-
-                    <div className='flex flex-col gap-2'>
-                      <Button
-                        type='submit'
-                        className='w-full rounded-lg py-5 text-sm'
-                        disabled={!form.formState.isValid}
-                      >
-                        {t('configure_otp.submit')}
-                      </Button>
-                      {handleCancel && (
-                        <Button
-                          type='button'
-                          variant='outline'
-                          className='w-full rounded-lg py-5 text-sm'
-                          onClick={handleCancel}
-                        >
-                          {t('actions.cancel')}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+          <div className='flex flex-col gap-2'>
+            <Button
+              type='submit'
+              className='w-full rounded-lg py-5 text-sm'
+              disabled={!form.formState.isValid}
+            >
+              {t('configure_otp.submit')}
+            </Button>
+            {handleCancel && (
+              <Button
+                type='button'
+                variant='outline'
+                className='w-full rounded-lg py-5 text-sm'
+                onClick={handleCancel}
+              >
+                {t('actions.cancel')}
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      </form>
+    </AuthShell>
   )
 }
 
