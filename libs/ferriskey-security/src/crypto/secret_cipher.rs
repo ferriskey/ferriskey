@@ -136,6 +136,19 @@ impl SecretCipher {
         value.starts_with(ENVELOPE_PREFIX)
     }
 
+    pub fn sealed_by_this_ring(&self, value: &str) -> bool {
+        let Some(keyring) = &self.keyring else {
+            return false;
+        };
+
+        value
+            .strip_prefix(ENVELOPE_PREFIX)
+            .and_then(|rest| rest.split_once(':'))
+            .is_some_and(|(id, encoded)| {
+                keyring.keys.contains_key(id) && URL_SAFE_NO_PAD.decode(encoded).is_ok()
+            })
+    }
+
     pub fn needs_sealing(&self, value: &str) -> bool {
         let Some(keyring) = &self.keyring else {
             return false;
@@ -303,6 +316,17 @@ mod tests {
             SecretCipher::disabled().open("p", "c", "legacy").unwrap(),
             "legacy"
         );
+    }
+
+    #[test]
+    fn a_value_is_recognised_as_sealed_only_by_a_key_of_the_ring() {
+        let sealed = cipher(KEY_A).seal("p", "c", "secret").unwrap();
+
+        assert!(cipher(KEY_A).sealed_by_this_ring(&sealed));
+        assert!(!cipher(KEY_B).sealed_by_this_ring(&sealed));
+        assert!(!SecretCipher::disabled().sealed_by_this_ring(&sealed));
+        assert!(!cipher(KEY_A).sealed_by_this_ring("fk1: typed by a user"));
+        assert!(!cipher(KEY_A).sealed_by_this_ring("plain"));
     }
 
     #[test]

@@ -53,6 +53,11 @@ const SECRET_COLUMNS: [SecretColumn; 4] = [
     },
 ];
 
+#[cfg(test)]
+pub(crate) fn sealed_columns() -> impl Iterator<Item = (&'static str, &'static str)> {
+    SECRET_COLUMNS.iter().map(|spec| (spec.table, spec.column))
+}
+
 fn database_error(error: sea_orm::DbErr) -> CoreError {
     CoreError::Database(error.to_string())
 }

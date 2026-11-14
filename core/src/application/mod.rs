@@ -218,6 +218,10 @@ pub mod webhook;
 
 pub use services::ApplicationService;
 
+use crate::domain::realm_transfer::services::{
+    RealmTransferRepositories, RealmTransferServiceImpl,
+};
+use crate::infrastructure::realm_transfer::postgres_archive::PostgresRealmArchiveRepository;
 use crate::infrastructure::secrets_backfill::seal_existing_secrets;
 use ferriskey_security::crypto::secret_cipher::SecretCipher;
 
@@ -744,6 +748,24 @@ pub async fn create_service_with_secrets(
             client.clone(),
             keystore.clone(),
             security_event.clone(),
+            policy.clone(),
+        ),
+        realm_transfer_service: RealmTransferServiceImpl::new(
+            RealmTransferRepositories {
+                realm: realm.clone(),
+                client: client.clone(),
+                role: role.clone(),
+                user: user.clone(),
+                user_role: user_role.clone(),
+                security_event: security_event.clone(),
+                archive: Arc::new(
+                    PostgresRealmArchiveRepository::new(
+                        postgres.get_db().get_postgres_connection_pool().clone(),
+                        secret_cipher.clone(),
+                    )
+                    .announcing_changes(token_state.clone()),
+                ),
+            },
             policy.clone(),
         ),
         mail_service: MailServiceImpl::new(realm.clone(), smtp_config.clone(), policy.clone()),

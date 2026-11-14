@@ -446,6 +446,21 @@ pub enum CoreError {
 
     #[error("Authorization is not enabled for this realm")]
     AuthorizationNotEnabled,
+
+    #[error("Invalid realm bundle: {0}")]
+    InvalidRealmBundle(String),
+
+    #[error("The realm bundle conflicts with this instance: {0}")]
+    RealmBundleConflict(String),
+
+    #[error("The realm bundle carries no active signing key")]
+    RealmBundleWithoutKeys,
+
+    #[error("The bundle passphrase must hold 16 to 1024 printable ASCII characters")]
+    InvalidBundlePassphrase,
+
+    #[error("The master realm cannot be exported or imported")]
+    MasterRealmNotTransferable,
 }
 
 /// One problem a policy engine found in a realm's authorization rules.
@@ -609,6 +624,11 @@ impl CoreError {
             CoreError::AuthorizationTemplateInUse => "authorization_template_in_use",
             CoreError::InvalidAuthorizationRequest(_) => "invalid_authorization_request",
             CoreError::AuthorizationNotEnabled => "authorization_not_enabled",
+            CoreError::InvalidRealmBundle(_) => "invalid_realm_bundle",
+            CoreError::RealmBundleConflict(_) => "realm_bundle_conflict",
+            CoreError::RealmBundleWithoutKeys => "realm_bundle_without_keys",
+            CoreError::InvalidBundlePassphrase => "invalid_bundle_passphrase",
+            CoreError::MasterRealmNotTransferable => "master_realm_not_transferable",
         }
     }
 }
@@ -971,6 +991,26 @@ mod tests {
                 CoreError::AuthorizationNotEnabled,
                 "authorization_not_enabled",
             ),
+            (
+                CoreError::InvalidRealmBundle(String::new()),
+                "invalid_realm_bundle",
+            ),
+            (
+                CoreError::RealmBundleConflict(String::new()),
+                "realm_bundle_conflict",
+            ),
+            (
+                CoreError::RealmBundleWithoutKeys,
+                "realm_bundle_without_keys",
+            ),
+            (
+                CoreError::InvalidBundlePassphrase,
+                "invalid_bundle_passphrase",
+            ),
+            (
+                CoreError::MasterRealmNotTransferable,
+                "master_realm_not_transferable",
+            ),
         ]
     }
 
@@ -1002,7 +1042,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 136);
+        assert_eq!(every_variant_with_expected_reason().len(), 141);
     }
 
     #[test]
