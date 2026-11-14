@@ -99,6 +99,15 @@ login:
     magic_link:
       label: 魔法链接
       description: 允许用户通过电子邮件收到的魔法链接登录。
+  account_chooser:
+    title: 账户选择器
+    description: 登录页如何处理已在此浏览器上登录过账户的用户。
+    enabled:
+      label: 提供账户选择器
+      description: 已在此浏览器上登录过一个或多个账户的用户可以直接选择其中一个，无需再次输入凭据。
+    show_email:
+      label: 显示已遮蔽的电子邮件地址
+      description: 选择器会在每个账户旁显示遮蔽后的电子邮件地址。仅当仅凭名称无法区分账户时才开启。
   magic_link_ttl:
     label: 魔法链接 TTL
     description: 魔法链接保持有效的时长，以分钟为单位。

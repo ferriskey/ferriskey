@@ -19,7 +19,7 @@ Customers of a service provider are transitive adopters and are not listed indiv
 
 | Organization | Type | Adoption level | Description |
 | ------------ | ---- | -------------- | ----------- |
-| [France Nuage](https://france-nuage.fr) | Service Provider | Production | French open-source cloud provider. FerrisKey is the identity and access management behind its production platform. |
+| [France Nuage](https://france-nuage.fr) | Service Provider | Production | French open-source cloud provider. In production since August 2026: FerrisKey provides single sign-on for its customer console and internal tools, and runs as a managed service for France Nuage's customers. |
 | [Gilded Health](https://www.gilded.ch/) | End-User Organization | — | Builds logistics, pharmacy and payment infrastructure for healthcare institutions. Replaced Kanidm with FerrisKey. |
 | [Natalia](https://getnatalia.com) | End-User Organization | Production | French AI assistant that answers, qualifies and routes inbound calls. FerrisKey is the identity and access management behind its production platform. |
 | [Nudibranches Technologies](https://nudibranches.tech) | Consultancy | — | Montpellier-based engineering firm working on sovereign cloud, data platforms and AI systems. Lists FerrisKey on its site among the open source projects it supports. |

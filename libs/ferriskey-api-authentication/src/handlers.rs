@@ -1,3 +1,4 @@
+pub mod accounts;
 pub mod auth;
 pub mod authentificate;
 pub mod authorization_server_metadata;

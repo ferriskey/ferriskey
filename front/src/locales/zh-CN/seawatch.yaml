@@ -47,6 +47,9 @@ event:
   webhook_delivery_exhausted: Webhook 投递已放弃
   identity_provider_link_removed: 身份提供商关联已移除
   token_exchanged: 令牌已交换
+  account_selected: 已选择账户
+  account_selection_denied: 账户选择被拒绝
+  device_session_created: 已记住设备
   unknown: 无法识别的事件
 
 metrics:

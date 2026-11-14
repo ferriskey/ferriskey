@@ -6,8 +6,10 @@ import { toast } from 'sonner'
 import ConfigurePasskey from '../../ui/execution/configure-passkey'
 import { isWebAuthnAvailable, startRegistration } from '@/lib/webauthn'
 import { AUTH_NAMESPACE } from '../../constants'
-import type { Schemas } from '@/api/api.client'
 import { continueLogin } from '../../utils/continue-login'
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 export default function ConfigurePasskeyFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -30,20 +32,24 @@ export default function ConfigurePasskeyFeature() {
         '/realms/{realm_name}/login-actions/webauthn-public-key-create-options',
         {
           path: { realm_name: realm_name ?? 'master' },
-        } as never,
+        },
       )
 
       // Step 2: Create credential with browser
-      const credential = await startRegistration((optionsRes as { publicKey: Record<string, unknown> }).publicKey)
+      const publicKey = optionsRes.publicKey
+      if (!isRecord(publicKey)) {
+        throw new Error('Missing publicKey in passkey creation options')
+      }
+      const credential = await startRegistration(publicKey)
 
       // Step 3: Send credential to server
-      const created = (await window.tanstackApi.client.post(
+      const created = await window.tanstackApi.client.post(
         '/realms/{realm_name}/login-actions/webauthn-public-key-create',
         {
           path: { realm_name: realm_name ?? 'master' },
           body: credential,
-        } as never,
-      )) as Schemas.ValidatePublicKeyResponse
+        },
+      )
 
       setIsSuccess(true)
       toast.success(t('configure_passkey.success'))

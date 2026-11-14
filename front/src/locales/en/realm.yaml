@@ -85,6 +85,15 @@ login:
     magic_link:
       label: Magic Link
       description: Allow users to sign in via a magic link sent by email.
+  account_chooser:
+    title: Account chooser
+    description: How the sign-in page treats people who already signed in with an account on this browser.
+    enabled:
+      label: Offer an account chooser
+      description: A person who has signed in with one or more accounts on this browser can pick one of them instead of typing their credentials again.
+    show_email:
+      label: Show masked email addresses
+      description: The chooser shows a masked email address next to each account. Turn it on only if the name alone is not enough to tell accounts apart.
   magic_link_ttl:
     label: Magic Link TTL
     description: How long a magic link remains valid, in minutes.

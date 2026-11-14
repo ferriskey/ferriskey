@@ -319,6 +319,17 @@ where
         Ok(entries)
     }
 
+    async fn device_session_id(
+        &self,
+        device_token: Option<&str>,
+        scope: &RealmScope,
+    ) -> Result<Option<Uuid>, CoreError> {
+        Ok(self
+            .resolve_device(device_token, scope)
+            .await?
+            .map(|device| device.get().id))
+    }
+
     async fn select_entry(
         &self,
         device_token: Option<&str>,

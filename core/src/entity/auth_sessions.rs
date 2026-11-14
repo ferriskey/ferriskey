@@ -39,6 +39,7 @@ pub struct Model {
     pub prompt_consent: bool,
     pub issuer: Option<String>,
     pub resource: Option<String>,
+    pub max_age: Option<i64>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -69,6 +70,7 @@ pub enum Column {
     PromptConsent,
     Issuer,
     Resource,
+    MaxAge,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -85,7 +87,6 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    BrokerAuthSessions,
     Clients,
     Realms,
     UserSessions2,
@@ -126,6 +127,7 @@ impl ColumnTrait for Column {
             Self::PromptConsent => ColumnType::Boolean.def(),
             Self::Issuer => ColumnType::Text.def().null(),
             Self::Resource => ColumnType::Text.def().null(),
+            Self::MaxAge => ColumnType::BigInteger.def().null(),
         }
     }
 }
@@ -133,9 +135,6 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
-            Self::BrokerAuthSessions => {
-                Entity::has_many(super::broker_auth_sessions::Entity).into()
-            }
             Self::Clients => Entity::belongs_to(super::clients::Entity)
                 .from(Column::ClientId)
                 .to(super::clients::Column::Id)
@@ -157,12 +156,6 @@ impl RelationTrait for Relation {
                 .to((super::users::Column::Id, super::users::Column::Id))
                 .into(),
         }
-    }
-}
-
-impl Related<super::broker_auth_sessions::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::BrokerAuthSessions.def()
     }
 }
 

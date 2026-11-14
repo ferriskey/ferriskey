@@ -14,7 +14,7 @@ type SecurityEventType = Schemas.SecurityEventType
 
 export interface EventJournal {
   listing: PagedListing
-  events: Schemas.SecurityEvent[]
+  events: Schemas.Paginated_SecurityEvent['data'][number][]
   pagination: PaginationMetadata | undefined
   isLoading: boolean
   isError: boolean

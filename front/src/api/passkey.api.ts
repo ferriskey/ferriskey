@@ -11,7 +11,7 @@ export const usePasskeyRequestOptionsMutation = () => {
       return window.tanstackApi.client.post('/realms/{realm_name}/login-actions/passkey-request-options', {
         path: { realm_name: realm ?? 'master' },
         body: data,
-      } as never) as Promise<Schemas.PasskeyPublicKeyCredentialRequestOptionsJSON>
+      })
     },
   })
 }
@@ -27,7 +27,7 @@ export const usePasskeyAuthenticateMutation = () => {
         path: { realm_name: realm ?? 'master' },
         query: { remember_me: rememberMe ?? false },
         body: data,
-      } as never) as Promise<Schemas.PasskeyAuthenticateResponse>
+      })
     },
   })
 }

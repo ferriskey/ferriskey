@@ -4819,6 +4819,7 @@ mod tests {
             prompt_consent: false,
             issuer: None,
             resource: None,
+            max_age: None,
         }
     }
 

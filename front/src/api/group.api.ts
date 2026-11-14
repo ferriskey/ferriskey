@@ -10,12 +10,13 @@ import {
 import { authStore } from '@/store/auth.store'
 import { errorMessageFromBody, type ApiRequestError } from '@/lib/api-error'
 import type { Endpoints, Schemas } from './api.client'
+import { queryKeyFactory } from './api.tanstack'
 import { ID_BATCH, idBatches } from './id-batches'
 import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 export type Group = Schemas.Group
 
-export type GroupListItem = Schemas.GroupListItem
+export type GroupListItem = Schemas.Paginated_GroupListItem['data'][number]
 
 export type GroupsQuery = NonNullable<Endpoints.get_List_groups['parameters']['query']>
 
@@ -36,7 +37,7 @@ export interface GroupMember {
   created_at: string
 }
 
-export type GroupMemberDetail = Schemas.GroupMemberDetail
+export type GroupMemberDetail = Schemas.Paginated_GroupMemberDetail['data'][number]
 
 export type GroupMembersQuery = NonNullable<
   Endpoints.get_List_group_members['parameters']['query']
@@ -124,12 +125,10 @@ const groupKey = (realm?: string, orgId?: string, groupId?: string) =>
     path: { ...groupsPath(realm, orgId), group_id: groupId ?? '' },
   }).queryKey
 
-const groupDetailsKey = (realm?: string, orgId?: string) => [
-  {
-    _id: '/realms/{realm_name}/organizations/{organization_id}/groups/{group_id}',
+const groupDetailsKey = (realm?: string, orgId?: string) =>
+  queryKeyFactory.endpoint('/realms/{realm_name}/organizations/{organization_id}/groups/{group_id}', {
     path: groupsPath(realm, orgId),
-  },
-]
+  })
 
 const refreshGroups = (qc: QueryClient, realm?: string, orgId?: string, groupId?: string) =>
   Promise.all([

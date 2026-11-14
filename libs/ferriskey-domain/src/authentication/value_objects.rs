@@ -299,6 +299,7 @@ pub struct EndSessionInput {
 
 pub struct EndSessionOutput {
     pub redirect_uri: Option<String>,
+    pub ended_session_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, PartialEq, Default)]

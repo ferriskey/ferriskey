@@ -25,7 +25,7 @@ import { ImportButton } from './import-button'
 import { formatDate } from '@/utils/format-date'
 
 export interface PortalLayoutRow {
-  layout: Schemas.PortalLayoutListItem
+  layout: Schemas.Paginated_PortalLayoutListItem['data'][number]
   nodes: number
 }
 
@@ -105,7 +105,7 @@ export default function PagePortalLayouts({
 
   const defaultPill = <Pill tone='violet'>{t('layouts.row.default')}</Pill>
 
-  const usagePill = (layout: Schemas.PortalLayoutListItem) => (
+  const usagePill = (layout: Schemas.Paginated_PortalLayoutListItem['data'][number]) => (
     <Pill tone={layout.theme_count > 0 ? 'info' : 'neutral'}>
       {layout.theme_count > 0
         ? t('layouts.row.theme_count', { count: layout.theme_count })

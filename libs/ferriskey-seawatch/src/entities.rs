@@ -99,6 +99,15 @@ pub enum SecurityEventType {
     #[serde(rename = "token_exchanged")]
     TokenExchanged,
 
+    #[serde(rename = "account_selected")]
+    AccountSelected,
+
+    #[serde(rename = "account_selection_denied")]
+    AccountSelectionDenied,
+
+    #[serde(rename = "device_session_created")]
+    DeviceSessionCreated,
+
     /// A row whose persisted `event_type` does not match any known variant —
     /// a typo, a variant removed in a refactor, or a row written by a newer
     /// version. Never constructed by write-path code; the read path falls
@@ -143,6 +152,9 @@ impl SecurityEventType {
             "identity_provider_link_removed" => Self::IdentityProviderLinkRemoved,
             "webhook_delivery_exhausted" => Self::WebhookDeliveryExhausted,
             "token_exchanged" => Self::TokenExchanged,
+            "account_selected" => Self::AccountSelected,
+            "account_selection_denied" => Self::AccountSelectionDenied,
+            "device_session_created" => Self::DeviceSessionCreated,
             _ => Self::Unknown,
         }
     }
@@ -188,6 +200,9 @@ impl Display for SecurityEventType {
                 write!(f, "webhook_delivery_exhausted")
             }
             SecurityEventType::TokenExchanged => write!(f, "token_exchanged"),
+            SecurityEventType::AccountSelected => write!(f, "account_selected"),
+            SecurityEventType::AccountSelectionDenied => write!(f, "account_selection_denied"),
+            SecurityEventType::DeviceSessionCreated => write!(f, "device_session_created"),
             SecurityEventType::Unknown => write!(f, "unknown"),
         }
     }

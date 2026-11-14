@@ -7,6 +7,7 @@ use utoipa::ToSchema;
 use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse, ValidateJson};
 use ferriskey_api_core::api_entities::response::Response;
 use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::device_cookie::{attach_login, device_token};
 use ferriskey_api_core::sso_cookie;
 use ferriskey_api_core::url::FullUrl;
 use validator::Validate;
@@ -65,13 +66,19 @@ pub async fn post_consent(
 
     let mut headers = HeaderMap::new();
     if let Some(secret) = decision.sso_cookie {
+        let is_secure = base_url.starts_with("https");
+        attach_login(
+            &state,
+            &realm_name,
+            device_token(&cookie),
+            &secret,
+            is_secure,
+            &mut headers,
+        )
+        .await;
         headers.append(
             SET_COOKIE,
-            sso_cookie::set(
-                secret,
-                decision.sso_session_max_age_secs,
-                base_url.starts_with("https"),
-            )?,
+            sso_cookie::set(secret, decision.sso_session_max_age_secs, is_secure)?,
         );
     }
 

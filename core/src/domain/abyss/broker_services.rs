@@ -931,6 +931,7 @@ where
                     prompt_consent: false,
                     issuer: None,
                     resource: None,
+                    max_age: None,
                 })))
             }
         };
@@ -1383,6 +1384,7 @@ mod tests {
             prompt_consent: false,
             issuer: None,
             resource: None,
+            max_age: None,
         });
         (RealmScope::from_realm(realm), session)
     }

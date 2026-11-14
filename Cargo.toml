@@ -34,3 +34,6 @@ strip = "symbols"
 # Slower to build, noticeably smaller (and faster) binaries.
 lto = "thin"
 codegen-units = 1
+
+[profile.dev]
+debug = "line-tables-only"

@@ -6,6 +6,7 @@ use std::thread;
 
 use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
 use chrono::{DateTime, Duration, TimeZone, Utc};
+use ferriskey_domain::device_session::entities::SelectedAccount;
 use ferriskey_security::crypto::password_check::verify_password_credential;
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
@@ -58,6 +59,7 @@ use crate::domain::{
         ports::{
             AdmitLoginInput, AuthService, AuthSessionRepository, ConsentRedirect, LoginActionGrant,
             LoginActionToken, LoginActionTokenRepository, LoginAdmission, LoginAdmissionPort,
+            SessionOrigin,
         },
         value_objects::{
             AuthenticationResult, CodeChallengeMethod, EndSessionInput, EndSessionOutput,
@@ -147,6 +149,18 @@ fn consent_error_redirect(
     }
 
     with_issuer(location, issuer)
+}
+
+fn max_age_exceeded(
+    authenticated_at: DateTime<Utc>,
+    now: DateTime<Utc>,
+    max_age: Option<i64>,
+) -> bool {
+    match max_age {
+        None => false,
+        Some(0) => true,
+        Some(max_age) => (now - authenticated_at).num_seconds() > max_age,
+    }
 }
 
 fn resource_is_allowed(allowed_resources: &[String], resource: &str) -> bool {
@@ -339,19 +353,50 @@ fn validate_session_binding(
 /// Open the SSO session a login completes into, or re-authenticate into the
 /// live session the browser still held when it was sent to the login page, so
 /// signing in again does not leave a second session behind.
+struct Finalization {
+    binding: SsoSessionBinding,
+    origin: SessionOrigin,
+}
+
+impl From<SsoSessionBinding> for Finalization {
+    fn from(binding: SsoSessionBinding) -> Self {
+        Self {
+            binding,
+            origin: SessionOrigin::default(),
+        }
+    }
+}
+
+struct ResumedSession {
+    user_id: Uuid,
+    session: Scoped<UserSession>,
+    cookie: String,
+}
+
+pub(crate) struct NewSession<'a> {
+    pub(crate) lifetime_seconds: i64,
+    pub(crate) persistent: bool,
+    pub(crate) origin: &'a SessionOrigin,
+}
+
 pub(crate) async fn open_or_reauthenticate_session<S, E>(
     sessions: &S,
     events: &E,
     reauth_session_id: Option<Uuid>,
     user_id: Uuid,
     scope: &RealmScope,
-    session_lifetime_seconds: i64,
-    persistent: bool,
+    new_session: NewSession<'_>,
 ) -> Result<(UserSession, String), CoreError>
 where
     S: UserSessionRepository,
     E: SecurityEventRepository,
 {
+    let NewSession {
+        lifetime_seconds: session_lifetime_seconds,
+        persistent,
+        origin,
+    } = new_session;
+
     if let Some(candidate) = reauth_session_id
         && let Some(reauthenticated) = reauthenticate_session(
             sessions,
@@ -374,6 +419,7 @@ where
         scope.id(),
         session_lifetime_seconds,
         persistent,
+        origin,
     )
     .await
 }
@@ -576,8 +622,9 @@ where
 /// which their session is alive. A dedicated realm-level SSO session lifetime
 /// would be a better fit and is left for follow-up.
 ///
-/// `user_agent` and `ip_address` are left unset: recording the browser's values
-/// means carrying them from the `/auth` request through `auth_sessions`.
+/// `origin` carries the browser's `user_agent` and `ip_address` when the caller
+/// has them; the logins that complete outside the credential request leave
+/// them unset.
 pub(crate) async fn open_user_session<S, E>(
     sessions: &S,
     events: &E,
@@ -585,6 +632,7 @@ pub(crate) async fn open_user_session<S, E>(
     realm_id: RealmId,
     session_lifetime_seconds: i64,
     persistent: bool,
+    origin: &SessionOrigin,
 ) -> Result<(UserSession, String), CoreError>
 where
     S: UserSessionRepository,
@@ -601,8 +649,14 @@ where
         CoreError::SessionCreateError
     })?;
 
-    let mut session =
-        UserSession::new(user_id, realm_id.into(), None, None, session_duration, None);
+    let mut session = UserSession::new(
+        user_id,
+        realm_id.into(),
+        origin.user_agent.clone(),
+        origin.ip_address.clone(),
+        session_duration,
+        None,
+    );
 
     let sso_token = generate_random_token();
     session.sso_token_hash = Some(sso_token_hash(&sso_token));
@@ -2125,6 +2179,7 @@ where
             realm_id,
             session_lifetime_seconds,
             persistent,
+            &SessionOrigin::default(),
         )
         .await
     }
@@ -3813,6 +3868,7 @@ where
         &self,
         params: CredentialsAuthParams,
         auth_session: AuthSession,
+        origin: &SessionOrigin,
     ) -> Result<AuthenticateOutput, CoreError> {
         let flow_id = auth_session.compass_flow_id.map(FlowId);
         let step_start = Utc::now();
@@ -3860,26 +3916,21 @@ where
             auth_session.remember_me = params.remember_me;
         }
 
-        self.determine_next_step(
-            auth_result,
-            params.session_code,
-            auth_session,
-            &params.realm,
-            &params.webapp_base_url,
-            &client,
-        )
-        .await
+        self.determine_next_step(auth_result, auth_session, &params, &client, origin.clone())
+            .await
     }
 
     async fn determine_next_step(
         &self,
         auth_result: AuthenticationResult,
-        session_code: Uuid,
         auth_session: AuthSession,
-        scope: &RealmScope,
-        webapp_base_url: &str,
+        params: &CredentialsAuthParams,
         client: &Client,
+        origin: SessionOrigin,
     ) -> Result<AuthenticateOutput, CoreError> {
+        let scope = &params.realm;
+        let session_code = params.session_code;
+        let webapp_base_url = params.webapp_base_url.as_str();
         let flow_id = auth_session.compass_flow_id.map(FlowId);
 
         if !auth_result.required_actions.is_empty() {
@@ -3934,7 +3985,10 @@ where
             auth_result.user_id,
             session_code,
             auth_session,
-            SsoSessionBinding::Open,
+            Finalization {
+                binding: SsoSessionBinding::Open,
+                origin,
+            },
             scope,
             client,
         )
@@ -4253,8 +4307,15 @@ where
             None => SsoSessionBinding::Open,
         };
 
-        self.finalize_authentication(user_id, session_code, auth_session, binding, scope, &client)
-            .await
+        self.finalize_authentication(
+            user_id,
+            session_code,
+            auth_session,
+            binding.into(),
+            scope,
+            &client,
+        )
+        .await
     }
 
     async fn finalize_authentication(
@@ -4262,11 +4323,15 @@ where
         user_id: Uuid,
         session_code: Uuid,
         auth_session: AuthSession,
-        sso_session: SsoSessionBinding,
+        finalization: Finalization,
         scope: &RealmScope,
         client: &Client,
     ) -> Result<AuthenticateOutput, CoreError> {
         let authorization_code = generate_random_string();
+        let Finalization {
+            binding: sso_session,
+            origin,
+        } = finalization;
 
         let (sso_session, sso_cookie) = match sso_session {
             SsoSessionBinding::Resume { session, cookie } => {
@@ -4284,8 +4349,11 @@ where
                     auth_session.reauth_session_id,
                     user_id,
                     scope,
-                    lifetimes.refresh_token,
-                    persistent,
+                    NewSession {
+                        lifetime_seconds: lifetimes.refresh_token,
+                        persistent,
+                        origin: &origin,
+                    },
                 )
                 .await?;
                 (session, Some(cookie))
@@ -4457,9 +4525,7 @@ where
 
         let (session, user) = self.live_session_user(session, scope).await?;
 
-        if let Some(max_age) = max_age
-            && (Utc::now() - session.get().authenticated_at).num_seconds() > max_age
-        {
+        if max_age_exceeded(session.get().authenticated_at, Utc::now(), max_age) {
             return Err(CoreError::ReauthenticationRequired);
         }
 
@@ -4553,14 +4619,44 @@ where
             .map_err(|e| warn!("Failed to record an SSO login in the audit log: {e}"))
             .ok();
 
+        self.resume_into_flow(
+            ResumedSession {
+                user_id: user.id,
+                session,
+                cookie,
+            },
+            session_code,
+            auth_session,
+            &scope,
+            &client,
+            webapp_base_url,
+        )
+        .await
+    }
+
+    async fn resume_into_flow(
+        &self,
+        resumed: ResumedSession,
+        session_code: Uuid,
+        auth_session: AuthSession,
+        scope: &RealmScope,
+        client: &Client,
+        webapp_base_url: &str,
+    ) -> Result<AuthenticateOutput, CoreError> {
+        let ResumedSession {
+            user_id,
+            session,
+            cookie,
+        } = resumed;
+
         if let Some(output) = self
             .consent_gate(
-                user.id,
+                user_id,
                 session_code,
                 &auth_session,
-                &scope,
+                scope,
                 webapp_base_url,
-                &client,
+                client,
             )
             .await?
         {
@@ -4576,17 +4672,149 @@ where
         }
 
         self.finalize_authentication(
-            user.id,
+            user_id,
             session_code,
             auth_session,
             SsoSessionBinding::Resume {
                 session: Box::new(session),
                 cookie,
-            },
-            &scope,
-            &client,
+            }
+            .into(),
+            scope,
+            client,
         )
         .await
+    }
+
+    pub(crate) async fn open_selection_auth_session(
+        &self,
+        scope: &RealmScope,
+        session_code: Uuid,
+    ) -> Result<AuthSession, CoreError> {
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|e| {
+                warn!("Failed to get auth session by session code: {:?}", e);
+                CoreError::SessionNotFound
+            })?
+            .in_realm(scope)
+            .map_err(|_| CoreError::InvalidSession)?
+            .into_inner();
+
+        if auth_session.expires_at < Utc::now() {
+            return Err(CoreError::SessionExpired);
+        }
+
+        if auth_session.user_id.is_some() && auth_session.authenticated {
+            return Err(CoreError::InvalidSession);
+        }
+
+        Ok(auth_session)
+    }
+
+    pub(crate) async fn finalize_selected_session(
+        &self,
+        scope: &RealmScope,
+        auth_session: AuthSession,
+        session_code: Uuid,
+        selected: SelectedAccount,
+        webapp_base_url: &str,
+    ) -> Result<AuthenticateOutput, CoreError> {
+        let session = self
+            .find_sso_session(&selected.new_sso_secret, scope)
+            .await?;
+        let client = self.client_of_session(scope, &auth_session).await?;
+        let rotated_secret = selected.new_sso_secret.clone();
+
+        let mut output = self
+            .resume_into_flow(
+                ResumedSession {
+                    user_id: selected.user_id,
+                    session,
+                    cookie: selected.new_sso_secret,
+                },
+                session_code,
+                auth_session,
+                scope,
+                &client,
+                webapp_base_url,
+            )
+            .await?;
+
+        if output.sso_cookie.is_none() {
+            output.sso_cookie = Some(rotated_secret);
+            output.sso_session_max_age_secs = selected.cookie_max_age;
+        }
+
+        Ok(output)
+    }
+
+    pub(crate) async fn remember_reauthentication_into(
+        &self,
+        scope: &RealmScope,
+        session_code: Uuid,
+        session_id: Uuid,
+    ) -> Result<String, CoreError> {
+        let session =
+            find_live_bound_session(self.user_session_repository.as_ref(), session_id, scope)
+                .await
+                .ok_or(CoreError::SessionNotFound)?;
+
+        let user = self
+            .user_repository
+            .get_by_id(session.user_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .in_realm(scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner();
+
+        self.auth_session_repository
+            .set_reauth_session(session_code, session.id)
+            .await
+            .map_err(|e| {
+                warn!(error = ?e, "Failed to remember the session to re-authenticate into");
+                CoreError::InternalServerError
+            })?;
+
+        Ok(user.username)
+    }
+
+    pub(crate) async fn session_in_scope(
+        &self,
+        scope: &RealmScope,
+        session_id: Uuid,
+    ) -> Option<UserSession> {
+        self.user_session_repository
+            .find_by_id(session_id)
+            .await
+            .ok()??
+            .in_realm(scope)
+            .ok()
+            .map(Scoped::into_inner)
+    }
+
+    pub(crate) async fn session_id_of_sso_secret(
+        &self,
+        scope: &RealmScope,
+        secret: &str,
+    ) -> Option<Uuid> {
+        self.find_sso_session(secret, scope)
+            .await
+            .ok()
+            .map(|session| session.get().id)
+    }
+
+    pub(crate) async fn client_uuid_of(&self, scope: &RealmScope, client_id: &str) -> Option<Uuid> {
+        self.client_repository
+            .get_by_client_id(client_id.to_string(), scope.id())
+            .await
+            .ok()?
+            .in_realm(scope)
+            .ok()
+            .map(|client| client.into_inner().id)
     }
 
     fn build_auth_completion(
@@ -5075,6 +5303,7 @@ where
             prompt_consent: input.prompt_consent,
             issuer: input.issuer,
             resource: input.resource,
+            max_age: input.max_age,
         };
         let session = self
             .auth_session_repository
@@ -5479,6 +5708,15 @@ where
         &self,
         input: super::entities::AuthenticateInput,
     ) -> Result<super::entities::AuthenticateOutput, CoreError> {
+        self.authenticate_from(input, SessionOrigin::default())
+            .await
+    }
+
+    async fn authenticate_from(
+        &self,
+        input: super::entities::AuthenticateInput,
+        origin: SessionOrigin,
+    ) -> Result<super::entities::AuthenticateOutput, CoreError> {
         let auth_session = self
             .auth_session_repository
             .get_by_session_code(input.session_code)
@@ -5530,7 +5768,7 @@ where
                     remember_me,
                 };
 
-                self.handle_user_credentials_authentication(params, auth_session)
+                self.handle_user_credentials_authentication(params, auth_session, &origin)
                     .await
                     .map_err(|_| CoreError::InvalidCredentials)
             }
@@ -5728,7 +5966,7 @@ where
                         user.id,
                         session_code,
                         auth_session,
-                        SsoSessionBinding::Open,
+                        SsoSessionBinding::Open.into(),
                         &scope,
                         &client,
                     )
@@ -6066,9 +6304,12 @@ where
             None => None,
         };
 
+        let mut ended_session_id = None;
+
         if let Some((session, user_id)) = hinted_session {
             self.revoke_session_cascade(&session, scope.id(), user_id)
                 .await?;
+            ended_session_id = Some(session.get().id);
         } else if let Some(cookie) = input.sso_cookie.as_deref() {
             let session = self
                 .user_session_repository
@@ -6084,6 +6325,7 @@ where
                 let user_id = session.get().user_id;
                 self.revoke_session_cascade(&session, scope.id(), user_id)
                     .await?;
+                ended_session_id = Some(session.get().id);
             }
         }
 
@@ -6123,10 +6365,14 @@ where
                     &post_logout_redirect_uri,
                     input.state.as_deref(),
                 )),
+                ended_session_id,
             });
         }
 
-        Ok(EndSessionOutput { redirect_uri: None })
+        Ok(EndSessionOutput {
+            redirect_uri: None,
+            ended_session_id,
+        })
     }
 
     async fn remember_reauthentication(
@@ -6427,6 +6673,28 @@ fn token_generation_error(error: impl ToString) -> CoreError {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn a_zero_max_age_always_demands_a_new_authentication() {
+        let now = chrono::Utc::now();
+
+        assert!(super::max_age_exceeded(now, now, Some(0)));
+        assert!(super::max_age_exceeded(
+            now + chrono::Duration::seconds(5),
+            now,
+            Some(0)
+        ));
+    }
+
+    #[test]
+    fn a_positive_max_age_compares_whole_seconds() {
+        let now = chrono::Utc::now();
+        let authenticated_at = now - chrono::Duration::seconds(100);
+
+        assert!(!super::max_age_exceeded(authenticated_at, now, None));
+        assert!(!super::max_age_exceeded(authenticated_at, now, Some(100)));
+        assert!(super::max_age_exceeded(authenticated_at, now, Some(99)));
+    }
+
+    #[test]
     fn sso_token_hash_is_lowercase_sha256_hex() {
         assert_eq!(
             super::sso_token_hash("abc"),
@@ -6594,6 +6862,7 @@ mod tests {
             prompt_consent: false,
             issuer: None,
             resource: None,
+            max_age: None,
         }
     }
 
@@ -8110,8 +8379,9 @@ mod password_hash_tests {
 #[cfg(test)]
 mod bound_session_tests {
     use super::{
-        find_live_bound_session, open_or_reauthenticate_session, open_user_session,
-        revoke_session_and_its_tokens, revoke_tokens_unless_bound_session_survived,
+        NewSession, SessionOrigin, find_live_bound_session, open_or_reauthenticate_session,
+        open_user_session, revoke_session_and_its_tokens,
+        revoke_tokens_unless_bound_session_survived,
     };
     use crate::domain::common::entities::app_errors::CoreError;
     use crate::domain::seawatch::ports::MockSecurityEventRepository;
@@ -8277,8 +8547,11 @@ mod bound_session_tests {
             Some(session_id),
             user_id,
             &scope(realm_id),
-            3600,
-            true,
+            NewSession {
+                lifetime_seconds: 3600,
+                persistent: true,
+                origin: &SessionOrigin::default(),
+            },
         )
         .await
         .expect("re-authentication succeeds");
@@ -8318,8 +8591,11 @@ mod bound_session_tests {
             Some(session_id),
             Uuid::new_v4(),
             &scope(realm_id),
-            3600,
-            false,
+            NewSession {
+                lifetime_seconds: 3600,
+                persistent: false,
+                origin: &SessionOrigin::default(),
+            },
         )
         .await
         .expect("a new session opens");
@@ -8352,13 +8628,46 @@ mod bound_session_tests {
             Some(session_id),
             user_id,
             &scope(realm_id),
-            3600,
-            false,
+            NewSession {
+                lifetime_seconds: 3600,
+                persistent: false,
+                origin: &SessionOrigin::default(),
+            },
         )
         .await
         .expect("the login still completes into a new session");
 
         assert_ne!(opened.id, session_id);
+    }
+
+    #[tokio::test]
+    async fn an_opened_session_records_the_browser_it_was_opened_from() {
+        let mut sessions = MockUserSessionRepository::new();
+        sessions
+            .expect_create()
+            .withf(|session| {
+                session.user_agent.as_deref() == Some("Mozilla/5.0")
+                    && session.ip_address.as_deref() == Some("203.0.113.9")
+            })
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let origin = SessionOrigin {
+            user_agent: Some("Mozilla/5.0".to_string()),
+            ip_address: Some("203.0.113.9".to_string()),
+        };
+
+        open_user_session(
+            &sessions,
+            &quiet_events(),
+            Uuid::new_v4(),
+            RealmId::new(Uuid::new_v4()),
+            3600,
+            false,
+            &origin,
+        )
+        .await
+        .expect("the session opens");
     }
 
     #[tokio::test]
@@ -8384,6 +8693,7 @@ mod bound_session_tests {
             RealmId::new(realm_id),
             3600,
             false,
+            &SessionOrigin::default(),
         )
         .await;
 
