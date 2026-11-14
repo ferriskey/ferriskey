@@ -21,7 +21,7 @@ pub struct Swept {
     pub user_sessions: u64,
 }
 
-async fn purge_in_batches<F, Fut, E>(table: &str, batch: u64, mut delete_batch: F) -> u64
+pub(crate) async fn purge_in_batches<F, Fut, E>(table: &str, batch: u64, mut delete_batch: F) -> u64
 where
     F: FnMut() -> Fut,
     Fut: Future<Output = Result<u64, E>>,

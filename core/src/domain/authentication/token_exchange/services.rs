@@ -16,8 +16,9 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::domain::authentication::OidcScope;
+use crate::domain::authentication::client_assertion::ports::ClientAssertionVerifier;
+use crate::domain::authentication::client_authentication::prove_client;
 use crate::domain::authentication::entities::GrantType;
-use crate::domain::authentication::services::client_secret_matches;
 use crate::domain::authentication::token_exchange::entities::{TokenExchangeError, TokenType};
 use crate::domain::authentication::token_exchange::ports::{
     SubjectTokenIssuer, TokenExchangeService,
@@ -39,7 +40,7 @@ use crate::domain::user::entities::User;
 use crate::domain::user::ports::UserRepository;
 
 #[derive(Clone, Debug)]
-pub struct TokenExchangeServiceImpl<C, U, P, SER, I, R, O>
+pub struct TokenExchangeServiceImpl<C, U, P, SER, I, R, O, V>
 where
     C: ClientRepository,
     U: UserRepository,
@@ -48,6 +49,7 @@ where
     I: SubjectTokenIssuer,
     R: RealmRepository,
     O: ResourceOwnerRepository,
+    V: ClientAssertionVerifier,
 {
     pub(crate) client_repository: Arc<C>,
     pub(crate) user_repository: Arc<U>,
@@ -57,6 +59,7 @@ where
     pub(crate) realm_repository: Arc<R>,
     pub(crate) resource_owner_repository: Arc<O>,
     pub(crate) flow_recorder: FlowRecorder,
+    pub(crate) client_assertion_verifier: Arc<V>,
 }
 
 /// What an authenticated exchange learned before it succeeded or failed, for
@@ -68,7 +71,7 @@ struct ExchangeTrace {
     policy: Option<Uuid>,
 }
 
-impl<C, U, P, SER, I, R, O> TokenExchangeServiceImpl<C, U, P, SER, I, R, O>
+impl<C, U, P, SER, I, R, O, V> TokenExchangeServiceImpl<C, U, P, SER, I, R, O, V>
 where
     C: ClientRepository,
     U: UserRepository,
@@ -77,6 +80,7 @@ where
     I: SubjectTokenIssuer,
     R: RealmRepository,
     O: ResourceOwnerRepository,
+    V: ClientAssertionVerifier,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -88,6 +92,7 @@ where
         realm_repository: Arc<R>,
         resource_owner_repository: Arc<O>,
         flow_recorder: FlowRecorder,
+        client_assertion_verifier: Arc<V>,
     ) -> Self {
         Self {
             client_repository,
@@ -98,6 +103,7 @@ where
             realm_repository,
             resource_owner_repository,
             flow_recorder,
+            client_assertion_verifier,
         }
     }
 
@@ -116,11 +122,22 @@ where
             .map_err(|_| TokenExchangeError::InvalidClient)?
             .into_inner();
 
-        if client.public_client
-            || !client_secret_matches(client.secret_str(), params.client_secret.as_deref())
-        {
+        if client.public_client {
             return Err(TokenExchangeError::InvalidClient);
         }
+
+        prove_client(
+            self.client_assertion_verifier.as_ref(),
+            &client,
+            &params.client_credential,
+        )
+        .await
+        .map_err(|error| match error {
+            CoreError::InternalServerError => {
+                TokenExchangeError::ServerError("could not authenticate the client".into())
+            }
+            _ => TokenExchangeError::InvalidClient,
+        })?;
 
         if !client.enabled
             || !client.token_exchange_enabled
@@ -444,7 +461,8 @@ where
     }
 }
 
-impl<C, U, P, SER, I, R, O> TokenExchangeService for TokenExchangeServiceImpl<C, U, P, SER, I, R, O>
+impl<C, U, P, SER, I, R, O, V> TokenExchangeService
+    for TokenExchangeServiceImpl<C, U, P, SER, I, R, O, V>
 where
     C: ClientRepository,
     U: UserRepository,
@@ -453,6 +471,7 @@ where
     I: SubjectTokenIssuer,
     R: RealmRepository,
     O: ResourceOwnerRepository,
+    V: ClientAssertionVerifier,
 {
     async fn exchange(
         &self,
@@ -636,6 +655,8 @@ mod tests {
     use std::sync::Mutex;
 
     use super::*;
+    use crate::domain::authentication::client_assertion::ports::MockClientAssertionVerifier;
+    use crate::domain::authentication::client_authentication::ClientCredential;
     use crate::domain::authentication::token_exchange::ports::MockSubjectTokenIssuer;
     use crate::domain::authentication::token_exchange::value_objects::TokenExchangeInput;
     use crate::domain::client::entities::token_exchange_policy::TokenExchangePolicyDefinition;
@@ -664,6 +685,7 @@ mod tests {
         MockSubjectTokenIssuer,
         MockRealmRepository,
         MockResourceOwnerRepository,
+        MockClientAssertionVerifier,
     >;
 
     fn realm() -> Realm {
@@ -738,7 +760,7 @@ mod tests {
         TokenExchangeParams {
             realm: RealmScope::from_realm(realm.clone()),
             client_id: REQUESTER.to_string(),
-            client_secret: Some(SECRET.to_string()),
+            client_credential: ClientCredential::secret(SECRET),
             input,
         }
     }
@@ -904,6 +926,7 @@ mod tests {
                 Arc::new(realms),
                 Arc::new(owners),
                 FlowRecorder::disabled(),
+                Arc::new(MockClientAssertionVerifier::new()),
             )
         }
 
@@ -1249,7 +1272,7 @@ mod tests {
         let subject = subject_claims(&user, REQUESTER, "openid", 3600);
         let harness = Harness::new(&realm, requester, subject);
         let mut request = params(&realm, input(None, None));
-        request.client_secret = None;
+        request.client_credential = ClientCredential::None;
 
         let err = harness
             .build()
@@ -1266,7 +1289,7 @@ mod tests {
         let subject = subject_claims(&user, REQUESTER, "openid", 3600);
         let harness = Harness::new(&realm, requester, subject);
         let mut request = params(&realm, input(None, None));
-        request.client_secret = Some("wrong".to_string());
+        request.client_credential = ClientCredential::secret("wrong");
 
         let err = harness
             .build()

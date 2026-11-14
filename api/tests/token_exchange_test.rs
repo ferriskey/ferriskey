@@ -378,7 +378,9 @@ mod tests {
             .exchange_subject_token(
                 REALM.to_string(),
                 client.client_id.clone(),
-                Some(client.secret.clone()),
+                ferriskey_core::domain::authentication::client_authentication::ClientCredential::secret(
+                    client.secret.clone(),
+                ),
                 TokenExchangeInput {
                     subject_token: subject_token.to_string(),
                     subject_token_type: ACCESS_TOKEN_URN.to_string(),

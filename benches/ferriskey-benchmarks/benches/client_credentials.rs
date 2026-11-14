@@ -1,10 +1,14 @@
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use ferriskey_core::domain::authentication::client_assertion::ports::ClientAssertionVerifier;
 use ferriskey_core::domain::authentication::client_authentication::{
-    ClientGrant, authenticate_client,
+    ClientAssertion, ClientCredential, ClientGrant, ClientProof, authenticate_client,
 };
 use ferriskey_core::domain::authentication::entities::AuthProtocol;
 use ferriskey_core::domain::client::entities::{Client, ClientConfig, ClientType};
+use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use ferriskey_domain::realm::RealmId;
+use std::pin::pin;
+use std::task::{Context, Poll, Waker};
 use uuid::Uuid;
 
 const SECRET: &str = "4c1f2d8e9b7a6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b";
@@ -30,18 +34,40 @@ fn confidential_client() -> Client {
     })
 }
 
+struct SecretsOnly;
+
+impl ClientAssertionVerifier for SecretsOnly {
+    async fn verify(
+        &self,
+        _client: &Client,
+        _assertion: &ClientAssertion,
+    ) -> Result<ClientProof, CoreError> {
+        Err(CoreError::ClientAuthenticationFailed)
+    }
+}
+
+fn ready<F: Future>(future: F) -> F::Output {
+    match pin!(future).poll(&mut Context::from_waker(Waker::noop())) {
+        Poll::Ready(output) => output,
+        Poll::Pending => unreachable!("the secret path never waits"),
+    }
+}
+
 fn client_credentials(c: &mut Criterion) {
     let client = confidential_client();
+    let secret = ClientCredential::secret(SECRET);
+    let wrong = ClientCredential::secret("not-the-secret");
 
     c.bench_function(
         "client_credentials: authenticate a confidential client",
         |b| {
             b.iter(|| {
-                authenticate_client(
+                ready(authenticate_client(
+                    &SecretsOnly,
                     black_box(&client),
-                    Some(black_box(SECRET)),
+                    black_box(&secret),
                     ClientGrant::ClientCredentials,
-                )
+                ))
                 .expect("the secret matches")
             })
         },
@@ -49,11 +75,12 @@ fn client_credentials(c: &mut Criterion) {
 
     c.bench_function("client_credentials: refuse a wrong client secret", |b| {
         b.iter(|| {
-            authenticate_client(
+            ready(authenticate_client(
+                &SecretsOnly,
                 black_box(&client),
-                Some(black_box("not-the-secret")),
+                black_box(&wrong),
                 ClientGrant::ClientCredentials,
-            )
+            ))
             .is_err()
         })
     });

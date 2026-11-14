@@ -130,7 +130,7 @@ export type RequiredAction = ("configure_otp" | "verify_email" | "update_passwor
 export type AuthenticationStatus = ("Success" | "RequiresActions" | "RequiresOtpChallenge" | "Failed")
 export type AuthenticateResponse = { email?: (string | null), message?: (string | null), required_actions?: (Array<RequiredAction> | null), status: AuthenticationStatus, url?: (string | null) }
 export type AuthenticationAttemptResponse = { login_url: string }
-export type AuthorizationServerMetadata = { authorization_endpoint: string, authorization_response_iss_parameter_supported: boolean, client_id_metadata_document_supported?: (boolean | null), code_challenge_methods_supported: Array<string>, grant_types_supported: Array<string>, introspection_endpoint: string, issuer: string, jwks_uri: string, registration_endpoint?: (string | null), response_types_supported: Array<string>, revocation_endpoint: string, scopes_supported: Array<string>, token_endpoint: string, token_endpoint_auth_methods_supported: Array<string> }
+export type AuthorizationServerMetadata = { authorization_endpoint: string, authorization_response_iss_parameter_supported: boolean, client_id_metadata_document_supported?: (boolean | null), code_challenge_methods_supported: Array<string>, grant_types_supported: Array<string>, introspection_endpoint: string, issuer: string, jwks_uri: string, registration_endpoint?: (string | null), response_types_supported: Array<string>, revocation_endpoint: string, scopes_supported: Array<string>, token_endpoint: string, token_endpoint_auth_methods_supported: Array<string>, token_endpoint_auth_signing_alg_values_supported: Array<string> }
 export type AuthzStateBody = { enabled: boolean, version: number }
 export type AuthzenAction = { name: string, properties?: (Record<string, unknown> | null) }
 export type AuthzenConfiguration = { access_evaluation_endpoint: string, access_evaluations_endpoint: string, policy_decision_point: string }
@@ -156,6 +156,8 @@ export type MaintenanceSessionStrategy = ("terminate" | "expire")
 export type RedirectUri = { client_id: string, created_at: string, enabled: boolean, id: string, updated_at: string, value: string }
 export type ClientRegistrationSource = ("admin" | "dynamic" | "metadata_document")
 export type Masked_String = string
+export type ClientJwks = Record<string, unknown>
+export type TokenEndpointAuthMethod = ("none" | "client_secret_basic" | "client_secret_post" | "client_secret_jwt" | "private_key_jwt")
 export type Client = {
   access_token_lifetime?: (number | null);
   /**
@@ -176,6 +178,8 @@ export type Client = {
   enabled: boolean;
   id: string;
   id_token_lifetime?: (number | null);
+  jwks?: (ClientJwks | null);
+  jwks_uri?: (string | null);
   maintenance_enabled: boolean;
   maintenance_reason?: (string | null);
   maintenance_session_strategy: MaintenanceSessionStrategy;
@@ -196,11 +200,12 @@ export type Client = {
   secret?: (Masked_String | null);
   service_account_enabled: boolean;
   temporary_token_lifetime?: (number | null);
+  token_endpoint_auth_method: TokenEndpointAuthMethod;
   token_exchange_enabled: boolean;
   updated_at: string;
 }
-export type ClientRegistrationRequest = Partial<{ client_name: (string | null), grant_types: (Array<string> | null), redirect_uris: Array<string>, response_types: (Array<string> | null), scope: (string | null), token_endpoint_auth_method: (string | null) }>
-export type ClientRegistrationResponse = { client_id: string, client_id_issued_at: number, client_name: string, client_secret?: (string | null), client_secret_expires_at?: (number | null), grant_types: Array<string>, redirect_uris: Array<string>, response_types: Array<string>, scope: string, token_endpoint_auth_method: string }
+export type ClientRegistrationRequest = Partial<{ client_name: (string | null), grant_types: (Array<string> | null), jwks: (ClientJwks | null), jwks_uri: (string | null), redirect_uris: Array<string>, response_types: (Array<string> | null), scope: (string | null), token_endpoint_auth_method: (string | null) }>
+export type ClientRegistrationResponse = { client_id: string, client_id_issued_at: number, client_name: string, client_secret?: (string | null), client_secret_expires_at?: (number | null), grant_types: Array<string>, jwks?: (ClientJwks | null), jwks_uri?: (string | null), redirect_uris: Array<string>, response_types: Array<string>, scope: string, token_endpoint_auth_method: string }
 export type NameIdFormat = ("urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" | "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent" | "urn:oasis:names:tc:SAML:2.0:nameid-format:transient" | "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified")
 export type SpEntityId = string
 export type ClientSamlConfig = { acs_url: AcsUrl, client_id: string, created_at: string, name_id_format: NameIdFormat, realm_id: RealmId, sign_assertions: boolean, sign_documents: boolean, sp_entity_id: SpEntityId, updated_at: string, want_authn_requests_signed: boolean }
@@ -233,7 +238,7 @@ export type ConfirmOwnOtpEnrollmentValidator = { code?: string, elevation_id: st
 export type ConfirmOwnPasskeyRegistrationValidator = { credential: Record<string, unknown>, elevation_id: string }
 export type ConfirmPasskeyResponse = { message: string }
 export type CreateClientScopeValidator = Partial<{ description: (string | null), dynamic_registration_allowed: boolean, is_default: boolean, name: string, protocol: string }>
-export type CreateClientValidator = { client_id?: string, client_type: ClientType, consent_required?: boolean, direct_access_grants_enabled?: boolean, enabled?: boolean, name?: string, oauth_device_code_grant_enabled?: boolean, protocol?: AuthProtocol, public_client?: boolean, require_pkce?: boolean, service_account_enabled?: boolean, token_exchange_enabled?: boolean }
+export type CreateClientValidator = { client_id?: string, client_type: ClientType, consent_required?: boolean, direct_access_grants_enabled?: boolean, enabled?: boolean, jwks?: (ClientJwks | null), jwks_uri?: (string | null), name?: string, oauth_device_code_grant_enabled?: boolean, protocol?: AuthProtocol, public_client?: boolean, require_pkce?: boolean, service_account_enabled?: boolean, token_endpoint_auth_method?: (TokenEndpointAuthMethod | null), token_exchange_enabled?: boolean }
 export type EmailType = ("reset_password" | "magic_link" | "email_verification")
 export type EmailTemplate = { created_at: string, email_type: EmailType, id: string, mjml: string, name: string, realm_id: string, structure: unknown, updated_at: string }
 export type CreateEmailTemplateResponse = { data: EmailTemplate }
@@ -500,6 +505,7 @@ export type GetOpenIdConfigurationResponse = {
   subject_types_supported: Array<string>;
   token_endpoint: string;
   token_endpoint_auth_methods_supported: Array<string>;
+  token_endpoint_auth_signing_alg_values_supported: Array<string>;
   userinfo_endpoint: string;
 }
 export type GetPortalLayoutResponse = { data: PortalLayout }
@@ -693,6 +699,8 @@ export type Paginated_Client = {
     enabled: boolean;
     id: string;
     id_token_lifetime?: (number | null);
+    jwks?: (ClientJwks | null);
+    jwks_uri?: (string | null);
     maintenance_enabled: boolean;
     maintenance_reason?: (string | null);
     maintenance_session_strategy: MaintenanceSessionStrategy;
@@ -713,6 +721,7 @@ export type Paginated_Client = {
     secret?: (Masked_String | null);
     service_account_enabled: boolean;
     temporary_token_lifetime?: (number | null);
+    token_endpoint_auth_method: TokenEndpointAuthMethod;
     token_exchange_enabled: boolean;
     updated_at: string;
   }>;
@@ -988,11 +997,14 @@ export type UpdateClientValidator = Partial<{
   direct_access_grants_enabled: (boolean | null);
   enabled: (boolean | null);
   id_token_lifetime: (number | null);
+  jwks: (ClientJwks | null);
+  jwks_uri: (string | null);
   name: (string | null);
   oauth_device_code_grant_enabled: (boolean | null);
   refresh_token_lifetime: (number | null);
   require_pkce: (boolean | null);
   temporary_token_lifetime: (number | null);
+  token_endpoint_auth_method: (TokenEndpointAuthMethod | null);
   token_exchange_enabled: (boolean | null);
 }>
 export type UpdateEmailTemplateResponse = { data: EmailTemplate }
