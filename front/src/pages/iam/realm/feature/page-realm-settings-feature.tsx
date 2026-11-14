@@ -91,6 +91,7 @@ const DEFAULT_MCP: McpDraft = {
   cimdAllowedHosts: [],
   allowedResources: [],
   owners: {},
+  requirePushedAuthorizationRequests: false,
 }
 
 const DEFAULT_POLICY: PolicyDraft = {
@@ -191,6 +192,7 @@ export default function PageRealmSettingsFeature() {
         cimdAllowedHosts: settings.cimd_allowed_hosts,
         allowedResources: settings.allowed_resources,
         owners: ownersFromList(ownersData?.data ?? []),
+        requirePushedAuthorizationRequests: settings.require_pushed_authorization_requests,
       }
     : DEFAULT_MCP
   const mcp = useDraft(
@@ -279,7 +281,9 @@ export default function PageRealmSettingsFeature() {
     mcp.value.cimdEnabled !== pristineMcp.cimdEnabled ||
     mcp.value.dcrEnabled !== pristineMcp.dcrEnabled ||
     mcp.value.cimdAllowedHosts.join() !== pristineMcp.cimdAllowedHosts.join() ||
-    mcp.value.allowedResources.join() !== pristineMcp.allowedResources.join()
+    mcp.value.allowedResources.join() !== pristineMcp.allowedResources.join() ||
+    mcp.value.requirePushedAuthorizationRequests !==
+      pristineMcp.requirePushedAuthorizationRequests
   const mcpOwnersDirty = ownersChanged(
     pristineMcp.owners,
     mcp.value.owners,
@@ -367,6 +371,8 @@ export default function PageRealmSettingsFeature() {
                 dcr_enabled: mcp.value.dcrEnabled,
                 cimd_allowed_hosts: mcp.value.cimdAllowedHosts,
                 allowed_resources: mcp.value.allowedResources,
+                require_pushed_authorization_requests:
+                  mcp.value.requirePushedAuthorizationRequests,
               }
             : {}),
         },

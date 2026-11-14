@@ -23,6 +23,7 @@ export interface McpDraft {
   cimdAllowedHosts: string[]
   allowedResources: string[]
   owners: OwnersByResource
+  requirePushedAuthorizationRequests: boolean
 }
 
 export interface RealmMcpTabProps {
@@ -127,82 +128,93 @@ export default function RealmMcpTab({ value, ownerClients, onChange }: RealmMcpT
   const { t } = useTranslation(REALM_NAMESPACE)
 
   return (
-    <Section title={t('mcp.title')} description={t('mcp.description')}>
-      <FieldRow label={t('mcp.cimd.label')} description={t('mcp.cimd.description')}>
-        <SwitchField
-          checked={value.cimdEnabled}
-          onCheckedChange={(v) => onChange({ cimdEnabled: v })}
-        />
-      </FieldRow>
+    <>
+      <Section title={t('mcp.title')} description={t('mcp.description')}>
+        <FieldRow label={t('mcp.cimd.label')} description={t('mcp.cimd.description')}>
+          <SwitchField
+            checked={value.cimdEnabled}
+            onCheckedChange={(v) => onChange({ cimdEnabled: v })}
+          />
+        </FieldRow>
 
-      <FieldRow label={t('mcp.dcr.label')} description={t('mcp.dcr.description')}>
-        <SwitchField
-          checked={value.dcrEnabled}
-          onCheckedChange={(v) => onChange({ dcrEnabled: v })}
-        />
-      </FieldRow>
+        <FieldRow label={t('mcp.dcr.label')} description={t('mcp.dcr.description')}>
+          <SwitchField
+            checked={value.dcrEnabled}
+            onCheckedChange={(v) => onChange({ dcrEnabled: v })}
+          />
+        </FieldRow>
 
-      <FieldRow
-        label={t('mcp.hosts.label')}
-        description={t('mcp.hosts.description')}
-        htmlFor='realm-cimd-hosts'
-      >
-        <EntryList
-          id='realm-cimd-hosts'
-          entries={value.cimdAllowedHosts}
-          placeholder={t('mcp.hosts.placeholder')}
-          addLabel={t('mcp.add')}
-          removeLabel={(entry) => t('mcp.remove', { entry })}
-          invalidMessage={t('validation.cimd_host_invalid')}
-          duplicateMessage={t('validation.entry_duplicate')}
-          isValid={isValidCimdHost}
-          onChange={(next) => onChange({ cimdAllowedHosts: next })}
-        />
-      </FieldRow>
+        <FieldRow
+          label={t('mcp.hosts.label')}
+          description={t('mcp.hosts.description')}
+          htmlFor='realm-cimd-hosts'
+        >
+          <EntryList
+            id='realm-cimd-hosts'
+            entries={value.cimdAllowedHosts}
+            placeholder={t('mcp.hosts.placeholder')}
+            addLabel={t('mcp.add')}
+            removeLabel={(entry) => t('mcp.remove', { entry })}
+            invalidMessage={t('validation.cimd_host_invalid')}
+            duplicateMessage={t('validation.entry_duplicate')}
+            isValid={isValidCimdHost}
+            onChange={(next) => onChange({ cimdAllowedHosts: next })}
+          />
+        </FieldRow>
 
-      <FieldRow
-        label={t('mcp.resources.label')}
-        description={t('mcp.resources.description')}
-        htmlFor='realm-allowed-resources'
-      >
-        <EntryList
-          id='realm-allowed-resources'
-          entries={value.allowedResources}
-          placeholder={t('mcp.resources.placeholder')}
-          addLabel={t('mcp.add')}
-          removeLabel={(entry) => t('mcp.remove', { entry })}
-          invalidMessage={t('validation.resource_invalid')}
-          duplicateMessage={t('validation.entry_duplicate')}
-          isValid={isValidResource}
-          renderExtra={(entry) => (
-            <Select
-              value={value.owners[entry] || NO_OWNER}
-              onValueChange={(next) =>
-                onChange({
-                  owners: { ...value.owners, [entry]: next === NO_OWNER ? '' : next },
-                })
-              }
-            >
-              <SelectTrigger
-                size='sm'
-                className='w-48 shrink-0'
-                aria-label={t('mcp.resources.owner.aria', { entry })}
+        <FieldRow
+          label={t('mcp.resources.label')}
+          description={t('mcp.resources.description')}
+          htmlFor='realm-allowed-resources'
+        >
+          <EntryList
+            id='realm-allowed-resources'
+            entries={value.allowedResources}
+            placeholder={t('mcp.resources.placeholder')}
+            addLabel={t('mcp.add')}
+            removeLabel={(entry) => t('mcp.remove', { entry })}
+            invalidMessage={t('validation.resource_invalid')}
+            duplicateMessage={t('validation.entry_duplicate')}
+            isValid={isValidResource}
+            renderExtra={(entry) => (
+              <Select
+                value={value.owners[entry] || NO_OWNER}
+                onValueChange={(next) =>
+                  onChange({
+                    owners: { ...value.owners, [entry]: next === NO_OWNER ? '' : next },
+                  })
+                }
               >
-                <SelectValue placeholder={t('mcp.resources.owner.none')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_OWNER}>{t('mcp.resources.owner.none')}</SelectItem>
-                {ownerClients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          onChange={(next) => onChange({ allowedResources: next })}
-        />
-      </FieldRow>
-    </Section>
+                <SelectTrigger
+                  size='sm'
+                  className='w-48 shrink-0'
+                  aria-label={t('mcp.resources.owner.aria', { entry })}
+                >
+                  <SelectValue placeholder={t('mcp.resources.owner.none')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_OWNER}>{t('mcp.resources.owner.none')}</SelectItem>
+                  {ownerClients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            onChange={(next) => onChange({ allowedResources: next })}
+          />
+        </FieldRow>
+      </Section>
+
+      <Section title={t('mcp.authorization.title')} description={t('mcp.authorization.description')}>
+        <FieldRow label={t('mcp.par.label')} description={t('mcp.par.description')}>
+          <SwitchField
+            checked={value.requirePushedAuthorizationRequests}
+            onCheckedChange={(v) => onChange({ requirePushedAuthorizationRequests: v })}
+          />
+        </FieldRow>
+      </Section>
+    </>
   )
 }

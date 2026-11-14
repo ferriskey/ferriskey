@@ -197,6 +197,7 @@ pub struct UpdateRealmSettingInput {
     pub allowed_resources: Option<Vec<String>>,
     pub account_chooser_enabled: Option<bool>,
     pub account_chooser_show_email: Option<bool>,
+    pub require_pushed_authorization_requests: Option<bool>,
 }
 
 pub struct DeleteRealmInput {

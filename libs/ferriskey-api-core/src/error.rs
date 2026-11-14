@@ -328,6 +328,14 @@ impl From<CoreError> for ApiError {
                 error: "invalid_target".into(),
                 error_description: "The requested resource is not allowed for this realm.".into(),
             },
+            CoreError::InvalidRequestUri => Self::OAuthError {
+                error: "invalid_request_uri".into(),
+                error_description: "The request_uri is unknown, expired or already used.".into(),
+            },
+            CoreError::PushedAuthorizationRequired => Self::OAuthError {
+                error: "invalid_request".into(),
+                error_description: "This client must use pushed authorization requests.".into(),
+            },
             CoreError::UserDisabled => Self::Forbidden("User account is disabled".into()),
             CoreError::AccountLocked => Self::Unauthorized(
                 "Account is temporarily locked due to too many failed login attempts".into(),

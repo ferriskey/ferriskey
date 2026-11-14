@@ -297,6 +297,9 @@ pub struct AuthInput {
     pub issuer: Option<String>,
     pub resource: Option<String>,
     pub max_age: Option<i64>,
+    /// Whether the parameters come from a pushed authorization request
+    /// (RFC 9126) rather than from the query string.
+    pub pushed: bool,
 }
 
 pub struct ExchangeTokenInput {

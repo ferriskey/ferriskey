@@ -8,6 +8,7 @@ pub mod login_resolver;
 pub mod mapper_engine;
 pub mod mappers;
 pub mod ports;
+pub mod pushed_authorization;
 pub mod scope;
 pub mod service_account_cache;
 pub mod services;
