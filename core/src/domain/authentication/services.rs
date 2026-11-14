@@ -6753,7 +6753,7 @@ mod tests {
             Uuid::new_v4(),
         )
         .expect("key pair");
-        let capacity = super::SIGNING_PERMITS.available_permits();
+        let capacity = std::thread::available_parallelism().map_or(1, usize::from);
         let signing = (0..capacity * 4).map(|n| {
             let key = key.clone();
             tokio::spawn(async move {
@@ -6771,7 +6771,14 @@ mod tests {
                 .expect("the signature verifies");
         }
 
-        assert_eq!(super::SIGNING_PERMITS.available_permits(), capacity);
+        let every_permit = u32::try_from(capacity).expect("the capacity fits in a u32");
+        let _every_permit = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            super::SIGNING_PERMITS.acquire_many(every_permit),
+        )
+        .await
+        .expect("every permit comes back")
+        .expect("the semaphore stays open");
     }
 
     #[test]
