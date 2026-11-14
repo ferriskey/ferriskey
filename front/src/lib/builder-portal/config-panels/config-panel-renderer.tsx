@@ -1013,6 +1013,28 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
         </div>
       )
 
+    case 'account_list':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <div className='border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground'>
+            Account list — the remembered accounts come from the browser's sessions at runtime. Only the labels are editable here.
+          </div>
+          <ConfigSection title='Content'>
+            <TextField
+              label='Use another account label'
+              value={node.props.useAnotherLabel as string}
+              onChange={(v) => updateProp('useAnotherLabel', v)}
+            />
+            <TextField
+              label='Signed out badge label'
+              value={node.props.signedOutLabel as string}
+              onChange={(v) => updateProp('signedOutLabel', v)}
+            />
+          </ConfigSection>
+        </div>
+      )
+
     case 'forgot_password_link':
     case 'back_to_login_link':
     case 'register_link':

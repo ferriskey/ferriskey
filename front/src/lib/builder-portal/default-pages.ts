@@ -31,6 +31,7 @@ const PAGE_PRESET_IDS: Record<PageType, string[]> = {
   device_verify: ['device-verify-card'],
   device_verified: ['device-verified-card'],
   consent: ['consent-card'],
+  account_chooser: ['account-chooser-card'],
 }
 
 export const DEFAULT_PAGE_TYPES = Object.keys(PAGE_PRESET_IDS) as PageType[]

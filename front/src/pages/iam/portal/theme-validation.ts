@@ -1,5 +1,6 @@
 import type { Schemas } from '@/api/api.client'
 import type { BuilderNode } from '@/lib/builder-core'
+import { collectRenderedTypes } from '@/lib/builder-portal/rendered-types'
 import { PORTAL_PAGES, type PortalPageType } from './portal-pages'
 
 export interface PortalPageStatus {
@@ -27,18 +28,6 @@ export function parseTree(tree: unknown): BuilderNode[] {
     return (tree as { children: BuilderNode[] }).children
   }
   return []
-}
-
-function collectTypes(value: unknown, acc: Set<string>) {
-  if (Array.isArray(value)) {
-    value.forEach((v) => collectTypes(v, acc))
-    return
-  }
-  if (value && typeof value === 'object') {
-    const obj = value as Record<string, unknown>
-    if (typeof obj.type === 'string') acc.add(obj.type)
-    Object.values(obj).forEach((v) => collectTypes(v, acc))
-  }
 }
 
 export function countNodes(tree: unknown): number {
@@ -77,7 +66,7 @@ export function statusesForTheme(
   return PORTAL_PAGES.map(({ type }) => {
     const required = requirements[type] ?? []
     const acc = new Set<string>()
-    collectTypes(readPageTree(theme, type), acc)
+    collectRenderedTypes(readPageTree(theme, type), acc)
     const present = required.filter((block) => acc.has(block))
     return {
       pageType: type,

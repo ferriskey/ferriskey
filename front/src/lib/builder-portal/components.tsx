@@ -33,6 +33,7 @@ import {
   Type,
   User,
   UserPlus,
+  Users,
 } from 'lucide-react'
 import { generateNodeId, type BuilderNode, type ComponentDefinition } from '../builder-core'
 
@@ -59,6 +60,7 @@ const ALL_CHILDREN = [
   'consent_scopes',
   'consent_allow_button',
   'consent_deny_button',
+  'account_list',
   'submit_button',
   'device_approve_button',
   'device_deny_button',
@@ -472,6 +474,16 @@ export const portalComponents: ComponentDefinition[] = [
     defaultStyles: {},
   },
   {
+    type: 'account_list',
+    label: 'Account list',
+    icon: <Users size={14} />,
+    defaultProps: {
+      useAnotherLabel: 'Use another account',
+      signedOutLabel: 'Signed out',
+    },
+    defaultStyles: {},
+  },
+  {
     type: 'identity_providers',
     label: 'Identity providers',
     icon: <Globe size={14} />,
@@ -618,6 +630,7 @@ export const REQUIRED_BLOCK_TYPES = new Set([
   'consent_scopes',
   'consent_allow_button',
   'consent_deny_button',
+  'account_list',
 ])
 
 /**
@@ -826,6 +839,26 @@ export const HIDDEN_BLOCKS_BY_PAGE_TYPE: Record<string, ReadonlySet<string>> = {
     'device_deny_button',
     'submit_button',
   ]),
+  account_chooser: new Set([
+    'magic_link_button',
+    'passkey_button',
+    'forgot_password_link',
+    'register_link',
+    'back_to_login_link',
+    'email_input',
+    'password_input',
+    'password_confirm_input',
+    'totp_input',
+    'first_name_input',
+    'last_name_input',
+    'username_input',
+    'identity_providers',
+    'user_code_input',
+    'device_consent',
+    'device_approve_button',
+    'device_deny_button',
+    'submit_button',
+  ]),
 }
 
 /**
@@ -847,6 +880,7 @@ export const RESTRICTED_TO_PAGE_TYPE: Record<string, ReadonlySet<string>> = {
   consent_scopes: new Set(['consent']),
   consent_allow_button: new Set(['consent']),
   consent_deny_button: new Set(['consent']),
+  account_list: new Set(['account_chooser']),
 }
 
 const DEFAULT_CONTENT: Partial<Record<string, string>> = {
