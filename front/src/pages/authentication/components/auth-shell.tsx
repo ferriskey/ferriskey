@@ -28,6 +28,11 @@ export default function AuthShell({
   const { realm_name } = useParams()
   const realm = realmName ?? realm_name
   const split = layout === 'split'
+  const realmChip = realm && (
+    <span className='rounded-md border border-fk-line bg-fk-surface/70 px-1.5 py-0.5 font-mono text-[11px] text-fk-muted'>
+      {realm}
+    </span>
+  )
 
   return (
     <AuthShellCenter>
@@ -40,40 +45,53 @@ export default function AuthShell({
         <div className={cn('grid', split && 'md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]')}>
           <aside
             className={cn(
-              'relative flex flex-col justify-between overflow-hidden border-b border-fk-line bg-fk-sand p-7',
-              split ? 'gap-10 md:border-r md:border-b-0 md:p-9' : 'gap-7'
+              'relative flex flex-col justify-between overflow-hidden border-b border-fk-line bg-fk-sand',
+              split ? 'gap-10 p-7 md:border-r md:border-b-0 md:p-9' : 'gap-4 p-5'
             )}
           >
             <KeyRound
               aria-hidden
               strokeWidth={1}
-              className='pointer-events-none absolute -right-6 -bottom-8 size-44 -rotate-[18deg] text-fk-brand/[0.09]'
+              className={cn(
+                'pointer-events-none absolute -rotate-[18deg] text-fk-brand/[0.09]',
+                split ? '-right-6 -bottom-8 size-44' : '-right-4 -bottom-6 size-28'
+              )}
             />
 
-            <div className='relative space-y-8'>
+            <div className={cn('relative', split ? 'space-y-8' : 'space-y-3')}>
               <div className='flex items-center gap-2.5'>
                 <img src='/logo_ferriskey.png' alt={BRAND_NAME} className='size-5 object-contain' />
                 <p className='font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-fk-primary-text'>
                   {BRAND_NAME}
                 </p>
+                {!split && <span className='ml-auto'>{realmChip}</span>}
               </div>
 
-              <div className='space-y-3'>
-                <h1 className='text-2xl font-semibold tracking-tight text-fk-ink'>{title}</h1>
-                {description && <p className='text-sm leading-7 text-fk-muted'>{description}</p>}
+              <div className={split ? 'space-y-3' : 'space-y-1'}>
+                <h1
+                  className={cn(
+                    'font-semibold tracking-tight text-fk-ink',
+                    split ? 'text-2xl' : 'text-xl'
+                  )}
+                >
+                  {title}
+                </h1>
+                {description && (
+                  <p className={cn('text-sm text-fk-muted', split ? 'leading-7' : 'leading-6')}>
+                    {description}
+                  </p>
+                )}
               </div>
 
               {asideContent}
             </div>
 
-            <div className='relative flex flex-wrap items-center gap-x-3 gap-y-2'>
-              {asideFooter}
-              {realm && (
-                <span className='rounded-md border border-fk-line bg-fk-surface/70 px-1.5 py-0.5 font-mono text-[11px] text-fk-muted'>
-                  {realm}
-                </span>
-              )}
-            </div>
+            {(split || asideFooter) && (
+              <div className='relative flex flex-wrap items-center gap-x-3 gap-y-2'>
+                {asideFooter}
+                {split && realmChip}
+              </div>
+            )}
           </aside>
 
           <section className={cn('flex flex-col justify-center', contentClassName ?? (split ? 'p-6 md:p-9' : 'p-6 md:p-8'))}>
