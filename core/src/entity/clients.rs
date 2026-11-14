@@ -40,6 +40,8 @@ pub struct Model {
     pub backchannel_logout_session_required: bool,
     pub consent_required: bool,
     pub registration_source: String,
+    pub previous_secret: Option<String>,
+    pub previous_secret_expires_at: Option<DateTime>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -71,6 +73,8 @@ pub enum Column {
     BackchannelLogoutSessionRequired,
     ConsentRequired,
     RegistrationSource,
+    PreviousSecret,
+    PreviousSecretExpiresAt,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -135,6 +139,8 @@ impl ColumnTrait for Column {
             Self::BackchannelLogoutSessionRequired => ColumnType::Boolean.def(),
             Self::ConsentRequired => ColumnType::Boolean.def(),
             Self::RegistrationSource => ColumnType::String(StringLen::N(32u32)).def(),
+            Self::PreviousSecret => ColumnType::Text.def().null(),
+            Self::PreviousSecretExpiresAt => ColumnType::DateTime.def().null(),
         }
     }
 }

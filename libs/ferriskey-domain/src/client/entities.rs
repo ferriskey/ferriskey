@@ -134,12 +134,27 @@ impl From<ClientRegistrationSource> for String {
     }
 }
 
+/// The secret a client had before its last rotation, kept alive until
+/// `expires_at` so every deployment of the client can switch over.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
+pub struct PreviousClientSecret {
+    pub secret: Masked<String>,
+    pub expires_at: DateTime<Utc>,
+}
+
+impl PreviousClientSecret {
+    pub fn is_valid_at(&self, now: DateTime<Utc>) -> bool {
+        now < self.expires_at
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
 pub struct Client {
     pub id: Uuid,
     pub enabled: bool,
     pub client_id: String,
     pub secret: Option<Masked<String>>,
+    pub previous_secret: Option<PreviousClientSecret>,
     pub realm_id: RealmId,
     pub protocol: AuthProtocol,
     pub public_client: bool,
@@ -215,6 +230,7 @@ impl Client {
             enabled: config.enabled,
             client_id: config.client_id,
             secret: config.secret.map(Masked::new),
+            previous_secret: None,
             realm_id: config.realm_id,
             protocol: config.protocol,
             public_client: config.public_client,
@@ -252,6 +268,7 @@ impl Client {
             enabled: true,
             client_id: client_id.clone(),
             secret: Some(Masked::new(generate_random_string())),
+            previous_secret: None,
             realm_id,
             protocol: AuthProtocol::OpenIdConnect,
             public_client: false,

@@ -64,7 +64,7 @@ use crate::{
             token_exchange::TokenExchangeServiceImpl,
         },
         client::{
-            services::ClientServiceImpl,
+            services::{ClientServiceImpl, expire_previous_client_secrets_task},
             token_exchange_policy_services::TokenExchangePolicyServiceImpl,
         },
         common::{
@@ -221,6 +221,7 @@ use crate::infrastructure::secrets_backfill::seal_existing_secrets;
 use ferriskey_security::crypto::secret_cipher::SecretCipher;
 
 const DEVICE_SESSION_PURGE_PERIOD: std::time::Duration = std::time::Duration::from_secs(900);
+const CLIENT_SECRET_EXPIRY_PERIOD: std::time::Duration = std::time::Duration::from_secs(60);
 
 pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationService, CoreError> {
     create_service_with_secrets(config, "").await
@@ -962,6 +963,11 @@ pub async fn create_service_with_secrets(
             ),
         security_event_repository: security_event.clone(),
     };
+
+    tokio::spawn(expire_previous_client_secrets_task(
+        app.client_service.clone(),
+        CLIENT_SECRET_EXPIRY_PERIOD,
+    ));
 
     Ok(app)
 }

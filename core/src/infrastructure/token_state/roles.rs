@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
+use ferriskey_domain::client::commands::ExpiredClientSecret;
 use ferriskey_domain::client::entities::{
     Client, ClientFilter, ClientRegistrationSource, ClientSortField,
 };
@@ -149,6 +151,28 @@ impl<R: ClientRepository> ClientRepository for InvalidatingClientRepository<R> {
         source: ClientRegistrationSource,
     ) -> Result<u64, CoreError> {
         self.inner.count_by_source(realm_id, source).await
+    }
+
+    async fn rotate_secret(
+        &self,
+        client: &Scoped<Client>,
+        new_secret: String,
+        previous_expires_at: Option<DateTime<Utc>>,
+    ) -> Result<Client, CoreError> {
+        self.inner
+            .rotate_secret(client, new_secret, previous_expires_at)
+            .await
+    }
+
+    async fn revoke_previous_secret(&self, client: &Scoped<Client>) -> Result<bool, CoreError> {
+        self.inner.revoke_previous_secret(client).await
+    }
+
+    async fn expire_previous_secrets(
+        &self,
+        now: DateTime<Utc>,
+    ) -> Result<Vec<ExpiredClientSecret>, CoreError> {
+        self.inner.expire_previous_secrets(now).await
     }
 }
 

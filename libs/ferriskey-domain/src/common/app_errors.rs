@@ -446,6 +446,12 @@ pub enum CoreError {
 
     #[error("Authorization is not enabled for this realm")]
     AuthorizationNotEnabled,
+
+    #[error("Invalid client secret grace period: {0}")]
+    InvalidSecretGracePeriod(String),
+
+    #[error("This client has no secret to rotate")]
+    ClientHasNoSecret,
 }
 
 /// One problem a policy engine found in a realm's authorization rules.
@@ -609,6 +615,8 @@ impl CoreError {
             CoreError::AuthorizationTemplateInUse => "authorization_template_in_use",
             CoreError::InvalidAuthorizationRequest(_) => "invalid_authorization_request",
             CoreError::AuthorizationNotEnabled => "authorization_not_enabled",
+            CoreError::InvalidSecretGracePeriod(_) => "invalid_secret_grace_period",
+            CoreError::ClientHasNoSecret => "client_has_no_secret",
         }
     }
 }
@@ -971,6 +979,11 @@ mod tests {
                 CoreError::AuthorizationNotEnabled,
                 "authorization_not_enabled",
             ),
+            (
+                CoreError::InvalidSecretGracePeriod(String::new()),
+                "invalid_secret_grace_period",
+            ),
+            (CoreError::ClientHasNoSecret, "client_has_no_secret"),
         ]
     }
 
@@ -1002,7 +1015,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 136);
+        assert_eq!(every_variant_with_expected_reason().len(), 138);
     }
 
     #[test]

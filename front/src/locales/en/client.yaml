@@ -315,7 +315,33 @@ credentials:
     hide_label: Hide client secret
     forbidden: You need the manage-clients permission to reveal this secret. Ask a realm administrator for access.
     failed: The secret could not be revealed. Please try again.
-    rotation_hint: Rotating the secret is not exposed by the administration API yet.
+    rotation_hint: Rotating replaces this secret. Choose how long the current one keeps working so every deployment can switch over.
+  rotate:
+    action: Rotate secret
+    title: Rotate the client secret?
+    description: A new secret is generated. Applications still using the current one keep working for the grace period you choose, then stop.
+    grace:
+      label: Keep the current secret working for
+      none: Not at all, replace it now
+      one_hour: 1 hour
+      one_day: 24 hours
+      one_week: 7 days
+      thirty_days: 30 days
+    confirm: Rotate
+    cancel: Cancel
+    toast:
+      rotated: Client secret rotated.
+  previous:
+    label: Previous secret
+    description: Still accepted until it expires. It can be revoked before then.
+    expires: Expires {{date}}
+    revoke:
+      action: Revoke now
+      title: Revoke the previous secret?
+      description: Applications still using it will be refused immediately.
+      confirm: Revoke
+    toast:
+      revoked: Previous client secret revoked.
 
 roles:
   title: Client roles

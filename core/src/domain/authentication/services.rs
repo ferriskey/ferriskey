@@ -7361,6 +7361,7 @@ mod tests {
             enabled: true,
             client_id: "app".to_string(),
             secret: Some(maskass::Masked::new("s3cr3t".to_string())),
+            previous_secret: None,
             realm_id,
             protocol: AuthProtocol::OpenIdConnect,
             public_client: false,

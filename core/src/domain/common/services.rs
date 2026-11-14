@@ -748,6 +748,7 @@ pub mod tests {
             id: Uuid::new_v4(),
             client_id: "test-client".to_string(),
             secret: Some(maskass::Masked::new("secret".to_string())),
+            previous_secret: None,
             name: "Test Client".to_string(),
             realm_id,
             enabled: true,

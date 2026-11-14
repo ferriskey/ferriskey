@@ -48,6 +48,10 @@ use super::handlers::{
     },
     get_web_origins::{__path_get_web_origins, get_web_origins},
     register_client::{__path_register_client, register_client},
+    revoke_previous_client_secret::{
+        __path_revoke_previous_client_secret, revoke_previous_client_secret,
+    },
+    rotate_client_secret::{__path_rotate_client_secret, rotate_client_secret},
     set_client_saml_config::{__path_set_client_saml_config, set_client_saml_config},
     update_client::{__path_update_client, update_client},
     update_post_logout_redirect_uri::{
@@ -63,6 +67,8 @@ use ferriskey_api_core::auth::auth;
     paths(
         get_client,
         get_client_secret,
+        rotate_client_secret,
+        revoke_previous_client_secret,
         get_clients,
         create_client,
         delete_client,
@@ -120,6 +126,20 @@ pub fn client_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             get(get_client_secret),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/client-secret/rotate",
+                state.args.server.root_path
+            ),
+            post(rotate_client_secret),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/client-secret/previous",
+                state.args.server.root_path
+            ),
+            delete(revoke_previous_client_secret),
         )
         .route(
             &format!(
