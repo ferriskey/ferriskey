@@ -478,7 +478,7 @@ webapp:
     # -- URL for the API. Default computed from the ingress configuration.
     url: ~
 
-  # -- Name of the runtime ConfigMap mounted as /usr/share/nginx/html/config.json. Default is `<release>-webapp-config`.
+  # -- Name of the runtime ConfigMap (key `runtime.json`) mounted as /usr/share/nginx/html/runtime.json. Default is `<release>-webapp-config`.
   configJsonName: ~
 
   # -- EmptyDir size for the webapp workload.

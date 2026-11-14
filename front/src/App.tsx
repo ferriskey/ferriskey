@@ -133,6 +133,33 @@ function isUnresolvedApiUrl(value: unknown) {
   return trimmed.length === 0 || trimmed.includes('${')
 }
 
+/**
+ * Reads `api_url` from the runtime JSON file at `path`, or returns null.
+ * The request and body read are aborted after 3 seconds so a stalled
+ * response cannot block startup.
+ *
+ * nginx serves index.html with a 200 for missing files, so a missing runtime
+ * file only shows up as a JSON parse failure or a missing api_url.
+ */
+async function fetchRuntimeApiUrl(path: string) {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), 3000)
+
+  try {
+    const response = await fetch(path, { signal: controller.signal })
+    if (!response.ok) {
+      return null
+    }
+
+    const result = await response.json()
+    return typeof result?.api_url === 'string' ? result.api_url.trim() : null
+  } catch {
+    return null
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 function realmFromPath(pathname: string): string {
   const match = pathname.match(/^\/realms\/([^/]+)/)
   return match?.[1] ?? 'master'
@@ -146,12 +173,13 @@ function App() {
       let uri = import.meta.env.VITE_API_URL?.trim()
 
       if (isUnresolvedApiUrl(uri)) {
-        try {
-          const data = await fetch('/config.json')
-          const result = await data.json()
-          uri = typeof result?.api_url === 'string' ? result.api_url.trim() : ''
-        } catch {
-          uri = ''
+        uri = (await fetchRuntimeApiUrl('/runtime.json')) ?? ''
+
+        // Temporary fallback for deployments that still mount their own
+        // /config.json. That name is blocked by OWASP CRS >= 4.16 (rule 930130),
+        // hence the move to /runtime.json (#1839).
+        if (isUnresolvedApiUrl(uri)) {
+          uri = (await fetchRuntimeApiUrl('/config.json')) ?? ''
         }
       }
 
