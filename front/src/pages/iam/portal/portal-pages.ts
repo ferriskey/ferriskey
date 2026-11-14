@@ -27,6 +27,7 @@ const PORTAL_PAGE_TYPES: PortalPageType[] = [
   'device_verify',
   'device_verified',
   'consent',
+  'account_chooser',
 ]
 
 export const PORTAL_PAGES: PortalPageDescriptor[] = PORTAL_PAGE_TYPES.map((type) => ({

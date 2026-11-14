@@ -12,6 +12,7 @@ import { useSetupOtp } from '@/api/trident.api'
 import type { RouterParams } from '@/routes/router'
 import type { BuilderNode } from '@/lib/builder-core'
 import { generateBreakpointCss, treeToReactNode } from '@/lib/builder-portal'
+import type { AccountChooserOptions } from '@/lib/builder-portal/components/account-list-block'
 import { mergeWithDefaults, themeToCssVars } from '@/lib/portal-theme/theme'
 import type { Schemas } from '@/api/api.client'
 import { useDevicePreview } from '@/api/device.api'
@@ -65,10 +66,14 @@ function layoutHasPageContent(tree: BuilderNode[]): boolean {
 interface Props {
   children: ReactNode
   pageType: Schemas.PortalPageType
-  keepChildren?: boolean
+  accountChooser?: AccountChooserOptions
 }
 
-export function PortalLayoutWrapper({ children, pageType, keepChildren = false }: Props) {
+export function PortalLayoutWrapper({
+  children,
+  pageType,
+  accountChooser,
+}: Props) {
   const { realm_name } = useParams<RouterParams>()
   const realm = realm_name ?? 'master'
   const { search } = useLocation()
@@ -479,7 +484,7 @@ export function PortalLayoutWrapper({ children, pageType, keepChildren = false }
     )
   }
 
-  if (keepChildren || !pageIsValid || (layoutTree.length > 0 && !layoutIsValid)) {
+  if (!pageIsValid || (layoutTree.length > 0 && !layoutIsValid)) {
     return (
       <div style={pageSurface}>
         {responsiveStyle}
@@ -491,7 +496,7 @@ export function PortalLayoutWrapper({ children, pageType, keepChildren = false }
 
   const pageContent: ReactNode = (
     <form onSubmit={handleSubmit}>
-      {treeToReactNode(pageTree, { ...flowOptions, runtime: true, identityProviders, totpSetup, deviceConsent, consent, formError, isSubmitting })}
+      {treeToReactNode(pageTree, { ...flowOptions, runtime: true, identityProviders, totpSetup, deviceConsent, consent, accountChooser, formError, isSubmitting })}
     </form>
   )
 
@@ -509,7 +514,7 @@ export function PortalLayoutWrapper({ children, pageType, keepChildren = false }
     <div style={pageSurface} onClick={handlePortalActionClick}>
       {responsiveStyle}
       {buttonInteractionStyle}
-      {treeToReactNode(layoutTree, { ...flowOptions, runtime: true, pageContent, identityProviders, totpSetup, deviceConsent, consent, formError, isSubmitting })}
+      {treeToReactNode(layoutTree, { ...flowOptions, runtime: true, pageContent, identityProviders, totpSetup, deviceConsent, consent, accountChooser, formError, isSubmitting })}
     </div>
   )
 }

@@ -21,15 +21,13 @@ import { PORTAL_PAGE_TYPE } from './constants'
 
 function Portal({
   pageType,
-  keepChildren,
   children,
 }: {
   pageType: Schemas.PortalPageType
-  keepChildren?: boolean
   children: ReactNode
 }) {
   return (
-    <PortalLayoutWrapper pageType={pageType} keepChildren={keepChildren}>
+    <PortalLayoutWrapper pageType={pageType}>
       {children}
     </PortalLayoutWrapper>
   )
@@ -48,11 +46,7 @@ export default function PageAuthentication() {
       />
       <Route
         path='/account-chooser'
-        element={
-          <Portal pageType={PORTAL_PAGE_TYPE.LOGIN} keepChildren>
-            <PageAccountChooserFeature />
-          </Portal>
-        }
+        element={<PageAccountChooserFeature />}
       />
       <Route
         path='/register'

@@ -18,6 +18,7 @@ import ProviderIcon, {
 import type { BuilderNode } from '../builder-core'
 import { withAuthFlow } from '@/lib/auth-flow-query'
 import { PortalInput } from './components/portal-input'
+import { AccountListBlock, type AccountChooserOptions } from './components/account-list-block'
 
 type RenderOptions = {
   /** Replaces <page-content /> nodes with this slot content (used by layouts). */
@@ -53,6 +54,7 @@ type RenderOptions = {
     defaultScopes: { name: string; description: string | null }[]
     optionalScopes: { name: string; description: string | null }[]
   }
+  accountChooser?: AccountChooserOptions
   /**
    * Inline form-error message surfaced by the page's submit handler
    * (invalid credentials, email already in use, …). Read by the
@@ -393,6 +395,17 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
 
     case 'consent_scopes':
       return <ConsentScopesBlock key={node.id} node={node} options={options} />
+
+    case 'account_list':
+      return (
+        <AccountListBlock
+          key={node.id}
+          node={node}
+          accountChooser={options.accountChooser}
+          runtime={options.runtime}
+          orderStyle={orderStyle(node)}
+        />
+      )
 
     // Magic link / passkey: rendered as alternative auth actions. The host
     // portal page wires the click behavior by selecting on the

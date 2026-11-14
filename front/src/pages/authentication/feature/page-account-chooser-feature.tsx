@@ -9,7 +9,8 @@ import {
   useSelectAccount,
 } from '@/api/account-chooser.api'
 import { followServerRedirect } from '@/lib/follow-server-redirect'
-import { AUTH_NAMESPACE } from '../constants'
+import { AUTH_NAMESPACE, PORTAL_PAGE_TYPE } from '../constants'
+import { PortalLayoutWrapper } from '../components/portal-layout-wrapper'
 import PageAccountChooser from '../ui/page-account-chooser'
 import {
   buildLoginPath,
@@ -109,17 +110,33 @@ export default function PageAccountChooserFeature() {
     [entries]
   )
 
+  const isLoading = isPending || shouldLeave
+  const onUseAnother = () => navigate(loginPath())
+
   return (
-    <PageAccountChooser
-      isLoading={isPending || shouldLeave}
-      accounts={accounts}
-      appName={data?.client_name ?? clientId}
-      realmName={realm}
-      busySessionId={busySessionId}
-      errorMessage={errorMessage}
-      onContinue={onContinue}
-      onRemove={onRemove}
-      onUseAnother={() => navigate(loginPath())}
-    />
+    <PortalLayoutWrapper
+      pageType={PORTAL_PAGE_TYPE.ACCOUNT_CHOOSER}
+      accountChooser={{
+        accounts,
+        isLoading,
+        busySessionId,
+        errorMessage,
+        onContinue,
+        onRemove,
+        onUseAnother,
+      }}
+    >
+      <PageAccountChooser
+        isLoading={isLoading}
+        accounts={accounts}
+        appName={data?.client_name ?? clientId}
+        realmName={realm}
+        busySessionId={busySessionId}
+        errorMessage={errorMessage}
+        onContinue={onContinue}
+        onRemove={onRemove}
+        onUseAnother={onUseAnother}
+      />
+    </PortalLayoutWrapper>
   )
 }
