@@ -1522,7 +1522,7 @@ async fn list_in_flight(
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn the_client_name_is_shown_to_a_browser_in_flight_for_that_client() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let server = app.server();
         let client = app.client(ClientSpec::public()).await;
         let browser = Browser::default();
@@ -1543,7 +1543,7 @@ fn the_client_name_is_shown_to_a_browser_in_flight_for_that_client() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn the_client_name_is_omitted_without_a_session_cookie() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let server = app.server();
         let client = app.client(ClientSpec::public()).await;
 
@@ -1557,7 +1557,7 @@ fn the_client_name_is_omitted_without_a_session_cookie() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn the_client_name_is_omitted_for_a_session_of_another_client() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let server = app.server();
         let asked = app.client(ClientSpec::public()).await;
         let other = app.client(ClientSpec::public()).await;
@@ -1578,7 +1578,7 @@ fn the_client_name_is_omitted_for_a_session_of_another_client() {
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn an_absent_and_a_forged_device_cookie_stay_identical_with_or_without_a_session() {
     rt().block_on(async {
-        let app = chooser_app().await;
+        let (app, _shared) = chooser_app().await;
         let server = app.server();
         let client = app.client(ClientSpec::public()).await;
         let none = Browser::default();
