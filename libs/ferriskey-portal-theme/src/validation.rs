@@ -70,6 +70,7 @@ pub const REQUIRED_BLOCKS: &[(PortalPageType, &[&str])] = &[
             "consent_deny_button",
         ],
     ),
+    (PortalPageType::AccountChooser, &["account_list"]),
 ];
 
 pub fn required_blocks_for(page_type: PortalPageType) -> &'static [&'static str] {
@@ -212,6 +213,15 @@ mod tests {
                 "identity_providers".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn account_chooser_requires_the_account_list_block() {
+        let err = validate_tree(PortalPageType::AccountChooser, &json!([])).unwrap_err();
+        assert_eq!(err.missing, vec!["account_list".to_string()]);
+
+        let tree = json!([{ "type": "card", "children": [{ "type": "account_list" }] }]);
+        assert!(validate_tree(PortalPageType::AccountChooser, &tree).is_ok());
     }
 
     #[test]
