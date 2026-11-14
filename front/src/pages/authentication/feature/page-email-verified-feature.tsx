@@ -2,8 +2,7 @@ import { CheckCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useParams } from 'react-router'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import '../ui/page-login.css'
+import AuthShell from '../components/auth-shell'
 import { AUTH_NAMESPACE } from '../constants'
 import { hasAuthFlowClient, withAuthFlow } from '@/lib/auth-flow-query'
 
@@ -28,39 +27,24 @@ export default function PageEmailVerifiedFeature() {
   const knowsClient = hasAuthFlowClient(search)
 
   return (
-    <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
-      <div className='relative z-10 w-full max-w-sm md:max-w-md lg:max-w-lg'>
-        <div className='flex flex-col gap-6'>
-          <Card className='login-card overflow-hidden border p-0 shadow-sm'>
-            <CardContent className='grid gap-0 p-0'>
-              <div className='p-8 md:p-10'>
-                <div className='flex flex-col items-center gap-6 text-center'>
-                  <div className='flex h-14 w-14 items-center justify-center rounded-full bg-green-100'>
-                    <CheckCircle className='h-8 w-8 text-green-600' />
-                  </div>
-                  <div className='space-y-2'>
-                    <h1 className='text-2xl font-semibold tracking-tight'>
-                      {t('email_verified.title')}
-                    </h1>
-                    <p className='text-sm text-muted-foreground'>
-                      {knowsClient
-                        ? t('email_verified.description')
-                        : t('email_verified.return_to_app')}
-                    </p>
-                  </div>
-                  {knowsClient && (
-                    <Button asChild className='w-full rounded-lg py-5 text-sm'>
-                      <Link to={withAuthFlow(`/realms/${realm_name}/authentication/login`, search)}>
-                        {t('email_verified.action')}
-                      </Link>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+    <AuthShell
+      title={t('email_verified.title')}
+      description={
+        knowsClient ? t('email_verified.description') : t('email_verified.return_to_app')
+      }
+    >
+      <div className='flex flex-col items-center gap-6 text-center'>
+        <div className='flex h-14 w-14 items-center justify-center rounded-full bg-green-100'>
+          <CheckCircle className='h-8 w-8 text-green-600' />
         </div>
+        {knowsClient && (
+          <Button asChild className='w-full rounded-lg py-5 text-sm'>
+            <Link to={withAuthFlow(`/realms/${realm_name}/authentication/login`, search)}>
+              {t('email_verified.action')}
+            </Link>
+          </Button>
+        )}
       </div>
-    </div>
+    </AuthShell>
   )
 }
