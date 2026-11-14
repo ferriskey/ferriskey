@@ -136,19 +136,34 @@ pub fn validate_pages(
     }
 }
 
+const CHILD_RENDERING_BLOCKS: &[&str] = &[
+    "container",
+    "flex",
+    "grid",
+    "div",
+    "card",
+    "card-header",
+    "card-content",
+    "card-footer",
+];
+
 fn collect_types(value: &serde_json::Value, acc: &mut std::collections::HashSet<String>) {
     match value {
-        serde_json::Value::Object(map) => {
-            if let Some(serde_json::Value::String(t)) = map.get("type") {
-                acc.insert(t.clone());
-            }
-            for (_, v) in map {
-                collect_types(v, acc);
-            }
-        }
         serde_json::Value::Array(items) => {
             for item in items {
                 collect_types(item, acc);
+            }
+        }
+        serde_json::Value::Object(map) => {
+            let renders_children = match map.get("type") {
+                Some(serde_json::Value::String(t)) => {
+                    acc.insert(t.clone());
+                    CHILD_RENDERING_BLOCKS.contains(&t.as_str())
+                }
+                _ => true,
+            };
+            if renders_children && let Some(children) = map.get("children") {
+                collect_types(children, acc);
             }
         }
         _ => {}
@@ -221,6 +236,49 @@ mod tests {
         assert_eq!(err.missing, vec!["account_list".to_string()]);
 
         let tree = json!([{ "type": "card", "children": [{ "type": "account_list" }] }]);
+        assert!(validate_tree(PortalPageType::AccountChooser, &tree).is_ok());
+    }
+
+    #[test]
+    fn a_block_under_a_node_that_renders_no_children_is_not_counted() {
+        let tree = json!([
+            { "type": "card", "children": [
+                { "type": "text", "children": [{ "type": "account_list" }] }
+            ]}
+        ]);
+        let err = validate_tree(PortalPageType::AccountChooser, &tree).unwrap_err();
+        assert_eq!(err.missing, vec!["account_list".to_string()]);
+    }
+
+    #[test]
+    fn a_type_inside_props_is_not_counted() {
+        let tree = json!([{ "type": "text", "props": { "type": "account_list" } }]);
+        assert!(validate_tree(PortalPageType::AccountChooser, &tree).is_err());
+    }
+
+    #[test]
+    fn blocks_are_counted_through_every_child_rendering_node() {
+        for parent in [
+            "container",
+            "flex",
+            "grid",
+            "div",
+            "card",
+            "card-header",
+            "card-content",
+            "card-footer",
+        ] {
+            let tree = json!([{ "type": parent, "children": [{ "type": "account_list" }] }]);
+            assert!(
+                validate_tree(PortalPageType::AccountChooser, &tree).is_ok(),
+                "{parent}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_root_object_without_a_type_is_walked_through_its_children() {
+        let tree = json!({ "children": [{ "type": "account_list" }] });
         assert!(validate_tree(PortalPageType::AccountChooser, &tree).is_ok());
     }
 

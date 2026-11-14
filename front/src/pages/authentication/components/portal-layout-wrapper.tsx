@@ -12,6 +12,7 @@ import { useSetupOtp } from '@/api/trident.api'
 import type { RouterParams } from '@/routes/router'
 import type { BuilderNode } from '@/lib/builder-core'
 import { generateBreakpointCss, treeToReactNode } from '@/lib/builder-portal'
+import { collectRenderedTypes } from '@/lib/builder-portal/rendered-types'
 import type { AccountChooserOptions } from '@/lib/builder-portal/components/account-list-block'
 import { mergeWithDefaults, themeToCssVars } from '@/lib/portal-theme/theme'
 import type { Schemas } from '@/api/api.client'
@@ -40,17 +41,10 @@ function parseTree(tree: unknown): BuilderNode[] {
   return []
 }
 
-function collectTypes(nodes: BuilderNode[], acc: Set<string>) {
-  for (const node of nodes) {
-    if (node && typeof node.type === 'string') acc.add(node.type)
-    if (Array.isArray(node?.children)) collectTypes(node.children, acc)
-  }
-}
-
 function hasAllRequiredBlocks(tree: BuilderNode[], required: string[]): boolean {
   if (required.length === 0) return true
   const present = new Set<string>()
-  collectTypes(tree, present)
+  collectRenderedTypes(tree, present)
   return required.every((type) => present.has(type))
 }
 
@@ -59,7 +53,7 @@ function hasAllRequiredBlocks(tree: BuilderNode[], required: string[]): boolean 
 // and fall back to the default hardcoded page.
 function layoutHasPageContent(tree: BuilderNode[]): boolean {
   const present = new Set<string>()
-  collectTypes(tree, present)
+  collectRenderedTypes(tree, present)
   return present.has('page-content')
 }
 
