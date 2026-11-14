@@ -238,6 +238,7 @@ function AppRoutes() {
       authenticateRoute &&
       !pathname.includes('/callback') &&
       !pathname.includes('/required-action') &&
+      !pathname.includes('/reset-password') &&
       !pathname.includes('/device')
     ) {
       navigate(`/realms/${currentRealm}/overview`, { replace: true })
