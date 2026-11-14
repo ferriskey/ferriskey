@@ -48,6 +48,7 @@ profile:
 sessions:
   # Plain total in a heading, it never inflects.
   title: 活跃会话（{{total}}）
+  description: 您当前登录的位置。请撤销任何您不认识的会话。
   empty: 没有活跃会话。
   unknown_device: 未知设备
   # Stands in for the device name inside a sentence, as in "终止 此设备 上的会话".
@@ -55,9 +56,6 @@ sessions:
   unknown_ip: 未知 IP
   never: 从未
   current: 当前
-  empty_filtered: 没有符合这些筛选条件的会话。
-  show_all: 显示全部会话
-  search_placeholder: 按 IP 地址或设备搜索…
   columns:
     device: 设备
     ip_address: IP 地址
@@ -65,9 +63,6 @@ sessions:
     last_seen_at: 最后活动
     expires_at: 过期时间
     created_at: 登录于
-  filter_fields:
-    persistent: 记住登录
-    created: 登录于
   persistent_state:
     remembered: 已记住
     browser: 浏览器会话
@@ -77,11 +72,16 @@ sessions:
   # as deleting the account. A native reviewer should settle 撤销 vs 撤销 across all three.
   revoke: 撤销
   revoke_label: 撤销 {{device}} 上的会话
+  revoke_others: 撤销其他会话
   confirm:
     title: 撤销会话？
     description: 这将立即退出 {{device}} 上的会话。
+  confirm_others:
+    title: 撤销所有其他会话？
+    description: 除当前会话外的所有会话都将立即退出。此设备保持登录。
   toast:
     revoked: 会话已撤销
+    others_revoked: 其他会话已撤销
 validation:
   username_required: 请输入用户名
   email_invalid: 邮箱地址无效
