@@ -78,6 +78,7 @@ export default function PageAccountChooser({
         )
       }
       realmName={realmName}
+      layout='split'
       contentClassName={CONTENT_CLASS}
     >
       {isLoading ? (

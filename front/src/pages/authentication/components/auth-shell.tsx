@@ -10,6 +10,7 @@ export interface AuthShellProps {
   asideContent?: ReactNode
   asideFooter?: ReactNode
   realmName?: string
+  layout?: 'stacked' | 'split'
   contentClassName?: string
   children: ReactNode
 }
@@ -20,17 +21,29 @@ export default function AuthShell({
   asideContent,
   asideFooter,
   realmName,
+  layout = 'stacked',
   contentClassName,
   children,
 }: AuthShellProps) {
   const { realm_name } = useParams()
   const realm = realmName ?? realm_name
+  const split = layout === 'split'
 
   return (
     <AuthShellCenter>
-      <div className='relative z-10 w-full max-w-[880px] overflow-hidden rounded-2xl border border-fk-line bg-fk-surface shadow-[0_28px_70px_-30px_rgb(0_0_0/0.35)]'>
-        <div className='grid md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]'>
-          <aside className='relative flex flex-col justify-between gap-10 overflow-hidden border-b border-fk-line bg-fk-sand p-7 md:border-r md:border-b-0 md:p-9'>
+      <div
+        className={cn(
+          'relative z-10 w-full overflow-hidden rounded-2xl border border-fk-line bg-fk-surface shadow-[0_28px_70px_-30px_rgb(0_0_0/0.35)]',
+          split ? 'max-w-[880px]' : 'max-w-[480px]'
+        )}
+      >
+        <div className={cn('grid', split && 'md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]')}>
+          <aside
+            className={cn(
+              'relative flex flex-col justify-between overflow-hidden border-b border-fk-line bg-fk-sand p-7',
+              split ? 'gap-10 md:border-r md:border-b-0 md:p-9' : 'gap-7'
+            )}
+          >
             <KeyRound
               aria-hidden
               strokeWidth={1}
@@ -63,7 +76,7 @@ export default function AuthShell({
             </div>
           </aside>
 
-          <section className={cn('flex flex-col justify-center', contentClassName ?? 'p-6 md:p-9')}>
+          <section className={cn('flex flex-col justify-center', contentClassName ?? (split ? 'p-6 md:p-9' : 'p-6 md:p-8'))}>
             {children}
           </section>
         </div>
