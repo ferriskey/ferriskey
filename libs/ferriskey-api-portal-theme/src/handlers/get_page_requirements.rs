@@ -24,10 +24,10 @@ pub struct PageRequirementsResponse {
 
 #[utoipa::path(
     get,
-    path = "/portal/page-requirements",
-    tag = "portal-theme",
+    path = "/page-requirements",
+    tag = "portal-theme-public",
     summary = "Get portal page block requirements",
-    description = "Returns the list of block types that must appear in each page's component tree to pass validation.",
+    description = "Public endpoint used by the portal renderer. Returns the list of block types that must appear in each page's component tree to pass validation. The list is the same for every realm and holds no realm data.",
     params(
         ("realm_name" = String, Path, description = "Name of the realm"),
     ),
