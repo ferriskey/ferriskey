@@ -50,7 +50,12 @@ run() {
 }
 export -f run
 
-xargs -n 3 -P "$jobs" bash -c 'run "$@"' _ <"$logs/binaries.tsv"
+# Assert how many statements a warm request sends, so a cache emptied by another
+# binary's token or session change (the NOTIFY channel is shared by the whole
+# database, not by schema) turns into a failure. They run alone, after the rest.
+alone='^login_statement_budget_test'
+grep -Ev "$alone" "$logs/binaries.tsv" | xargs -n 3 -P "$jobs" bash -c 'run "$@"' _
+grep -E "$alone" "$logs/binaries.tsv" | xargs -n 3 -P 1 bash -c 'run "$@"' _ || true
 
 if [[ -s "$logs/failed" ]]; then
   while read -r log; do
