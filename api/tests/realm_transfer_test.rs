@@ -116,7 +116,7 @@ fn passkey_key() -> SigningKey {
 }
 
 async fn enrol_passkey(instance: &TestApp, user_id: Uuid) {
-    let point = passkey_key().verifying_key().to_encoded_point(false);
+    let point = passkey_key().verifying_key().to_sec1_point(false);
     let credential = WebAuthnCredential {
         cred_id: PASSKEY_ID.to_vec().into(),
         cred: COSEKey {
