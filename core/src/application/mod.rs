@@ -287,6 +287,7 @@ pub async fn create_service_with_secrets(
     if !config_cache_ttl.is_zero() {
         spawn_token_state_sync(
             postgres.get_db().get_postgres_connection_pool(),
+            &config.database.schema,
             token_state.clone(),
             token_state_feed,
         );

@@ -17,7 +17,17 @@ const ANNOUNCE_TIMEOUT: Duration = Duration::from_secs(5);
 const FIRST_RETRY: Duration = Duration::from_secs(1);
 const LONGEST_RETRY: Duration = Duration::from_secs(30);
 
-pub fn spawn_token_state_sync(pool: &PgPool, state: Arc<TokenState>, feed: ChangeFeed) {
+/// Keeps `state` in step with replicas of its schema.
+///
+/// NOTIFY reaches every session of the database.
+/// Each announcement names its schema: `<schema>/<replica>`.
+/// A replica ignores announcements of another schema.
+pub fn spawn_token_state_sync(
+    pool: &PgPool,
+    schema: &str,
+    state: Arc<TokenState>,
+    feed: ChangeFeed,
+) {
     let options = pool.connect_options().as_ref().clone();
     let announcing = PgPoolOptions::new()
         .max_connections(1)
@@ -26,7 +36,7 @@ pub fn spawn_token_state_sync(pool: &PgPool, state: Arc<TokenState>, feed: Chang
     let listening = PgPoolOptions::new()
         .max_connections(1)
         .connect_lazy_with(options);
-    let origin = Uuid::new_v4().to_string();
+    let origin = format!("{schema}/{}", Uuid::new_v4());
 
     tokio::spawn(publish(announcing, origin.clone(), feed));
     tokio::spawn(listen(listening, origin, state));
@@ -137,7 +147,21 @@ fn react(payload: &str, origin: &str, state: &TokenState) {
         return;
     }
 
+    // A replica older than this change announces no schema.
+    // Its announcement still empties the caches.
+    // Ignoring it would serve revoked sessions until expiry.
+    if let (Some(theirs), Some(ours)) = (schema_of(payload), schema_of(origin))
+        && theirs != ours
+    {
+        return;
+    }
+
     state.changed_elsewhere();
+}
+
+/// The schema an announcement names, if any.
+fn schema_of(announcement: &str) -> Option<&str> {
+    announcement.rsplit_once('/').map(|(schema, _)| schema)
 }
 
 #[cfg(test)]
@@ -171,10 +195,37 @@ mod tests {
         assert_eq!(state.generation(), 0);
     }
 
-    async fn replica(pool: &PgPool) -> Arc<TokenState> {
+    #[test]
+    fn an_announcement_of_another_schema_leaves_the_caches_alone() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+        react(
+            "oidc_other/another-replica",
+            "oidc_mine/this-replica",
+            &state,
+        );
+
+        assert_eq!(state.generation(), 0);
+    }
+
+    #[test]
+    fn an_announcement_of_the_same_schema_or_without_one_empties_the_caches() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+        react(
+            "oidc_mine/another-replica",
+            "oidc_mine/this-replica",
+            &state,
+        );
+        react("another-replica", "oidc_mine/this-replica", &state);
+
+        assert_eq!(state.generation(), 2);
+    }
+
+    async fn replica(pool: &PgPool, schema: &str) -> Arc<TokenState> {
         let (state, feed) = TokenState::new(Duration::from_secs(60));
         let mut ready = state.subscribe();
-        spawn_token_state_sync(pool, Arc::clone(&state), feed);
+        spawn_token_state_sync(pool, schema, Arc::clone(&state), feed);
 
         wait_past(&mut ready, 0).await;
         state
@@ -199,8 +250,8 @@ mod tests {
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn a_change_on_one_replica_empties_the_other() {
         let pool = pool().await;
-        let first = replica(&pool).await;
-        let second = replica(&pool).await;
+        let first = replica(&pool, "public").await;
+        let second = replica(&pool, "public").await;
         let mut watching = second.subscribe();
         let seen = second.generation();
 
@@ -208,6 +259,35 @@ mod tests {
 
         wait_past(&mut watching, seen).await;
         assert!(second.synced());
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_change_in_one_schema_leaves_the_replicas_of_another_schema_alone() {
+        let pool = pool().await;
+        let mine = format!("token_state_{}", Uuid::new_v4().simple());
+        let theirs = format!("token_state_{}", Uuid::new_v4().simple());
+        let first = replica(&pool, &mine).await;
+        let sibling = replica(&pool, &mine).await;
+        let stranger = replica(&pool, &theirs).await;
+        let (mut sibling_moves, sibling_seen) = (sibling.subscribe(), sibling.generation());
+        let (mut stranger_moves, stranger_seen) = (stranger.subscribe(), stranger.generation());
+
+        first.changed();
+
+        // The sibling hearing the change proves it was sent.
+        // The stranger shares the channel, so it heard it too.
+        wait_past(&mut sibling_moves, sibling_seen).await;
+        let stranger_moved = tokio::time::timeout(
+            Duration::from_secs(1),
+            stranger_moves.wait_for(|now| *now > stranger_seen),
+        )
+        .await
+        .is_ok();
+        assert!(
+            !stranger_moved,
+            "a change in another schema emptied the caches"
+        );
     }
 
     #[tokio::test]
