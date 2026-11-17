@@ -19,6 +19,7 @@ import type { Schemas } from '@/api/api.client'
 import { useDevicePreview } from '@/api/device.api'
 import { toConsentScopeList, useGetConsentRequest } from '@/api/consent.api'
 import { authFlowSearch, hasAuthFlowClient } from '@/lib/auth-flow-query'
+import { usePortalDocumentTitle } from '../hooks/use-portal-document-title'
 import { usePortalPageSubmit } from '../hooks/use-portal-page-submit'
 import { usePasskeyAuth } from '../hooks/use-passkey-auth'
 import {
@@ -104,6 +105,10 @@ export function PortalLayoutWrapper({
   // identity providers available to the `identity_providers` block.
   const { data: loginSettings } = useGetLoginSettings({ realm })
   const identityProviders = loginSettings?.identity_providers ?? []
+  usePortalDocumentTitle(
+    pageType,
+    loginSettings ? { displayName: loginSettings.display_name, name: loginSettings.name } : null
+  )
 
   // TOTP setup: when the user is mid-enrolment we need to fetch the QR
   // code + secret from the backend's setup endpoint. Only run the query

@@ -1,6 +1,7 @@
 import type { AxiosInstance } from 'axios'
 import axios from 'axios'
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { fetcher } from './api'
 import { createApiClient } from './api/api.client'
@@ -200,6 +201,7 @@ function AppRoutes() {
   const { isAuthenticated, isLoading } = useAuth()
   const { setConfig } = useConfig()
   const { theme } = useTheme()
+  const { t } = useTranslation()
   const { data: responseConfig } = useGetConfig()
 
   const currentRealm = useMemo(() => realmFromPath(pathname), [pathname])
@@ -292,7 +294,7 @@ function AppRoutes() {
           }
         />
       </Routes>
-      <Toaster richColors theme={theme as 'light' | 'dark' | 'system'} />
+      <Toaster richColors containerAriaLabel={t('toaster.label')} theme={theme as 'light' | 'dark' | 'system'} />
     </>
   )
 }

@@ -300,3 +300,19 @@ validation:
   otp_pin_length: Pin must be at least 6 characters long
   device_name_required: Device name must be at least 1 character long
   device_code_format: Expected format XXXX-XXXX using the device code charset.
+
+document_title:
+  login: Sign in
+  register: Create account
+  totp: Verification code
+  forgot_password: Forgot password
+  reset_password: Reset password
+  magic_link_verify: Magic link sign-in
+  magic_link_request: Request a magic link
+  verify_email: Verify your email
+  email_verified: Email verified
+  totp_setup: Set up two-factor authentication
+  device_verify: Verify your device
+  device_verified: Device verified
+  consent: Authorize access
+  account_chooser: Choose an account
