@@ -55,7 +55,10 @@ export -f run
 # database, not by schema) turns into a failure. They run alone, after the rest.
 alone='^login_statement_budget_test'
 grep -Ev "$alone" "$logs/binaries.tsv" | xargs -n 3 -P "$jobs" bash -c 'run "$@"' _
-grep -E "$alone" "$logs/binaries.tsv" | xargs -n 3 -P 1 bash -c 'run "$@"' _ || true
+alone_binaries="$(grep -E "$alone" "$logs/binaries.tsv" || true)"
+if [[ -n "$alone_binaries" ]]; then
+  xargs -n 3 -P 1 bash -c 'run "$@"' _ <<<"$alone_binaries"
+fi
 
 if [[ -s "$logs/failed" ]]; then
   while read -r log; do
