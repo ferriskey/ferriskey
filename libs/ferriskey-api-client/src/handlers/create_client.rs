@@ -63,6 +63,9 @@ pub async fn create_client(
                 token_exchange_enabled: payload.token_exchange_enabled,
                 consent_required: payload.consent_required,
                 require_pkce: payload.require_pkce,
+                token_endpoint_auth_method: payload.token_endpoint_auth_method,
+                jwks: payload.jwks,
+                jwks_uri: payload.jwks_uri,
             },
         )
         .await?;

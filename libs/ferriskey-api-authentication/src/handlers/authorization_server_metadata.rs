@@ -3,6 +3,8 @@ use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse};
 use ferriskey_api_core::api_entities::response::Response;
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_api_core::url::{FullUrl, root_scoped_base_url};
+use ferriskey_core::domain::authentication::client_assertion::entities::assertion_signing_algorithms;
+use ferriskey_core::domain::client::entities::auth_method::TokenEndpointAuthMethod;
 use ferriskey_core::domain::realm::ports::RealmService;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -28,8 +30,8 @@ pub fn supported_grant_types() -> Vec<String> {
 }
 
 pub fn supported_token_endpoint_auth_methods() -> Vec<String> {
-    ["none", "client_secret_basic", "client_secret_post"]
-        .map(String::from)
+    TokenEndpointAuthMethod::ALL
+        .map(|method| method.as_str().to_string())
         .to_vec()
 }
 
@@ -46,6 +48,7 @@ pub struct AuthorizationServerMetadata {
     pub grant_types_supported: Vec<String>,
     pub code_challenge_methods_supported: Vec<String>,
     pub token_endpoint_auth_methods_supported: Vec<String>,
+    pub token_endpoint_auth_signing_alg_values_supported: Vec<String>,
     pub authorization_response_iss_parameter_supported: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registration_endpoint: Option<String>,
@@ -90,6 +93,7 @@ pub async fn get_authorization_server_metadata(
         grant_types_supported: supported_grant_types(),
         code_challenge_methods_supported: vec!["S256".to_string()],
         token_endpoint_auth_methods_supported: supported_token_endpoint_auth_methods(),
+        token_endpoint_auth_signing_alg_values_supported: assertion_signing_algorithms(),
         authorization_response_iss_parameter_supported: true,
         registration_endpoint: settings
             .dcr_enabled

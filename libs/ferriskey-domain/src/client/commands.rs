@@ -2,6 +2,7 @@ use uuid::Uuid;
 
 use crate::authentication::entities::AuthProtocol;
 use crate::client::entities::ClientType;
+use crate::client::entities::auth_method::{ClientJwks, TokenEndpointAuthMethod};
 use crate::client::value_objects::{
     CreateSamlAttributeMapperRequest, CreateTokenExchangePolicyRequest, CreateWebOriginRequest,
     SetClientSamlConfigRequest, UpdateClientRequest,
@@ -21,6 +22,10 @@ pub struct CreateClientInput {
     pub token_exchange_enabled: bool,
     pub consent_required: bool,
     pub require_pkce: bool,
+    /// Defaults to `none` for a public client, `client_secret_basic` otherwise.
+    pub token_endpoint_auth_method: Option<TokenEndpointAuthMethod>,
+    pub jwks: Option<ClientJwks>,
+    pub jwks_uri: Option<String>,
 }
 
 pub struct CreateRedirectUriInput {

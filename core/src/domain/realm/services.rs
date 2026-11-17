@@ -451,6 +451,7 @@ where
                 consent_required: false,
                 registration_source:
                     crate::domain::client::entities::ClientRegistrationSource::Admin,
+                auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
             })
             .await?;
 
@@ -473,6 +474,7 @@ where
                 consent_required: false,
                 registration_source:
                     crate::domain::client::entities::ClientRegistrationSource::Admin,
+                auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
             })
             .await?;
 
@@ -504,6 +506,7 @@ where
                 consent_required: false,
                 registration_source:
                     crate::domain::client::entities::ClientRegistrationSource::Admin,
+                auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
             })
             .await?;
 
@@ -593,6 +596,7 @@ where
                 consent_required: false,
                 registration_source:
                     crate::domain::client::entities::ClientRegistrationSource::Admin,
+                auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
             })
             .await?;
 

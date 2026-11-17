@@ -316,6 +316,28 @@ credentials:
     forbidden: You need the manage-clients permission to reveal this secret. Ask a realm administrator for access.
     failed: The secret could not be revealed. Please try again.
     rotation_hint: Rotating the secret is not exposed by the administration API yet.
+  authentication:
+    title: Client authentication
+    description: How this client proves who it is at the token, introspection and revocation endpoints.
+    method:
+      label: Method
+      options:
+        client_secret_basic: Client secret (HTTP Basic)
+        client_secret_post: Client secret (form body)
+        client_secret_jwt: JWT signed with the client secret
+        private_key_jwt: JWT signed with a private key
+      hint:
+        client_secret_basic: The client sends its secret. HTTP Basic and the form body are both accepted.
+        client_secret_post: The client sends its secret. HTTP Basic and the form body are both accepted.
+        client_secret_jwt: The client signs a short-lived JWT with its secret (HS256, HS384 or HS512). The secret never travels.
+        private_key_jwt: The client signs a short-lived JWT with its private key. FerrisKey only stores the public keys.
+    keys:
+      label: Public keys
+      description: A JWKS URL is fetched and cached, and fetched again when an assertion names an unknown key. An inline key set must only hold public keys.
+      uri: JWKS URL
+      inline: Inline JWKS
+      uri_required: Enter the URL where the client publishes its keys.
+      invalid_json: 'The key set must be a JSON object such as { "keys": [ … ] }.'
 
 roles:
   title: Client roles

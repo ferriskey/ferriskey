@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::authentication::entities::AuthProtocol;
+use crate::client::entities::auth_method::{
+    ClientAuthSettings, ClientJwks, TokenEndpointAuthMethod,
+};
 use crate::client::entities::{ClientRegistrationSource, ClientType, MaintenanceSessionStrategy};
 use crate::realm::RealmId;
 
@@ -23,6 +26,7 @@ pub struct CreateClientRequest {
     pub require_pkce: bool,
     pub consent_required: bool,
     pub registration_source: ClientRegistrationSource,
+    pub auth: ClientAuthSettings,
 }
 
 impl CreateClientRequest {
@@ -46,6 +50,7 @@ impl CreateClientRequest {
             require_pkce: false,
             consent_required: false,
             registration_source: ClientRegistrationSource::Admin,
+            auth: ClientAuthSettings::default_for(true),
         }
     }
 }
@@ -69,6 +74,29 @@ pub struct UpdateClientRequest {
     pub maintenance_reason: Option<Option<String>>,
     pub maintenance_session_strategy: Option<MaintenanceSessionStrategy>,
     pub consent_required: Option<bool>,
+    pub token_endpoint_auth_method: Option<TokenEndpointAuthMethod>,
+    pub jwks: Option<Option<ClientJwks>>,
+    pub jwks_uri: Option<Option<String>>,
+}
+
+impl UpdateClientRequest {
+    pub fn touches_authentication(&self) -> bool {
+        self.token_endpoint_auth_method.is_some() || self.jwks.is_some() || self.jwks_uri.is_some()
+    }
+
+    /// The authentication settings `client` would have once this update applies.
+    pub fn merged_auth(&self, client: &crate::client::entities::Client) -> ClientAuthSettings {
+        ClientAuthSettings {
+            method: self
+                .token_endpoint_auth_method
+                .unwrap_or(client.token_endpoint_auth_method),
+            jwks: self.jwks.clone().unwrap_or_else(|| client.jwks.clone()),
+            jwks_uri: self
+                .jwks_uri
+                .clone()
+                .unwrap_or_else(|| client.jwks_uri.clone()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

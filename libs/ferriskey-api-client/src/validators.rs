@@ -1,5 +1,6 @@
 use ferriskey_core::domain::authentication::entities::AuthProtocol;
 use ferriskey_core::domain::client::entities::ClientType;
+use ferriskey_core::domain::client::entities::auth_method::{ClientJwks, TokenEndpointAuthMethod};
 use ferriskey_core::domain::client::entities::saml::{NameIdFormat, SamlAttributeNameFormat};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -43,6 +44,15 @@ pub struct CreateClientValidator {
     pub consent_required: bool,
     #[serde(default = "require_pkce_by_default")]
     pub require_pkce: bool,
+    /// `none` for a public client; `client_secret_basic` by default otherwise.
+    #[serde(default)]
+    pub token_endpoint_auth_method: Option<TokenEndpointAuthMethod>,
+    /// Public keys of a `private_key_jwt` client, as a JWK set.
+    #[serde(default)]
+    pub jwks: Option<ClientJwks>,
+    /// Where a `private_key_jwt` client publishes its JWK set.
+    #[serde(default)]
+    pub jwks_uri: Option<String>,
 }
 
 fn require_pkce_by_default() -> bool {
@@ -95,6 +105,20 @@ pub struct UpdateClientValidator {
 
     #[serde(default)]
     pub consent_required: Option<bool>,
+
+    #[serde(default)]
+    pub token_endpoint_auth_method: Option<TokenEndpointAuthMethod>,
+
+    /// Inline JWK set of a `private_key_jwt` client. Absent keeps the current
+    /// value, `null` clears it.
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<Object>)]
+    pub jwks: Option<Option<ClientJwks>>,
+
+    /// Absent keeps the current value, `null` clears it.
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<String>)]
+    pub jwks_uri: Option<Option<String>>,
 }
 
 fn deserialize_optional_field<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>

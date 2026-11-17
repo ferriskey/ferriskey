@@ -4,6 +4,7 @@ use crate::{
     domain::authentication::entities::AuthProtocol,
     domain::client::entities::{
         Client, ClientRegistrationSource, ClientType, MaintenanceSessionStrategy,
+        auth_method::{ClientJwks, TokenEndpointAuthMethod},
     },
     entity::clients::Model,
 };
@@ -24,6 +25,19 @@ impl From<Model> for Client {
                 );
 
                 AuthProtocol::OpenIdConnect
+            });
+
+        let token_endpoint_auth_method = model
+            .token_endpoint_auth_method
+            .parse::<TokenEndpointAuthMethod>()
+            .unwrap_or_else(|reason| {
+                tracing::warn!(
+                    client_id = %model.client_id,
+                    %reason,
+                    "reading a client whose stored auth method is unknown, falling back to its default"
+                );
+
+                TokenEndpointAuthMethod::default_for(model.public_client)
             });
 
         Client {
@@ -64,6 +78,9 @@ impl From<Model> for Client {
                 .registration_source
                 .parse::<ClientRegistrationSource>()
                 .unwrap_or_default(),
+            token_endpoint_auth_method,
+            jwks: model.jwks.map(ClientJwks),
+            jwks_uri: model.jwks_uri,
         }
     }
 }
