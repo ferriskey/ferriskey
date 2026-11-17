@@ -255,6 +255,26 @@ fn the_par_endpoint_validates_the_request_like_auth() {
         .await;
         assert_eq!(response.status_code(), 400, "{}", response.text());
 
+        let response = push(&server, &app.realm, &client, &[("response_type", "token")]).await;
+        assert_eq!(response.status_code(), 400, "{}", response.text());
+        assert_eq!(
+            response.json::<Value>()["error"],
+            "unsupported_response_type"
+        );
+
+        let response = push(
+            &server,
+            &app.realm,
+            &client,
+            &[("scope", "openid not_assigned_to_this_client")],
+        )
+        .await;
+        assert_eq!(response.status_code(), 400, "{}", response.text());
+
+        let response = push(&server, &app.realm, &client, &[("max_age", "abc")]).await;
+        assert_eq!(response.status_code(), 400, "{}", response.text());
+        assert_eq!(response.json::<Value>()["error"], "invalid_request");
+
         let mut pkce = ClientSpec::confidential();
         pkce.require_pkce = true;
         let pkce_client = app.client(pkce).await;
@@ -293,6 +313,7 @@ fn a_pushed_request_completes_the_code_flow_and_ignores_query_parameters() {
                 ("redirect_uri", "https://evil.example/cb"),
                 ("state", "query-state"),
                 ("response_type", "token"),
+                ("max_age", "abc"),
             ],
         )
         .await;

@@ -1109,6 +1109,16 @@ impl ApplicationService {
         .await
         .map_err(|_| CoreError::ClientAuthenticationFailed)?;
 
+        let parameters = input.parameters;
+        self.auth_service
+            .resolve_metadata_client(
+                &scope,
+                &input.client_id,
+                &parameters.redirect_uri,
+                input.ip_address.as_deref(),
+            )
+            .await?;
+
         let client = self
             .authenticate_client(
                 &scope,
@@ -1118,7 +1128,6 @@ impl ApplicationService {
             )
             .await?;
 
-        let parameters = input.parameters;
         let auth_input = AuthInput {
             client_id: client.client_id.clone(),
             realm_name: input.realm_name,
@@ -1137,6 +1146,9 @@ impl ApplicationService {
             max_age: None,
             pushed: true,
         };
+        self.auth_service
+            .resolve_scopes_for_client(client.id, parameters.scope.clone())
+            .await?;
         self.auth_service
             .validate_authorization_request(&scope, &auth_input)
             .await?;

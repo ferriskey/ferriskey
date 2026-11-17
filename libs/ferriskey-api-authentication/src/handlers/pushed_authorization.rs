@@ -1,6 +1,6 @@
 use axum::{
     Form, Json,
-    extract::{Path, State},
+    extract::{Path, State, rejection::FormRejection},
     http::{HeaderMap, HeaderValue, StatusCode, header::CACHE_CONTROL},
     response::IntoResponse,
 };
@@ -79,6 +79,12 @@ fn authorization_parameters(
     }
 
     let response_type = required(&form.response_type, "response_type")?.to_string();
+    if response_type != "code" {
+        return Err(ApiError::OAuthError {
+            error: "unsupported_response_type".into(),
+            error_description: "Only response_type=code is supported.".into(),
+        });
+    }
     let redirect_uri = required(&form.redirect_uri, "redirect_uri")?.to_string();
 
     if Prompt::parse(form.prompt.as_deref()).is_none() {
@@ -149,8 +155,9 @@ pub async fn push_authorization_request(
     FullUrl(_, base_url): FullUrl,
     context: RequestContext,
     headers: HeaderMap,
-    Form(form): Form<PushedAuthorizationRequestForm>,
+    form: Result<Form<PushedAuthorizationRequestForm>, FormRejection>,
 ) -> Result<impl IntoResponse, ApiError> {
+    let Form(form) = form.map_err(|_| invalid_request("The request body is not a valid form."))?;
     let issuer = realm_issuer(&base_url, &state.args.server.root_path, &realm_name);
     let presented = presented_client(
         &headers,
@@ -263,6 +270,17 @@ mod tests {
                 "invalid_request"
             );
         }
+    }
+
+    #[test]
+    fn only_the_code_response_type_is_supported() {
+        let error = authorization_parameters(PushedAuthorizationRequestForm {
+            response_type: Some("token".to_string()),
+            ..form()
+        })
+        .expect_err("refused");
+
+        assert_eq!(oauth_error(error), "unsupported_response_type");
     }
 
     #[test]

@@ -2,7 +2,7 @@ use axum::extract::Path;
 use axum::http::header::LOCATION;
 use axum::{
     extract::{Query, State},
-    http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE},
+    http::{HeaderMap, HeaderValue, StatusCode, Uri, header::SET_COOKIE},
     response::IntoResponse,
 };
 use axum_cookie::CookieManager;
@@ -193,6 +193,17 @@ impl AuthRequest {
             login_hint: None,
         }
     }
+}
+
+/// The two parameters that decide whether `/auth` reads a pushed request.
+/// Extracted alone so an adjacent parameter that is ignored for a pushed
+/// request cannot reject it.
+#[derive(Debug, Deserialize)]
+struct PushedReference {
+    #[serde(default)]
+    client_id: String,
+    #[serde(default)]
+    request_uri: Option<String>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -392,7 +403,7 @@ pub async fn auth_handler(
     WebappUrl(webapp_url): WebappUrl,
     context: RequestContext,
     cookie: CookieManager,
-    Query(params): Query<AuthRequest>,
+    uri: Uri,
 ) -> Result<axum::response::Response, ApiError> {
     let login_error = |error: &CoreError| {
         let error_url = format!(
@@ -404,15 +415,22 @@ pub async fn auth_handler(
         (StatusCode::FOUND, [(LOCATION, error_url)]).into_response()
     };
 
-    let pushed = params.request_uri.is_some();
-    let params = match params.request_uri.as_deref() {
-        None => params,
+    let reference = match Query::<PushedReference>::try_from_uri(&uri) {
+        Ok(Query(reference)) => reference,
+        Err(rejection) => return Ok(rejection.into_response()),
+    };
+    let pushed = reference.request_uri.is_some();
+    let params = match reference.request_uri.as_deref() {
+        None => match Query::<AuthRequest>::try_from_uri(&uri) {
+            Ok(Query(params)) => params,
+            Err(rejection) => return Ok(rejection.into_response()),
+        },
         Some(request_uri) => match state
             .service
-            .take_pushed_authorization_request(&realm_name, &params.client_id, request_uri)
+            .take_pushed_authorization_request(&realm_name, &reference.client_id, request_uri)
             .await
         {
-            Ok(parameters) => AuthRequest::from_pushed(params.client_id, parameters),
+            Ok(parameters) => AuthRequest::from_pushed(reference.client_id, parameters),
             Err(
                 e @ CoreError::InvalidRequestUri
                 | e @ CoreError::ClientNotFound
@@ -420,7 +438,7 @@ pub async fn auth_handler(
             ) => {
                 warn!(
                     realm = %realm_name,
-                    client_id = %params.client_id,
+                    client_id = %reference.client_id,
                     error = %e,
                     "Pushed authorization request refused — redirecting to login error page"
                 );

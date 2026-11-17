@@ -1492,19 +1492,34 @@ where
 {
     /// Everything `/auth` checks before it opens a login session. The PAR
     /// endpoint runs the same checks before it stores a request.
+    pub(crate) async fn resolve_metadata_client(
+        &self,
+        scope: &RealmScope,
+        client_id: &str,
+        redirect_uri: &str,
+        ip_address: Option<&str>,
+    ) -> Result<(), CoreError> {
+        let source_ip = ip_address.and_then(|raw| raw.parse::<IpAddr>().ok());
+
+        self.client_metadata_resolver
+            .resolve(scope, client_id, redirect_uri, source_ip)
+            .await?;
+
+        Ok(())
+    }
+
     pub(crate) async fn validate_authorization_request(
         &self,
         scope: &RealmScope,
         input: &AuthInput,
     ) -> Result<Client, CoreError> {
-        let source_ip = input
-            .ip_address
-            .as_deref()
-            .and_then(|raw| raw.parse::<IpAddr>().ok());
-
-        self.client_metadata_resolver
-            .resolve(scope, &input.client_id, &input.redirect_uri, source_ip)
-            .await?;
+        self.resolve_metadata_client(
+            scope,
+            &input.client_id,
+            &input.redirect_uri,
+            input.ip_address.as_deref(),
+        )
+        .await?;
 
         let client = self
             .client_repository
