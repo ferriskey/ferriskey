@@ -18,6 +18,7 @@ pub mod maintenance;
 pub mod migrate;
 pub mod organization;
 pub mod pagination;
+pub mod pushed_authorization;
 pub mod realm;
 pub mod recovery_code;
 pub mod repositories;

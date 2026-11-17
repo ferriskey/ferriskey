@@ -1,3 +1,4 @@
+use super::pushed_authorization::PUSHED_AUTHORIZATION_REQUEST_PATH;
 use axum::extract::{Path, State};
 use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse};
 use ferriskey_api_core::api_entities::response::Response;
@@ -54,6 +55,9 @@ pub struct AuthorizationServerMetadata {
     pub registration_endpoint: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub client_id_metadata_document_supported: Option<bool>,
+    /// RFC 9126 §5.
+    pub pushed_authorization_request_endpoint: String,
+    pub require_pushed_authorization_requests: bool,
 }
 
 #[utoipa::path(
@@ -99,6 +103,10 @@ pub async fn get_authorization_server_metadata(
             .dcr_enabled
             .then(|| format!("{issuer}/clients/register")),
         client_id_metadata_document_supported: settings.cimd_enabled.then_some(true),
+        pushed_authorization_request_endpoint: format!(
+            "{issuer}{PUSHED_AUTHORIZATION_REQUEST_PATH}"
+        ),
+        require_pushed_authorization_requests: settings.require_pushed_authorization_requests,
         issuer,
     }))
 }

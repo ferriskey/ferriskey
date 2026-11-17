@@ -105,6 +105,8 @@ pub struct UpdateRealmSettingValidator {
     pub allowed_resources: Option<Vec<String>>,
     pub account_chooser_enabled: Option<bool>,
     pub account_chooser_show_email: Option<bool>,
+    /// Refuse `/auth` requests that were not pushed first (RFC 9126 §5).
+    pub require_pushed_authorization_requests: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -379,11 +381,13 @@ mod mcp_settings_validator_tests {
             "cimd_enabled": true,
             "dcr_enabled": false,
             "allowed_resources": ["https://mcp.example.com"],
-            "cimd_allowed_hosts": ["example.com"]
+            "cimd_allowed_hosts": ["example.com"],
+            "require_pushed_authorization_requests": true
         }))
         .expect("deserializes");
         assert!(ok.validate().is_ok());
         assert_eq!(ok.cimd_enabled, Some(true));
+        assert_eq!(ok.require_pushed_authorization_requests, Some(true));
 
         let empty: UpdateRealmSettingValidator =
             serde_json::from_value(json!({})).expect("deserializes");

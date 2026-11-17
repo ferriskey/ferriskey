@@ -2,7 +2,7 @@ use axum::extract::Path;
 use axum::http::header::LOCATION;
 use axum::{
     extract::{Query, State},
-    http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE},
+    http::{HeaderMap, HeaderValue, StatusCode, Uri, header::SET_COOKIE},
     response::IntoResponse,
 };
 use axum_cookie::CookieManager;
@@ -15,6 +15,7 @@ use ferriskey_core::domain::authentication::ports::{
     AccountSelectionService, AuthService, AuthorizeAccounts, ListAccountsInput, SelectAccountInput,
     SelectAccountOutcome, SessionOrigin,
 };
+use ferriskey_core::domain::authentication::pushed_authorization::entities::AuthorizationParameters;
 use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use ferriskey_core::domain::device_session::entities::AccountEntry;
@@ -168,10 +169,45 @@ pub struct AuthRequest {
     pub resource: Option<String>,
     #[serde(default)]
     pub login_hint: Option<String>,
+    /// A `request_uri` returned by the PAR endpoint (RFC 9126 §4). When set,
+    /// every other parameter but `client_id` is read from the pushed request.
+    #[serde(default)]
+    pub request_uri: Option<String>,
+}
+
+impl AuthRequest {
+    fn from_pushed(client_id: String, pushed: AuthorizationParameters) -> Self {
+        Self {
+            response_type: pushed.response_type,
+            client_id,
+            redirect_uri: pushed.redirect_uri,
+            scope: pushed.scope,
+            state: pushed.state,
+            nonce: pushed.nonce,
+            code_challenge: pushed.code_challenge,
+            code_challenge_method: pushed.code_challenge_method,
+            prompt: pushed.prompt,
+            max_age: pushed.max_age,
+            resource: pushed.resource,
+            request_uri: None,
+            login_hint: None,
+        }
+    }
+}
+
+/// The two parameters that decide whether `/auth` reads a pushed request.
+/// Extracted alone so an adjacent parameter that is ignored for a pushed
+/// request cannot reject it.
+#[derive(Debug, Deserialize)]
+struct PushedReference {
+    #[serde(default)]
+    client_id: String,
+    #[serde(default)]
+    request_uri: Option<String>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
-struct Prompt {
+pub(crate) struct Prompt {
     none: bool,
     login: bool,
     select_account: bool,
@@ -180,7 +216,7 @@ struct Prompt {
 }
 
 impl Prompt {
-    fn parse(prompt: Option<&str>) -> Option<Self> {
+    pub(crate) fn parse(prompt: Option<&str>) -> Option<Self> {
         let values: Vec<&str> = prompt.unwrap_or_default().split_whitespace().collect();
         let none = values.contains(&"none");
 
@@ -348,7 +384,7 @@ pub struct AuthResponse {
     path = "/protocol/openid-connect/auth",
     tag = "auth",
     summary = "Authenticate a user",
-    description = "Initiates the authentication process for a user in a specific realm.",
+    description = "Initiates the authentication process for a user in a specific realm. With `request_uri`, the parameters come from a request pushed to the PAR endpoint and the other query parameters but `client_id` are ignored.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         AuthRequest
@@ -367,8 +403,51 @@ pub async fn auth_handler(
     WebappUrl(webapp_url): WebappUrl,
     context: RequestContext,
     cookie: CookieManager,
-    Query(params): Query<AuthRequest>,
+    uri: Uri,
 ) -> Result<axum::response::Response, ApiError> {
+    let login_error = |error: &CoreError| {
+        let error_url = format!(
+            "{}/realms/{}/authentication/login?login_error={}",
+            webapp_url,
+            realm_name,
+            urlencoding::encode(&error.to_string()),
+        );
+        (StatusCode::FOUND, [(LOCATION, error_url)]).into_response()
+    };
+
+    let reference = match Query::<PushedReference>::try_from_uri(&uri) {
+        Ok(Query(reference)) => reference,
+        Err(rejection) => return Ok(rejection.into_response()),
+    };
+    let pushed = reference.request_uri.is_some();
+    let params = match reference.request_uri.as_deref() {
+        None => match Query::<AuthRequest>::try_from_uri(&uri) {
+            Ok(Query(params)) => params,
+            Err(rejection) => return Ok(rejection.into_response()),
+        },
+        Some(request_uri) => match state
+            .service
+            .take_pushed_authorization_request(&realm_name, &reference.client_id, request_uri)
+            .await
+        {
+            Ok(parameters) => AuthRequest::from_pushed(reference.client_id, parameters),
+            Err(
+                e @ CoreError::InvalidRequestUri
+                | e @ CoreError::ClientNotFound
+                | e @ CoreError::InvalidRealm,
+            ) => {
+                warn!(
+                    realm = %realm_name,
+                    client_id = %reference.client_id,
+                    error = %e,
+                    "Pushed authorization request refused — redirecting to login error page"
+                );
+                return Ok(login_error(&e));
+            }
+            Err(e) => return Err(ApiError::from(e)),
+        },
+    };
+
     let prompt = Prompt::parse(params.prompt.as_deref());
     let issuer = realm_issuer(&base_url, &state.args.server.root_path, &realm_name);
 
@@ -398,6 +477,7 @@ pub async fn auth_handler(
             issuer: Some(issuer.clone()),
             resource: params.resource.clone(),
             max_age: stored_max_age,
+            pushed,
         })
         .await
     {
@@ -416,13 +496,15 @@ pub async fn auth_handler(
                 error = %e,
                 "Auth flow rejected — redirecting to login error page"
             );
-            let error_url = format!(
-                "{}/realms/{}/authentication/login?login_error={}",
-                webapp_url,
-                realm_name,
-                urlencoding::encode(&e.to_string()),
-            );
-            return Ok((StatusCode::FOUND, [(LOCATION, error_url)]).into_response());
+            return Ok(login_error(&e));
+        }
+        Err(CoreError::PushedAuthorizationRequired) => {
+            return Ok(authorization_error_response(
+                &params.redirect_uri,
+                "invalid_request",
+                params.state.as_deref(),
+                &issuer,
+            ));
         }
         Err(CoreError::InvalidTarget) => {
             return Ok(authorization_error_response(
