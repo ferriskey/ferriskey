@@ -1,0 +1,153 @@
+# STATUS : traduit, en attente de relecture native.
+# « Compass » est le nom du module de traçage d'authentification de FerrisKey : il n'est pas traduit.
+page:
+  title: Compass
+  description: Trace des exécutions d'authentification de ce realm.
+
+# Libellés et descriptions des valeurs FlowStepName envoyées par l'API, indexés sur la valeur d'enum elle-même.
+# La valeur brute reste affichée en police à chasse fixe à côté du libellé. La description se lit pendant
+# le diagnostic d'une connexion échouée : elle reste factuelle et au passé — elle dit ce que l'étape a
+# fait, pas à quoi elle sert. « AuthnRequest » est le nom de l'élément SAML et reste tel quel.
+step:
+  authorize:
+    label: Requête d'autorisation
+    description: Le client a demandé un code d'autorisation au realm.
+  credential_validation:
+    label: Validation des identifiants
+    description: Le secret soumis a été comparé à l'identifiant enregistré.
+  mfa_challenge:
+    label: Second facteur
+    description: Un second facteur a été demandé et vérifié avant l'émission de tout jeton.
+  token_exchange:
+    label: Échange de jeton
+    description: Le code ou le jeton d'actualisation a été échangé contre un jeton d'accès.
+  idp_redirect:
+    label: Redirection vers le fournisseur
+    description: Le navigateur a été transmis à un fournisseur d'identité externe.
+  idp_callback:
+    label: Retour du fournisseur
+    description: Le fournisseur externe a renvoyé le navigateur avec sa réponse.
+  finalize:
+    label: Session ouverte
+    description: La session a été enregistrée et les jetons ont été renvoyés au client.
+  saml_authn_request:
+    label: SAML AuthnRequest
+    description: La requête du fournisseur de services a été analysée et sa signature vérifiée.
+  saml_assertion:
+    label: Assertion SAML
+    description: L'assertion signée a été construite et renvoyée au fournisseur de services.
+  subject_token_exchange:
+    label: Échange de jeton de sujet
+    description: Un client a échangé un jeton d'accès existant contre un jeton plus restreint (RFC 8693).
+  account_selection:
+    label: Sélection du compte
+    description: L'utilisateur a choisi un compte déjà connecté dans ce navigateur.
+
+# Affiché dans un badge à côté d'une barre de progression, donc court. « ms » et « s » sont les symboles du SI.
+duration:
+  milliseconds: '{{value}} ms'
+  seconds: '{{value}} s'
+
+list:
+  search_placeholder: Rechercher par adresse IP…
+  columns:
+    started_at: Démarré
+    grant_type: Type d'autorisation
+    status: Résultat
+    client_id: Client
+    user_id: Utilisateur
+    steps: Étapes
+    duration: Durée
+  filter_fields:
+    status: Résultat
+    grant_type: Type d'autorisation
+    client_id: Client
+    user_id: Utilisateur
+  grant_types:
+    authorization_code: Code d'autorisation
+    password: Mot de passe
+    credentials: Identifiants client
+    device_code: Code d'appareil
+    token_exchange: Échange de jeton
+    saml_sso: Authentification unique SAML
+  client:
+    unresolved: non résolu
+  user:
+    never_identified: jamais identifié
+  card:
+    unresolved_client: client non résolu
+    flags:
+      user: Utilisateur identifié
+      completed: Exécution terminée
+      no_failure: Aucune étape en échec
+  metrics:
+    total:
+      label: Exécutions
+      hint: enregistrées dans ce realm
+    success:
+      label: Réussies
+      hint: '{{rate}} % du total'
+      hint_none: aucune exécution enregistrée
+    failure:
+      label: Échouées
+      hint: une étape a échoué
+    duration:
+      label: Durée moyenne
+      hint: exécutions terminées
+  aggregates:
+    executions_one: '{{count}} exécution'
+    executions_many: '{{count}} d''exécutions'
+    executions_other: '{{count}} exécutions'
+    # Ne s'accorde jamais : le nom qu'il qualifie est l'en-tête de colonne, pas un mot de cette chaîne.
+    unfinished: '{{total}} inachevées'
+  alerts:
+    unavailable:
+      title: Flux indisponibles
+      detail: Nous n'avons pas pu récupérer les derniers flux. Veuillez réessayer plus tard.
+    failed:
+      title_one: '{{count}} exécution échouée dans ce realm'
+      title_many: '{{count}} d''exécutions échouées dans ce realm'
+      title_other: '{{count}} exécutions échouées dans ce realm'
+      # {{step}} est un libellé d'étape du catalogue ci-dessus ; {{total}} est le nombre d'exécutions échouées, parmi les {{sample}} plus récentes, qui ont échoué à cette étape.
+      detail_recent: '{{step}} représente {{total}} des {{sample}} plus récentes.'
+      no_step: Aucune étape en échec enregistrée
+    expired:
+      title_one: '{{count}} exécution expirée dans ce realm'
+      title_many: '{{count}} d''exécutions expirées dans ce realm'
+      title_other: '{{count}} exécutions expirées dans ce realm'
+      detail: Parti vers un fournisseur externe et jamais revenu — aucune étape n'a échoué.
+  empty:
+    label: Aucune exécution enregistrée
+    hint: Compass enregistre chaque tentative d'authentification effectuée sur ce realm.
+
+detail:
+  back: Compass
+  not_found:
+    title: Exécution introuvable
+    detail: Elle a peut-être été purgée avec la rétention du realm, ou elle appartient à un autre realm.
+  failure:
+    title: 'Échec à l''étape {{step}}'
+  expired: Cette exécution n'est jamais revenue. Aucune étape n'a échoué — l'utilisateur n'est simplement pas revenu, donc ni date de fin ni durée n'ont été enregistrées.
+  meta:
+    started: Démarrée
+    completed: Terminée
+    client: Client
+    user: Utilisateur
+    in_progress: en cours
+    never: jamais
+    unresolved: non résolu
+    never_identified: jamais identifié
+  steps:
+    title: Étapes
+    description_one: '{{count}} étape enregistrée — {{duration}} de traitement cumulé, hors attente de l''utilisateur.'
+    description_many: '{{count}} d''étapes enregistrées — {{duration}} de traitement cumulé, hors attente de l''utilisateur.'
+    description_other: '{{count}} étapes enregistrées — {{duration}} de traitement cumulé, hors attente de l''utilisateur.'
+    empty: Aucune étape enregistrée pour cette exécution.
+    skipped: Non applicable à cette exécution.
+    waiting: En attente de l'étape suivante…
+  origin:
+    title: Origine
+    grant_type: Type d'autorisation
+    ip_address: Adresse IP
+    user_agent: User agent
+    not_recorded: non enregistré

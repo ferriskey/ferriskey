@@ -1,0 +1,520 @@
+# Catalogue français du shell, des composants partagés et des notifications de mutation.
+#
+# STATUS: traduit, en attente de relecture native. Voir le glossaire français dans GLOSSARY.md.
+
+language:
+  switcher_label: Langue
+  search_placeholder: Rechercher une langue…
+  no_match: 'Aucune langue ne correspond à « {{query}} ».'
+  names:
+    en: English
+    zh-CN: 简体中文
+    fr: Français
+
+relative_time:
+  just_now: à l'instant
+  # Minutes abrégées : affichées dans des cellules de tableau étroites, rester court.
+  minutes_one: 'il y a {{count}} min'
+  minutes_many: 'il y a {{count}} min'
+  minutes_other: 'il y a {{count}} min'
+  # Heures abrégées.
+  hours_one: 'il y a {{count}} h'
+  hours_many: 'il y a {{count}} h'
+  hours_other: 'il y a {{count}} h'
+  # Jours abrégés.
+  days_one: 'il y a {{count}} j'
+  days_many: 'il y a {{count}} j'
+  days_other: 'il y a {{count}} j'
+
+# Verbes génériques. Ce sont les libellés par défaut des composants partagés : courts, à l'impératif.
+action:
+  add: Ajouter
+  cancel: Annuler
+  clear_all: Tout effacer
+  close: Fermer
+  confirm: Confirmer
+  continue: Continuer
+  delete: Supprimer
+  discard: Abandonner
+  reload: Recharger
+  remove: Retirer
+  sign_in: Se connecter
+
+state:
+  enabled: Activé
+  disabled: Désactivé
+
+# Compteur brut affiché seul. Le formateur « number » applique le groupement des chiffres de la
+# langue active : ne pas le remplacer par un {{value}} nu.
+number:
+  value: '{{value, number}}'
+
+work_in_progress: Cette fonctionnalité est en cours de développement. Veuillez revenir plus tard.
+
+# Shell de l'application : barre du haut, barre latérale, menu du compte et sélecteur de realm.
+shell:
+  navigation: Navigation
+  open_navigation: Ouvrir la navigation
+  close_navigation: Fermer la navigation
+  sidebar:
+    # {{version}} est la version publiée, jamais un nombre.
+    version: 'v{{version}}'
+    expand_hint: Développer la navigation
+    collapse_hint: Réduire la navigation
+    # « ⌘B » est le raccourci clavier ; ne pas toucher au symbole.
+    expand_shortcut: Développer · ⌘B
+    collapse_shortcut: Réduire · ⌘B
+  theme:
+    label: Thème
+    light: Clair
+    dark: Sombre
+    system: Système
+  account:
+    trigger: Compte
+    account: Compte
+    panel_mode: Mode du panneau
+    panel_admin: Administration
+    panel_console: Console
+    logout: Se déconnecter
+  realm_picker:
+    search_placeholder: Rechercher un realm…
+    no_match: 'Aucun realm pour « {{query}} »'
+    create: Créer un realm
+
+# Navigation de la console d'administration. Les mêmes libellés titrent la barre latérale et le
+# fil d'Ariane, qui les affiche en minuscules : écrire en casse de phrase.
+nav:
+  not_implemented: '{{label}} — pas encore implémenté'
+  section:
+    core: Cœur
+    configuration: Configuration
+    security: Sécurité
+  segment:
+    overview: Vue d'ensemble
+    clients: Clients
+    users: Utilisateurs
+    roles: Rôles
+    client-scopes: Scopes client
+    organizations: Organisations
+    identity-providers: Fournisseurs d'identité
+    user-federation: Fédération d'utilisateurs
+    realm-settings: Paramètres du realm
+    email-templates: E-mails
+    webhooks: Webhooks
+    portal: Portail
+    authentication: Authentification
+    # « Sea Watch » est le nom du module d'audit de FerrisKey, « Compass » celui du module de
+    # traçage de l'authentification. Noms de produit : non traduits.
+    seawatch: Sea Watch
+    compass: Compass
+    settings: Paramètres
+    permissions: Permissions
+    credentials: Identifiants
+    mappers: Mappers de protocole
+    scopes: Scopes
+    role-mapping: Attribution de rôles
+    attributes: Attributs
+    sessions: Sessions
+    account: Compte
+    theme: Thème
+    sync: Synchronisation
+    themes: Thèmes
+    layouts: Mises en page
+    pages: Pages
+    events: Événements
+    deliveries: Livraisons
+    tokens: Jetons
+    login: Connexion
+    general: Général
+    password-policy: Politique de mot de passe
+    # Dernier segment d'une URL de création : le fil d'Ariane d'une ressource qui n'existe pas encore.
+    create: Nouveau
+
+# Navigation de la console client. Chaque entrée a un libellé et la description d'une ligne
+# affichée dessous dans la barre latérale de section.
+console_nav:
+  section:
+    activity: Activité
+    users: Gestion des utilisateurs
+    applications: Applications
+    auth: Authentification
+    branding: Image de marque
+  item:
+    live:
+      label: En direct
+      description: Inscriptions et connexions en temps réel
+    logs:
+      label: Journaux et événements
+      description: Flux d'événements consultable
+    sessions:
+      label: Sessions
+      description: Appareils actifs
+    messages:
+      label: Envoi des messages
+      description: E-mails et webhooks
+    identities:
+      label: Identités
+      description: Comptes clients
+    organizations:
+      label: Organisations
+      description: Regroupement B2B
+    roles:
+      label: Rôles
+      description: Permissions et politiques
+    all:
+      label: Toutes les applications
+      description: Mobile, SPA, web, M2M
+    sign-in-methods:
+      label: Méthodes de connexion
+      description: Clé d'accès, lien magique, MFA
+    identity-providers:
+      label: Fournisseurs d'identité
+      description: Réseaux sociaux et SSO
+    password-policy:
+      label: Politique de mot de passe
+      description: Exigences de robustesse
+    email-templates:
+      label: Modèles d'e-mail
+      description: E-mails transactionnels
+    themes:
+      label: Thèmes
+      description: Apparence du portail
+    layouts:
+      label: Mises en page
+      description: Structures des pages du portail
+
+# Listes et tableaux, partagés par tous les écrans de ressources.
+data_view:
+  search_placeholder: Rechercher…
+  view_mode:
+    list: Vue en liste
+    cards: Vue en cartes
+  select_all: Tout sélectionner
+  # {{label}} est le nom de la ligne : jamais traduit, il vient des données.
+  select_row: 'Sélectionner {{label}}'
+  select_row_generic: Sélectionner la ligne
+  open_menu: Ouvrir le menu
+  actions: Actions
+  no_results: Aucun résultat
+  no_result_found: Aucun résultat trouvé
+  no_data: Aucune donnée disponible.
+  no_match: Aucune correspondance
+  no_match_server_hint: Aucune entrée ne correspond à la recherche et au filtre actuels.
+  clear_filter: Effacer le filtre
+  entry_count_one: '{{count}} entrée'
+  entry_count_many: '{{count}} d''entrées'
+  entry_count_other: '{{count}} entrées'
+  pagination:
+    # <num> entoure chaque chiffre dans son propre élément. Garder les trois balises, les déplacer librement.
+    range: Affichage de <num>{{from}}</num> à <num>{{to}}</num> sur <num>{{total}}</num> résultats
+    page: Page <num>{{current}}</num> sur <num>{{total}}</num>
+    previous: Page précédente
+    next: Page suivante
+    first: Première page
+    last: Dernière page
+  bulk:
+    selected_one: '{{count}} élément sélectionné'
+    selected_many: '{{count}} d''éléments sélectionnés'
+    selected_other: '{{count}} éléments sélectionnés'
+    ready_hint: Prêt à supprimer ?
+    confirm_hint: Cliquez sur Confirmer pour supprimer définitivement
+
+filter_bar:
+  any: Tous
+  search: Rechercher…
+
+column_filter:
+  open: Filtrer
+  clear: Effacer
+  from: Du
+  to: Au
+  yes: Oui
+  no: Non
+  state_count_one: '{{label}}, {{count}} actif'
+  state_count_many: '{{label}}, {{count}} d''actifs'
+  state_count_other: '{{label}}, {{count}} actifs'
+  state_value: '{{label}}, {{value}}'
+  state_active: '{{label}}, actif'
+
+listing:
+  clear_filters_one: 'Effacer les filtres ({{count}})'
+  clear_filters_many: 'Effacer les filtres ({{count}})'
+  clear_filters_other: 'Effacer les filtres ({{count}})'
+
+entity_picker:
+  search_placeholder: Rechercher…
+  no_match: Aucune correspondance.
+  empty: Aucun configuré.
+  exhausted: Tout est déjà ajouté.
+  # {{label}} est le nom de l'entrée : il vient des données et reste non traduit.
+  remove: 'Retirer {{label}}'
+
+form:
+  min_selected: Au moins une entrée est requise.
+  # {{value}} est le texte brut de la puce, en général une URL ou un identifiant.
+  chip_remove: 'Retirer {{value}}'
+
+# Confirmations destructrices. L'administrateur retape le nom de la ressource avant que le bouton se débloque.
+confirm_dialog:
+  # <token> entoure le nom à retaper. Garder la balise autour du placeholder.
+  type_to_confirm: Saisissez <token>{{token}}</token> pour confirmer.
+  mismatch: Cela ne correspond pas au nom ci-dessus.
+
+realm_dialog:
+  title: Créer un realm
+  description: >-
+    Un realm possède ses propres utilisateurs, identifiants, rôles et clients. Les realms sont
+    isolés les uns des autres.
+  name:
+    label: Nom
+    description: Utilisé dans les URL et les jetons. Il ne pourra pas être modifié plus tard.
+  display_name:
+    label: Nom d'affichage
+    description: Affiché aux utilisateurs sur les pages de connexion. Suit le nom tant que vous ne le modifiez pas.
+  submit: Créer le realm
+  submit_pending: Création…
+  validation:
+    name_required: Un nom de realm est requis
+    name_charset: Seuls les lettres, les chiffres, les tirets et les tirets bas sont autorisés
+    display_name_length: Le nom d'affichage doit comporter au plus 255 caractères
+  toast:
+    created: 'Realm {{name}} créé'
+    create_failed: Échec de la création du realm
+
+duration:
+  unit:
+    seconds: Secondes
+    minutes: Minutes
+    hours: Heures
+    days: Jours
+
+chart:
+  series:
+    logins: Connexions
+    failures: Échecs
+
+# Générateur de requêtes. Les noms d'opérateurs se lisent au milieu d'une phrase
+# (« le statut n'est pas l'un de ») : minuscules et verbaux.
+filters:
+  add: Ajouter un filtre
+  search_fields: Rechercher des champs...
+  no_fields: Aucun champ trouvé.
+  no_results: Aucun résultat trouvé.
+  select: Sélectionner...
+  # Suffixe après un nombre de valeurs choisies, comme dans « 3 sélectionnés ».
+  selected: sélectionné(s)
+  tag_hint: Saisissez puis appuyez sur Entrée pour ajouter une étiquette
+  boolean:
+    'true': 'Vrai'
+    'false': 'Faux'
+  range:
+    min: Min
+    max: Max
+    to: à
+  group:
+    selected: Sélectionnés
+    fields: Champs
+  operator:
+    is: est
+    is_not: n'est pas
+    is_any_of: est l'un de
+    is_not_any_of: n'est aucun de
+    includes_all: inclut tous
+    excludes_all: exclut tous
+    before: avant
+    after: après
+    between: entre
+    not_between: n'est pas entre
+    contains: contient
+    not_contains: ne contient pas
+    starts_with: commence par
+    ends_with: se termine par
+    is_exactly: est exactement
+    equals: est égal à
+    not_equals: n'est pas égal à
+    greater_than: supérieur à
+    less_than: inférieur à
+    overlaps: chevauche
+    includes: inclut
+    excludes: exclut
+    includes_all_of: inclut tous les
+    includes_any_of: inclut l'un des
+    empty: est vide
+    not_empty: n'est pas vide
+  placeholder:
+    # {{field}} est le libellé du champ, tel que l'administrateur l'a nommé.
+    enter_field: 'Saisir {{field}}...'
+    search_field: 'Rechercher {{field}}...'
+    enter_key: Saisir la clé...
+    enter_value: Saisir la valeur...
+  validation:
+    email: Format d'e-mail invalide
+    url: Format d'URL invalide
+    tel: Format de téléphone invalide
+    generic: Format de saisie invalide
+
+# Politique de mot de passe. Les clés sont les codes de règle renvoyés par l'API : un rejet côté
+# serveur et la liste de contrôle côté client disent la même chose. « label » est la ligne de la
+# liste, « message » l'erreur de validation sous le champ.
+password:
+  rule:
+    too_short:
+      label_one: 'Au moins {{count}} caractère'
+      label_many: 'Au moins {{count}} de caractères'
+      label_other: 'Au moins {{count}} caractères'
+      message_one: 'Le mot de passe doit comporter au moins {{count}} caractère'
+      message_many: 'Le mot de passe doit comporter au moins {{count}} de caractères'
+      message_other: 'Le mot de passe doit comporter au moins {{count}} caractères'
+    missing_uppercase:
+      label: Une lettre majuscule
+      message: Le mot de passe doit contenir au moins une lettre majuscule
+    missing_lowercase:
+      label: Une lettre minuscule
+      message: Le mot de passe doit contenir au moins une lettre minuscule
+    missing_number:
+      label: Un chiffre
+      message: Le mot de passe doit contenir au moins un chiffre
+    missing_special:
+      label: Un caractère spécial
+      message: Le mot de passe doit contenir au moins un caractère spécial
+    too_long:
+      # {{total}} est un plafond fixe, jamais un : il n'accorde pas la phrase.
+      message: 'Le mot de passe doit comporter au plus {{total}} caractères'
+
+client_protocol:
+  oidc:
+    label: OpenID Connect
+    description: Connexion par jeton pour les applications web, les SPA, les applications mobiles et les API.
+  saml:
+    label: SAML 2.0
+    description: Connexion par assertion pour les applications qui ne comprennent que SAML.
+
+# Vocabulaire SAML. Les valeurs des options sont des URN de protocole et n'apparaissent jamais ici.
+saml:
+  name_id_format:
+    email:
+      label: Adresse e-mail
+      description: L'utilisateur est identifié par son adresse e-mail. Ce que la plupart des applications attendent.
+    persistent:
+      label: Persistant
+      description: Un identifiant opaque stable qui reste le même d'une session à l'autre.
+    transient:
+      label: Transitoire
+      description: Un identifiant jetable, régénéré à chaque connexion.
+    unspecified:
+      label: Non spécifié
+      description: Laisse l'application décider comment lire l'identifiant.
+  attribute_name_format:
+    basic:
+      label: Basique
+      description: Noms d'attribut simples, comme email. Le choix habituel.
+    uri:
+      label: URI
+      description: Noms d'attribut écrits sous forme d'URI complètes.
+    unspecified:
+      label: Non spécifié
+      description: N'envoie aucune indication de format à l'application.
+  attribute_source:
+    email: E-mail
+    username: Nom d'utilisateur
+    first_name: Prénom
+    last_name: Nom
+    id: ID de l'utilisateur
+    # {{key}} est le nom d'attribut saisi par l'administrateur. Il n'est jamais traduit.
+    custom: 'Attribut personnalisé {{key}}'
+
+session:
+  expired: Votre session a expiré. Veuillez vous reconnecter.
+  login_expired: Votre session de connexion a expiré. Veuillez relancer la connexion.
+
+# Confirmations émises par la couche de mutation. Elles se déclenchent après la réponse de l'API :
+# elles disent ce qui s'est passé, pas ce qui a été demandé.
+toast:
+  unexpected_error: Une erreur s'est produite. Veuillez réessayer.
+  import_failed: Échec de l'import
+  import_invalid_json: Ce fichier n'est pas un JSON valide.
+  attribute:
+    deleted: Attribut supprimé
+  client:
+    updated: 'Le client {{name}} a été mis à jour'
+    scope_assigned:
+      default: Scope attribué par défaut
+      optional: Scope attribué comme optionnel
+    scope_assign_failed: Échec de l'attribution du scope
+    scope_unassigned:
+      default: Scope par défaut retiré
+      optional: Scope optionnel retiré
+    scope_unassign_failed: Échec du retrait du scope
+  client_scope:
+    created: Scope client créé
+    create_failed: Échec de la création du scope client
+    updated: Scope client mis à jour
+    update_failed: Échec de la mise à jour du scope client
+    deleted: Scope client supprimé
+    delete_failed: Échec de la suppression du scope client
+  protocol_mapper:
+    created: Mapper de protocole créé
+    create_failed: Échec de la création du mapper de protocole
+    updated: Mapper de protocole mis à jour
+    update_failed: Échec de la mise à jour du mapper de protocole
+    deleted: Mapper de protocole supprimé
+    delete_failed: Échec de la suppression du mapper de protocole
+  role:
+    created: Rôle créé
+    create_failed: Échec de la création du rôle
+    updated: Rôle mis à jour
+    updated_detail: 'Le rôle {{name}} a été mis à jour.'
+    update_failed: Échec de la mise à jour du rôle
+    permissions_updated: Permissions du rôle mises à jour
+    permissions_updated_detail: 'Les permissions du rôle {{name}} ont été mises à jour.'
+    deleted: Rôle supprimé
+    deleted_detail: Le rôle a été supprimé du client.
+    delete_failed: Échec de la suppression du rôle
+  organization:
+    created: 'Organisation « {{name}} » créée'
+    updated: 'Organisation « {{name}} » mise à jour'
+    deleted: Organisation supprimée
+    member_removed: Membre retiré de l'organisation
+    user_added: Utilisateur ajouté à l'organisation
+    user_removed: Utilisateur retiré de l'organisation
+  email_template:
+    created: Modèle d'e-mail créé
+    saved: Modèle d'e-mail enregistré
+    imported: Modèle d'e-mail importé
+    deleted: Modèle d'e-mail supprimé
+  portal_layout:
+    created: Mise en page du portail créée
+    saved: Mise en page du portail enregistrée
+    deleted: Mise en page du portail supprimée
+    default_updated: Mise en page du portail par défaut mise à jour
+    imported: Mise en page du portail importée
+  maintenance:
+    client_entry_added: Entrée de la liste d'autorisation ajoutée
+    client_entry_removed: Entrée de la liste d'autorisation retirée
+    realm_entry_added: Entrée de la liste d'autorisation du realm ajoutée
+    realm_entry_removed: Entrée de la liste d'autorisation du realm retirée
+  password_reset:
+    link_sent: Si un compte existe avec cet e-mail, un lien de réinitialisation a été envoyé
+    link_failed: Échec de l'envoi du lien de réinitialisation
+    reset_failed: Échec de la réinitialisation du mot de passe
+  smtp:
+    saved: Configuration SMTP enregistrée
+    save_failed: Échec de l'enregistrement de la configuration SMTP
+    deleted: Configuration SMTP supprimée
+    delete_failed: Échec de la suppression de la configuration SMTP
+  saml:
+    sp_configured: Fournisseur de service configuré
+    sp_updated: Fournisseur de service mis à jour
+    sp_save_failed: Impossible d'enregistrer le fournisseur de service
+    # {{name}} est le nom d'attribut saisi par l'administrateur.
+    attribute_mapped: 'Attribut {{name}} mappé'
+    attribute_map_failed: Impossible de mapper l'attribut
+    attribute_removed: Mappage d'attribut retiré
+    attribute_remove_failed: Impossible de retirer le mappage d'attribut
+
+portal_input:
+  show_password: Afficher le mot de passe
+  hide_password: Masquer le mot de passe
+
+toaster:
+  label: Notifications

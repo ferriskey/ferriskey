@@ -1,0 +1,272 @@
+# Catalogue français des écrans de paramètres du realm.
+#
+# STATUS : traduit, en attente de relecture native.
+
+settings:
+  title: Paramètres du realm
+  description: Configuration globale du realm {{name}}.
+  not_found:
+    title: Realm introuvable
+    description: Il a peut-être été supprimé, ou votre compte n'y a plus accès.
+  tabs:
+    general: Général
+    login: Connexion
+    tokens: Jetons
+    mcp: MCP
+    password_policy: Politique de mot de passe
+    maintenance: Maintenance
+    keys: Clés
+  save:
+    title_one: '{{count}} modification non enregistrée'
+    title_many: '{{count}} de modifications non enregistrées'
+    title_other: '{{count}} modifications non enregistrées'
+    description: Relisez la configuration du realm avant d'appliquer les modifications.
+    cancel: Abandonner
+    action: Enregistrer les modifications
+  toast:
+    updated: Realm mis à jour avec succès.
+    deleted: 'Le realm « {{name}} » a été supprimé.'
+    policy_updated: Politique de mot de passe mise à jour avec succès
+    policy_failed: Échec de la mise à jour de la politique de mot de passe
+    owners_failed: Échec de la mise à jour des propriétaires de ressources
+    key_rotated: Clé de signature renouvelée.
+    key_rotate_failed: Échec du renouvellement de la clé de signature
+    key_revoked: Clé de signature révoquée.
+    key_revoke_failed: Échec de la révocation de la clé de signature
+
+general:
+  identity:
+    title: Identité du realm
+  name:
+    label: Nom du realm
+    description: Immuable après la création — il apparaît dans chaque URL de ce realm.
+  display_name:
+    label: Nom d'affichage
+    description: Nom lisible affiché dans la console et sur les écrans de connexion. Laissez vide pour utiliser le nom du realm.
+  signing_algorithm:
+    label: Algorithme de signature par défaut
+    description: Algorithme utilisé pour signer les jetons émis par ce realm.
+    note: 'Lecture seule : la console n''envoie jamais ce paramètre, et le document de découverte OpenID de ce realm n''annonce qu''un seul algorithme.'
+  danger:
+    label: Supprimer ce realm
+    description: Une fois supprimés, tous les clients, comptes, rôles et sessions de ce realm sont définitivement effacés.
+    # Même avertissement sur le realm master, que l'API refuse de supprimer.
+    description_master: Une fois supprimés, tous les clients, comptes, rôles et sessions de ce realm sont définitivement effacés. Le realm master ne peut pas être supprimé.
+    button: Supprimer le realm
+    confirm_title: Supprimer le realm
+    confirm_description: 'Cela supprimera définitivement le realm « {{name}} » et toutes ses données, y compris les utilisateurs, les clients et les rôles.'
+
+login:
+  identifiers:
+    title: Identifiants de connexion
+    description: Ce que les utilisateurs saisissent pour s'authentifier.
+    field:
+      label: Identifiants de connexion
+      description: Avec quels identifiants les utilisateurs peuvent se connecter. L'ordre définit la priorité.
+    # Libellé pour lecteur d'écran du sélecteur de cartes ordonné.
+    picker_label: Identifiants de connexion
+    min_selected: Sélectionnez au moins un identifiant de connexion
+  # Indexé sur la valeur LoginAlias renvoyée par l'API. Traduisez le libellé, jamais la clé.
+  alias:
+    username:
+      label: Nom d'utilisateur
+      description: Le nom d'utilisateur du compte.
+    email:
+      label: E-mail
+      description: L'adresse e-mail vérifiée du compte.
+  capabilities:
+    title: Fonctionnalités d'authentification
+    description: Ce que les utilisateurs peuvent faire depuis l'écran de connexion.
+    user_registration:
+      label: Inscription des utilisateurs
+      description: Permettre aux utilisateurs de s'inscrire eux-mêmes depuis la page de connexion.
+    email_verification:
+      label: Vérification de l'e-mail
+      description: Exiger que les utilisateurs vérifient leur adresse e-mail avant de pouvoir se connecter.
+    forgot_password:
+      label: Mot de passe oublié
+      description: Afficher un lien « Mot de passe oublié » sur la page de connexion.
+    remember_me:
+      label: Se souvenir de moi
+      description: Afficher une case « Se souvenir de moi » sur la page de connexion.
+    passkey:
+      label: Authentification par clé d'accès
+      description: Permettre aux utilisateurs de se connecter avec une clé d'accès au lieu d'un mot de passe.
+    magic_link:
+      label: Lien magique
+      description: Permettre aux utilisateurs de se connecter via un lien magique envoyé par e-mail.
+  account_chooser:
+    title: Sélecteur de compte
+    description: Comment la page de connexion traite les personnes qui se sont déjà connectées avec un compte sur ce navigateur.
+    enabled:
+      label: Proposer un sélecteur de compte
+      description: Une personne qui s'est connectée avec un ou plusieurs comptes sur ce navigateur peut en choisir un au lieu de ressaisir ses identifiants.
+    show_email:
+      label: Afficher les adresses e-mail masquées
+      description: Le sélecteur affiche une adresse e-mail masquée à côté de chaque compte. Activez-le uniquement si le nom seul ne suffit pas à distinguer les comptes.
+  magic_link_ttl:
+    label: Durée de vie du lien magique
+    description: Pendant combien de temps un lien magique reste valide, en minutes.
+    # Unité affichée à droite du champ numérique ; elle s'accorde avec la valeur saisie.
+    unit_one: minute
+    unit_many: de minutes
+    unit_other: minutes
+
+tokens:
+  title: Durées de vie des jetons par défaut
+  description: Héritées par chaque client de ce realm qui ne les remplace pas.
+  access:
+    label: Durée de vie du jeton d'accès
+    description: Pendant combien de temps les jetons d'accès restent valides.
+  refresh:
+    label: Durée de vie du jeton d'actualisation
+    description: Pendant combien de temps les jetons d'actualisation restent valides.
+  id:
+    label: Durée de vie du jeton d'ID
+    description: Pendant combien de temps les jetons d'ID restent valides.
+  temporary:
+    label: Durée de vie du jeton temporaire
+    description: Pendant combien de temps les jetons temporaires restent valides — réinitialisation de mot de passe, par exemple.
+
+mcp:
+  title: MCP / Enregistrement des clients
+  description: Comment les clients MCP et les autres applications tierces peuvent s'enregistrer auprès de ce realm, et pour quelles ressources ils peuvent demander des jetons.
+  cimd:
+    label: Documents de métadonnées d'ID client
+    description: Accepter une URL https comme client_id et en récupérer les métadonnées du client. Ces clients exigent toujours un consentement.
+  dcr:
+    label: Enregistrement dynamique de clients
+    description: Permettre aux applications de s'enregistrer elles-mêmes de façon anonyme via le point de terminaison d'enregistrement. Ces clients exigent toujours un consentement.
+  hosts:
+    label: Hôtes de documents de métadonnées autorisés
+    description: Hôtes vers lesquels une URL client_id peut pointer. Laissez vide pour refuser tout document de métadonnées.
+    placeholder: client.example.com
+  resources:
+    label: Ressources autorisées
+    description: Indicateurs de ressource pour lesquels les clients peuvent demander une audience. URL https absolues, ou http sur un hôte de boucle locale, sans fragment. Un propriétaire, client confidentiel enregistré par un administrateur, peut alors échanger des jetons pour cette ressource.
+    placeholder: https://mcp.example.com
+    owner:
+      none: Aucun propriétaire
+      aria: Propriétaire de {{entry}}
+  add: Ajouter
+  remove: Retirer {{entry}}
+
+policy:
+  title: Politique de mot de passe
+  description: Règles appliquées aux mots de passe des comptes de ce realm.
+  error:
+    title: Échec du chargement de la politique de mot de passe
+    description: Le realm n'a aucune politique de mot de passe que la console puisse lire.
+  min_length:
+    label: Longueur minimale
+    description: Le nombre minimal de caractères requis.
+    # Unité affichée à droite du champ numérique ; elle s'accorde avec la valeur saisie.
+    unit_one: caractère
+    unit_many: de caractères
+    unit_other: caractères
+  requirements:
+    uppercase:
+      label: Exiger une majuscule
+      description: Obliger les utilisateurs à inclure au moins une lettre majuscule.
+    lowercase:
+      label: Exiger une minuscule
+      description: Obliger les utilisateurs à inclure au moins une lettre minuscule.
+    number:
+      label: Exiger un chiffre
+      description: Obliger les utilisateurs à inclure au moins un chiffre.
+    special:
+      label: Exiger un caractère spécial
+      description: 'Obliger les utilisateurs à inclure au moins un caractère spécial (!@#$%…).'
+  max_age:
+    label: Expiration du mot de passe
+    description: Forcer un changement de mot de passe après ce nombre de jours. 0 pour désactiver.
+    unit_one: jour
+    unit_many: de jours
+    unit_other: jours
+  entropy:
+    label: Entropie minimale
+    description: Rejeter les mots de passe plus faibles que cette entropie de Shannon. 0 pour désactiver — la délibération CNIL 2022-100 suggère 80.
+    unit_one: bit
+    unit_many: de bits
+    unit_other: bits
+  forbid_common:
+    label: Interdire les mots de passe courants
+    description: Rejeter les mots de passe figurant dans la liste des mots de passe courants, ainsi que ceux qui réutilisent le nom d'utilisateur ou l'adresse e-mail.
+  check_breached:
+    label: Vérifier les mots de passe compromis
+    description: Rejeter les mots de passe signalés comme compromis. Sans fournisseur externe configuré, ce paramètre n'a aucun effet.
+
+maintenance:
+  notice: 'Ces entrées s''ajoutent à la liste d''autorisation de chaque client : elles autorisent l''authentification sur chaque client de ce realm placé en maintenance.'
+  title: Membres de maintenance par défaut
+  description: Comptes et rôles toujours autorisés pendant une maintenance de ce realm.
+  users:
+    label: Utilisateurs
+    description: Comptes individuels toujours autorisés pendant la maintenance.
+    add: Ajouter un utilisateur
+    search_placeholder: Rechercher des utilisateurs…
+    empty_hint: Aucun utilisateur disponible.
+    exhausted_hint: Tous les comptes de ce realm sont déjà autorisés.
+  roles:
+    label: Rôles
+    description: Toute personne détenant l'un de ces rôles est autorisée pendant la maintenance.
+    add: Ajouter un rôle
+    search_placeholder: Rechercher des rôles…
+    empty_hint: Aucun rôle disponible.
+    exhausted_hint: Tous les rôles de ce realm sont déjà autorisés.
+
+keys:
+  title: Clés de signature
+  description: Clés que ce realm utilise pour signer les jetons et les documents SAML. Une clé renouvelée reste publiée jusqu'à son retrait, de sorte que les jetons qu'elle a déjà signés continuent d'être vérifiés.
+  error:
+    title: Échec du chargement des clés de signature
+    description: La console n'a pas pu lire les clés de signature de ce realm.
+  empty:
+    title: Aucune clé de signature
+    hint: Ce realm n'a pas encore de clé de signature.
+  table:
+    kid: ID de clé
+    algorithm: Algorithme
+    status: Statut
+    created_at: Créée
+    retire_at: Retrait
+    revoked_at: Révoquée
+    actions: Actions
+    none: '-'
+    copy_kid: Copier l'ID de clé {{kid}}
+  status:
+    active:
+      label: Active
+      description: Signe les nouveaux jetons de ce realm.
+    passive:
+      label: Passive
+      description: Remplacée mais toujours publiée, de sorte que les jetons qu'elle a signés continuent d'être vérifiés jusqu'à son retrait.
+    retired:
+      label: Retirée
+      description: N'est plus publiée ; les jetons qu'elle a signés ne peuvent plus être vérifiés.
+    revoked:
+      label: Révoquée
+      description: Retirée immédiatement ; les jetons qu'elle a signés sont rejetés.
+  dialog:
+    cancel: Annuler
+  rotate:
+    button: Renouveler la clé
+    confirm_title: Renouveler la clé de signature ?
+    confirm_description: Une nouvelle clé devient active et signe chaque nouveau jeton. La clé précédente reste publiée jusqu'à son retrait, de sorte que les jetons qu'elle a déjà signés continuent d'être vérifiés.
+    confirm_action: Renouveler
+  revoke:
+    button: Révoquer
+    confirm_title: Révoquer cette clé de signature ?
+    confirm_description_active: Il s'agit de la clé active. La révoquer installe une nouvelle clé active, et les jetons signés par la clé révoquée cessent de fonctionner immédiatement.
+    confirm_description_passive: Les jetons signés par cette clé cessent de fonctionner immédiatement, même si elle était encore publiée.
+    consequence_tokens: Chaque jeton signé par cette clé est rejeté immédiatement.
+    consequence_irreversible: Une clé révoquée ne peut pas être restaurée.
+    confirm_action: Révoquer la clé
+
+validation:
+  cimd_host_invalid: Saisissez un nom d'hôte simple, sans schéma ni chemin
+  resource_invalid: Saisissez une URL https absolue, ou une URL http sur un hôte de boucle locale, sans fragment
+  entry_duplicate: Cette entrée figure déjà dans la liste
+  # « max » est la limite de longueur appliquée par la console avant l'envoi du realm ; c'est une constante,
+  # donc cette phrase est toujours au pluriel.
+  display_name_max: Le nom d'affichage doit comporter au plus {{max}} caractères

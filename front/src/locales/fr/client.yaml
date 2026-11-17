@@ -1,0 +1,583 @@
+# STATUS: traduit, en attente de relecture native.
+shared:
+  authentication:
+    public: public
+    confidential: confidentiel
+  state:
+    enabled: activé
+    disabled: désactivé
+  status:
+    enabled: Activé
+    disabled: Désactivé
+  in_maintenance: en maintenance
+  registration_source:
+    dynamic: Dynamique
+    metadata_document: Document de métadonnées
+  no_description: Aucune description
+  discard: Abandonner
+  save: Enregistrer les modifications
+  unsaved_one: '{{count}} modification non enregistrée'
+  unsaved_many: '{{count}} de modifications non enregistrées'
+  unsaved_other: '{{count}} modifications non enregistrées'
+
+choices:
+  protocol:
+    openid_connect:
+      label: OpenID Connect
+      description: Connexion par jeton, pour les applications web, les SPA, les applications mobiles et les API.
+    saml:
+      label: SAML 2.0
+      description: Connexion par assertion, pour les applications qui ne parlent que SAML.
+  state:
+    enabled:
+      label: Activé
+      description: Le client peut demander une authentification.
+    disabled:
+      label: Désactivé
+      description: Toutes les requêtes sont rejetées, la configuration est conservée.
+  authentication:
+    confidential:
+      label: Confidentiel
+      description: Le client prouve son identité avec un secret conservé côté serveur.
+    public:
+      label: Public
+      description: 'Pas de secret : pour les SPA, les applications mobiles et les CLI.'
+    immutable: 'Défini à la création : un client ne peut ensuite plus passer de confidentiel à public, ni l''inverse.'
+  maintenance_state:
+    open:
+      label: Ouvert
+      description: Le client s'authentifie normalement.
+    maintenance:
+      label: En maintenance
+      description: Seule la liste d'autorisation passe.
+  session_strategy:
+    expire:
+      label: Expiration naturelle
+      description: Les sessions ouvertes durent jusqu'à leur terme.
+    terminate:
+      label: Terminer immédiatement
+      description: Toutes les sessions sont coupées sur-le-champ.
+
+list:
+  title: Clients
+  description: Applications et services autorisés à demander une authentification.
+  create: Nouveau client
+  columns:
+    name: Client
+    # En-tête de colonne pour le nom brut du champ OAuth, affiché tel quel dans le tableau.
+    client_id: client_id
+    kind: Type
+    protocol: Protocole
+    redirects: URI de redirection
+    status: Statut
+    created: Créé
+    updated: Mis à jour
+  card:
+    flags:
+      direct_access_grants: Types d'autorisation d'accès direct
+      device_code_grant: Type d'autorisation d'appareil
+      service_account: Compte de service
+      require_pkce: PKCE requis
+    redirects_one: '{{count}} URI de redirection'
+    redirects_many: '{{count}} d''URI de redirection'
+    redirects_other: '{{count}} URI de redirection'
+  metrics:
+    total:
+      label: Total
+      hint: clients enregistrés
+    active:
+      label: Actifs
+      hint: peuvent s'authentifier
+    public:
+      label: Publics
+      hint: sans secret
+    confidential:
+      label: Confidentiels
+      hint: détiennent un secret
+  alerts:
+    no_redirect:
+      title_one: '{{count}} client n''a aucune URI de redirection'
+      title_many: '{{count}} de clients n''ont aucune URI de redirection'
+      title_other: '{{count}} clients n''ont aucune URI de redirection'
+      detail: '{{clients}} — le flux de code d''autorisation échouera.'
+      action: Configurer
+    maintenance:
+      title_one: '{{count}} client est en maintenance'
+      title_many: '{{count}} de clients sont en maintenance'
+      title_other: '{{count}} clients sont en maintenance'
+      detail: '{{clients}} — seuls les comptes de la liste d''autorisation peuvent se connecter.'
+      action: Inspecter
+  search_placeholder: Rechercher par nom ou ID client…
+  filter_fields:
+    created: Créé
+    enabled: Activé
+    public_client: Public
+    service_account_enabled: Compte de service
+    protocol: Protocole
+    client_type: Type de client
+    has_redirect_uris: Avec URI de redirection
+    maintenance_enabled: En maintenance
+    client_types:
+      confidential: Confidentiel
+      public: Public
+      system: Système
+  aggregates:
+    count_one: '{{count}} client'
+    count_many: '{{count}} de clients'
+    count_other: '{{count}} clients'
+  empty:
+    label: Aucun client
+    hint: Enregistrez une application pour lui permettre d'authentifier les comptes de ce realm.
+  picker:
+    title: Protocole du client
+    description: Il détermine comment l'application connecte ses utilisateurs, et ne peut pas être modifié après la création.
+
+create:
+  back: Clients
+  title: Nouveau client
+  change_protocol: changer de protocole
+  details:
+    title: Détails du client
+    description: Comment ce client est identifié dans le realm.
+    client_id:
+      label: ID client
+      description: Identifiant unique de ce client. Les applications l'envoient à chaque requête.
+      placeholder: my-application
+    name:
+      label: Nom
+      description: Nom d'affichage montré dans l'interface.
+    enabled:
+      label: Client activé
+      description: Les clients désactivés ne peuvent pas authentifier d'utilisateurs.
+    state_picker: État du client
+    authentication:
+      label: Authentification du client
+      description: 'Défini à la création et définitif : un client ne peut ensuite plus passer de confidentiel à public, ni l''inverse.'
+  capability:
+    title: Configuration des capacités
+    description: Flux OAuth que ce client est autorisé à utiliser.
+    direct_access_grants:
+      label: Types d'autorisation d'accès direct
+      description: Permet d'échanger directement les identifiants d'un utilisateur contre des jetons. À réserver aux clients de confiance.
+    device_code_grant:
+      label: Type d'autorisation d'appareil OAuth 2.0
+      description: Permet aux clients sans navigateur (CLI, IoT, téléviseurs) de lancer un flux d'appareil auprès de ce client. À désactiver sauf si ce client en a réellement besoin.
+  saml:
+    title: SAML
+    description: Les deux valeurs que l'application affiche sur sa page de paramètres SAML, ainsi que le format d'identifiant.
+    entity_id:
+      label: Entity ID
+      description: L'identifiant unique que l'application publie pour elle-même, par exemple https://chat.acme.com/saml/sp/1.
+      placeholder: https://chat.acme.com/saml/sp/1
+    acs_url:
+      label: Assertion Consumer Service URL
+      description: L'adresse à laquelle l'assertion signée est envoyée après la connexion de l'utilisateur.
+      placeholder: https://chat.acme.com/saml/acs
+    name_id_format:
+      label: Format de Name ID
+      description: Comment l'utilisateur est identifié dans l'assertion.
+      placeholder: Sélectionner un format de Name ID
+  save:
+    title: Créer le client
+    description_oidc: Le client est créé avec les paramètres ci-dessus.
+    description_saml: Le client est créé, puis enregistré comme fournisseur de services SAML.
+    submit: Créer le client
+  toast:
+    created: Le client a été créé avec succès
+
+detail:
+  back: Clients
+  not_found:
+    title: Client introuvable
+    hint: Il a peut-être été supprimé, ou il appartient à un autre realm.
+  meta:
+    created_label: Créé le
+    created: Créé le {{date}}
+    identifier: Identifiant
+  tabs:
+    settings: Paramètres
+    credentials: Identifiants
+    roles: Rôles
+    scopes: Scopes client
+    token_exchange: Échange de jetons
+    saml: SAML
+    maintenance: Maintenance
+
+settings:
+  general:
+    title: Général
+    description: Comment ce client est identifié dans le realm.
+    name:
+      label: Nom du client
+      description: Nom d'affichage montré dans l'interface.
+    client_id:
+      label: ID client
+      description: Identifiant unique de ce client. Les applications l'envoient à chaque requête.
+    enabled:
+      label: Client activé
+      description: Les clients désactivés ne peuvent pas authentifier d'utilisateurs.
+    state_picker: État du client
+  capability:
+    title: Configuration des capacités
+    description: Flux d'authentification que ce client est autorisé à utiliser.
+    authentication:
+      label: Authentification du client
+      description: 'Défini à la création et définitif : un client ne peut ensuite plus passer de confidentiel à public, ni l''inverse.'
+    direct_access_grants:
+      label: Types d'autorisation d'accès direct
+      description: Permet d'échanger directement les identifiants d'un utilisateur contre des jetons. À réserver aux clients de confiance.
+    device_code_grant:
+      label: Type d'autorisation d'appareil OAuth 2.0
+      description: Permet aux clients sans navigateur (CLI, IoT, téléviseurs) de lancer un flux d'appareil auprès de ce client. À désactiver sauf si ce client en a réellement besoin.
+    token_exchange:
+      label: Échange de jetons OAuth 2.0
+      description: Permet à ce client d'échanger le jeton d'un utilisateur contre un jeton destiné à un autre client (RFC 8693). Les politiques de l'onglet Échange de jetons déterminent quelles audiences sont autorisées.
+    pkce:
+      label: Exiger PKCE
+      description: Rejette les requêtes d'autorisation qui ne portent pas de code challenge S256 (RFC 7636). La méthode plain est refusée lorsque cette option est activée.
+      description_public: 'Rejette les requêtes d''autorisation qui ne portent pas de code challenge S256 (RFC 7636). La méthode plain est refusée lorsque cette option est activée. Fortement recommandé : ce client ne peut pas garder un secret en sécurité.'
+      required: Requis
+      optional: Optionnel
+  access:
+    title: Accès
+    description: Adresses vers lesquelles ce client peut être redirigé, et origines depuis lesquelles il peut effectuer des appels.
+    redirect_uris:
+      label: URI de redirection
+      description: URI de redirection autorisées après l'authentification. Chaque entrée est enregistrée dès son ajout.
+      placeholder: https://app.example.com/callback
+      empty: Aucune URI — le flux de code d'autorisation échouera.
+      required: L'URI de redirection est requise
+    web_origins:
+      label: Origines web
+      description: Origines depuis lesquelles cette application peut appeler FerrisKey dans un navigateur. Saisissez + pour les déduire des URI de redirection ci-dessus — uniquement les littérales, les motifs regex sont ignorés. La suppression d'une origine prend quelques minutes pour vider les caches preflight des navigateurs, et jusqu'à 30 secondes sur les autres réplicas de l'API.
+      placeholder: https://app.example.com
+      empty: Aucune origine — les appels depuis un autre hôte dans un navigateur seront refusés.
+      # {{sentinel}} est le caractère littéral qu'un administrateur saisit pour déduire les
+      # origines des URI de redirection. Le conserver comme placeholder, ne jamais le traduire.
+      invalid: "Saisissez une origine telle que https://app.example.com — sans chemin ni joker — ou {{sentinel}} pour les déduire des URI de redirection de ce client"
+  logout:
+    title: Déconnexion
+    description: L'endroit où arrive l'utilisateur une fois la session fermée.
+    post_logout_redirect_uris:
+      label: URI de redirection après déconnexion
+      description: URI de redirection autorisées après la déconnexion. Sans entrée, la déconnexion se termine sur la page FerrisKey.
+      placeholder: https://app.example.com
+      empty: Aucune URI de sortie déclarée.
+      required: L'URI de redirection après déconnexion est requise
+    backchannel:
+      uri:
+        label: URL de déconnexion back-channel
+        description: FerrisKey notifie le backend de l'application à cette URL lorsque l'utilisateur se déconnecte ou que la session est révoquée, afin qu'elle puisse mettre fin à sa propre session. Laissez vide pour désactiver.
+        placeholder: https://app.example.com/backchannel-logout
+      session_required:
+        label: Exiger l'ID de session (sid)
+        description: Indique que l'application a besoin du claim sid dans le jeton de déconnexion. FerrisKey l'inclut toujours.
+  lifetimes:
+    title: Durées de vie des jetons
+    description: Laissez vide pour hériter de la valeur par défaut du realm.
+    access_token:
+      label: Durée de vie du jeton d'accès
+      description: Durée pendant laquelle les jetons d'accès restent valides.
+    refresh_token:
+      label: Durée de vie du jeton d'actualisation
+      description: Durée pendant laquelle les jetons d'actualisation restent valides.
+    id_token:
+      label: Durée de vie du jeton d'ID
+      description: Durée pendant laquelle les jetons d'ID restent valides.
+    temporary_token:
+      label: Durée de vie du jeton temporaire
+      description: Durée pendant laquelle les jetons temporaires (réinitialisation de mot de passe, par exemple) restent valides.
+  danger:
+    label: Supprimer ce client
+    description: Une fois supprimés, tous les jetons, rôles et configurations associés seront définitivement retirés.
+    button: Supprimer le client
+    confirm_title: Supprimer le client
+    confirm_description: Cette action supprimera définitivement le client « {{name}} » ainsi que toutes ses données associées.
+  save:
+    description: Vérifiez le client avant d'appliquer les modifications.
+  toast:
+    redirect_uri_added: URI de redirection ajoutée avec succès
+    redirect_uri_deleted: URI de redirection supprimée avec succès
+    web_origin_added: Origine web ajoutée avec succès
+    web_origin_deleted: Origine web supprimée avec succès
+    post_logout_uri_added: URI de redirection après déconnexion ajoutée avec succès
+    post_logout_uri_deleted: URI de redirection après déconnexion supprimée avec succès
+    post_logout_uri_create_failed: Échec de la création de l'URI de redirection après déconnexion
+    post_logout_uri_delete_failed: Échec de la suppression de l'URI de redirection après déconnexion
+
+credentials:
+  title: Identifiants du client
+  description: Ce que ce client présente pour prouver son identité.
+  copy: Copier
+  client_id:
+    label: ID client
+    description: L'identifiant unique utilisé pour authentifier ce client.
+  secret:
+    label: Secret client
+    description: Le secret utilisé pour l'authentification d'un client confidentiel. Sa révélation est enregistrée comme événement de sécurité.
+    reveal: Révéler
+    hide: Masquer
+    reveal_label: Révéler le secret client
+    hide_label: Masquer le secret client
+    forbidden: Vous avez besoin de la permission manage-clients pour révéler ce secret. Demandez l'accès à un administrateur du realm.
+    failed: Le secret n'a pas pu être révélé. Veuillez réessayer.
+    rotation_hint: La rotation du secret n'est pas encore exposée par l'API d'administration.
+  authentication:
+    title: Authentification du client
+    description: Comment ce client prouve son identité auprès des points de terminaison de jeton, d'introspection et de révocation.
+    method:
+      label: Méthode
+      options:
+        client_secret_basic: Secret client (HTTP Basic)
+        client_secret_post: Secret client (corps du formulaire)
+        client_secret_jwt: JWT signé avec le secret client
+        private_key_jwt: JWT signé avec une clé privée
+      hint:
+        client_secret_basic: Le client envoie son secret. HTTP Basic et le corps du formulaire sont tous deux acceptés.
+        client_secret_post: Le client envoie son secret. HTTP Basic et le corps du formulaire sont tous deux acceptés.
+        client_secret_jwt: Le client signe un JWT de courte durée avec son secret (HS256, HS384 ou HS512). Le secret ne circule jamais.
+        private_key_jwt: Le client signe un JWT de courte durée avec sa clé privée. FerrisKey ne stocke que les clés publiques.
+    keys:
+      label: Clés publiques
+      description: Une URL JWKS est récupérée et mise en cache, puis récupérée à nouveau lorsqu'une assertion désigne une clé inconnue. Un jeu de clés en ligne ne doit contenir que des clés publiques.
+      uri: URL JWKS
+      inline: JWKS en ligne
+      uri_required: Saisissez l'URL où le client publie ses clés.
+      invalid_json: 'Le jeu de clés doit être un objet JSON tel que { "keys" : [ … ] }.'
+
+roles:
+  title: Rôles du client
+  title_with_count: Rôles du client ({{total}})
+  description: Rôles définis sur ce client, exposés dans les jetons sous resource_access.
+  error: Erreur lors du chargement des rôles.
+  search_placeholder: Filtrer les rôles…
+  permissions_one: '{{count}} permission'
+  permissions_many: '{{count}} de permissions'
+  permissions_other: '{{count}} permissions'
+  delete:
+    label: Supprimer {{name}}
+    title: Supprimer le rôle ?
+    description: Voulez-vous vraiment supprimer « {{name}} » ? Cette action est irréversible.
+  empty:
+    no_match: Aucun rôle ne correspond à « {{query}} ».
+    none: Aucun rôle propre — les détenteurs de ce client n'obtiennent que des rôles de realm.
+
+scopes:
+  views:
+    assigned: Scopes attribués
+    evaluate: Évaluer
+  assigned:
+    title: Scopes attribués ({{total}})
+    description: Ensembles de claims que ce client est autorisé à demander.
+    add: Ajouter un scope
+    remove: Retirer {{name}}
+    type:
+      default: par défaut
+      optional: optionnel
+      none: aucun
+    empty:
+      label: Aucun scope attribué
+      hint: Les jetons émis pour ce client ne porteront aucun claim de profil.
+  effective:
+    title: Scopes effectifs
+    description: Inclus dans chaque jeton émis pour ce client, sans que le client n'ait à les demander.
+    no_mapper: 'Aucun mapper : ce scope ne produit aucun claim, il ouvre seulement un droit.'
+    empty:
+      label: Aucun scope par défaut
+      hint: Chaque claim devra être demandé explicitement par le client.
+  add:
+    title: Ajouter un scope client
+    description: Un scope par défaut est inclus dans chaque jeton ; un scope optionnel n'arrive que lorsque le client le demande.
+    search_placeholder: Rechercher des scopes…
+    type:
+      default: Par défaut
+      optional: Optionnel
+    loading: Chargement des scopes disponibles…
+    no_match: Aucun scope ne correspond à « {{query}} ».
+    exhausted: Tous les scopes du realm sont déjà attribués.
+    cancel: Annuler
+    submit: Attribuer le scope
+    submitting: Attribution…
+  evaluate:
+    title: Évaluer les jetons
+    description: Simule les jetons émis pour un compte donné, avec les scopes optionnels que le client demanderait.
+    account: Compte
+    optional: Scopes optionnels demandés
+    scope_string: Chaîne de scopes
+    # Affiché à la place de la chaîne de scopes lorsqu'aucun scope n'est demandé.
+    scope_string_empty: —
+    run: Évaluer
+    running: Évaluation…
+    mappers:
+      title: Mappers de protocole effectifs ({{total}})
+      description: Ce que produit l'ensemble de scopes retenu.
+      empty: Aucun mapper de protocole ne s'applique à cet ensemble de scopes.
+    roles:
+      title: Rôles effectifs
+      description: Rôles détenus par ce compte, tels qu'ils seront écrits dans le jeton.
+      realm: Rôles de realm
+      none: aucun
+    claims:
+      title: Claims générés
+      description: Les trois ensembles produits par cette évaluation.
+      access_token: Jeton d'accès
+      id_token: Jeton d'ID
+      userinfo: Userinfo
+
+saml:
+  not_configured:
+    title: Ce client n'utilise pas encore SAML
+    hint: Renseignez les deux valeurs que l'application affiche sur sa page de paramètres SAML, puis enregistrez. FerrisKey commencera à répondre aux demandes de connexion SAML pour ce client.
+  enable: Activer SAML
+  service_provider:
+    title: Fournisseur de services
+    description: Identifie l'application et indique à FerrisKey où envoyer l'assertion.
+    entity_id:
+      label: Entity ID
+      description: L'identifiant unique que l'application publie pour elle-même, par exemple https://chat.acme.com/saml/sp/1.
+    acs_url:
+      label: Assertion Consumer Service URL
+      description: L'adresse à laquelle l'assertion signée est envoyée après la connexion de l'utilisateur.
+    name_id_format:
+      label: Format de Name ID
+      description: Comment l'utilisateur est identifié dans l'assertion.
+      placeholder: Sélectionner un format de Name ID
+  signatures:
+    title: Signatures
+    description: Ce que FerrisKey signe, et ce qu'il exige signé.
+    sign_assertions:
+      label: Signer les assertions
+      description: Signe l'assertion elle-même. Presque toutes les applications l'attendent.
+    sign_documents:
+      label: Signer les documents
+      description: Signe toute la réponse SAML en plus de l'assertion.
+    want_authn_requests_signed:
+      label: Exiger des requêtes d'authentification signées
+      description: Rejette les demandes de connexion de cette application si elles ne portent pas de signature valide.
+  mappers:
+    title: Mappages d'attributs
+    description: Détails de l'utilisateur envoyés avec l'assertion. Faites correspondre les noms d'attributs demandés par l'application.
+    empty: Aucun attribut n'est encore envoyé. La plupart des applications ont besoin d'au moins une adresse e-mail.
+    add_common_profile: Ajouter email, first_name et last_name
+    # Une ligne de la liste de mappage d'attributs. <attr> contient le nom de l'attribut SAML,
+    # <detail> le détail de l'utilisateur dont il est tiré. Réordonnez les balises librement.
+    row: '<attr>{{name}}</attr><from>depuis</from><detail>{{source}}</detail>'
+    remove: Retirer le mappage de l'attribut {{name}}
+    submit: Ajouter l'attribut
+    delete:
+      title: Arrêter d'envoyer {{name}} ?
+      description: L'application ne recevra plus cet attribut lors de la prochaine connexion. Tout ce qui en dépend risque de ne plus fonctionner.
+    name:
+      label: Nom de l'attribut
+    source:
+      label: Détail de l'utilisateur à envoyer
+      placeholder: Sélectionner un détail de l'utilisateur
+      custom: Attribut utilisateur personnalisé
+    custom_key:
+      label: Clé de l'attribut
+    name_format:
+      label: Format du nom
+      placeholder: Sélectionner un format de nom
+  save:
+    description: Enregistrez les paramètres du fournisseur de services SAML pour ce client.
+
+maintenance:
+  banner:
+    title: Ce client est en maintenance
+    detail_one: '{{count}} entrée de la liste d''autorisation peut encore s''authentifier. Toute autre requête est refusée.'
+    detail_many: '{{count}} d''entrées de la liste d''autorisation peuvent encore s''authentifier. Toute autre requête est refusée.'
+    detail_other: '{{count}} entrées de la liste d''autorisation peuvent encore s''authentifier. Toute autre requête est refusée.'
+  mode:
+    title: Mode maintenance
+    description: Restreint temporairement l'accès sans toucher à la configuration du client.
+    enabled:
+      label: Maintenance activée
+      description: Une fois active, seuls les utilisateurs et rôles de la liste d'autorisation peuvent s'authentifier. Appliquée dès que vous la basculez.
+    state_picker: État de maintenance
+    reason:
+      label: Motif
+      description: Message affiché aux utilisateurs bloqués sur la page de connexion.
+      placeholder: Migration en cours, retour à 14 h.
+    strategy:
+      label: Stratégie de session
+      description: Ce qu'il advient des sessions déjà ouvertes lorsque la maintenance est activée.
+  inherited:
+    badge: hérité du realm
+    managed: géré au niveau du realm
+  users:
+    title: Utilisateurs autorisés
+    description: Comptes explicitement autorisés pendant la maintenance. Les entrées du niveau realm sont héritées automatiquement.
+    add: Ajouter un utilisateur
+    search_placeholder: Rechercher des utilisateurs…
+    empty: Aucun utilisateur autorisé sur ce client.
+    exhausted: Tous les utilisateurs du realm sont déjà autorisés.
+  roles:
+    title: Rôles autorisés
+    description: Tous les détenteurs de ces rôles sont autorisés pendant la maintenance. Les entrées du niveau realm sont héritées automatiquement.
+    add: Ajouter un rôle
+    search_placeholder: Rechercher des rôles…
+    empty: Aucun rôle autorisé sur ce client.
+    exhausted: Tous les rôles du realm sont déjà autorisés.
+  save:
+    title: Paramètres de maintenance non enregistrés
+    description: Enregistrez les modifications du motif de maintenance et de la stratégie de session.
+
+token_exchange:
+  title: 'Politiques d''échange de jetons ({{total}})'
+  description: Chaque politique permet à ce client d'échanger le jeton d'un utilisateur contre un jeton destiné à un autre client du realm.
+  disabled_hint: L'échange de jetons est désactivé pour ce client. Les politiques sont conservées mais n'ont aucun effet tant que vous ne l'activez pas dans les paramètres.
+  add: Ajouter une politique
+  error: Impossible de charger les politiques d'échange de jetons.
+  empty:
+    label: Aucune politique d'échange de jetons
+    hint: Sans politique, ce client ne peut échanger de jetons pour aucune audience.
+  list:
+    no_scope_cap: Aucune limite de scopes
+    impersonation: Usurpation d'identité
+    delegation: Délégation
+    delete: 'Supprimer la politique pour {{name}}'
+  create:
+    title: Nouvelle politique d'échange de jetons
+    description: Choisissez le client pour lequel ce client peut obtenir des jetons, et de quelle manière.
+    audience:
+      label: Audience cible
+      description: Le client pour lequel le jeton échangé est émis.
+      placeholder: Sélectionner un client
+      search_placeholder: Rechercher par nom ou client_id…
+      empty: Aucun client ne correspond.
+    scopes:
+      label: Scopes autorisés
+      description: Limite les scopes du jeton échangé. Laissez vide pour ne pas ajouter de limite.
+      placeholder: Ajouter un scope
+      empty: Aucune limite de scopes.
+    impersonation:
+      label: Autoriser l'usurpation d'identité
+      description: Le client peut agir en tant qu'utilisateur sans acteur.
+    delegation:
+      label: Autoriser la délégation
+      description: Le client peut effectuer un échange avec un actor_token, ce qui ajoute un claim act au jeton.
+    cancel: Annuler
+    submit: Créer la politique
+    submitting: Création…
+  delete:
+    title: Supprimer cette politique ?
+    description: 'Ce client ne pourra plus échanger de jetons pour {{name}}.'
+  toast:
+    created: Politique d'échange de jetons créée
+    conflict: Une politique existe déjà pour cette audience cible.
+    create_failed: Échec de la création de la politique
+    deleted: Politique d'échange de jetons supprimée
+    delete_failed: Échec de la suppression de la politique
+
+validation:
+  target_audience_required: Sélectionnez l'audience cible
+  client_id_required: L'ID client est requis
+  name_required: Le nom est requis
+  backchannel_logout_uri_invalid: L'URL doit commencer par http:// ou https://
+  sp_entity_id_required: L'Entity ID est requis
+  acs_url_required: L'Assertion Consumer Service URL est requise
+  name_id_format_required: Le format de Name ID est requis
+  mapper_name_required: Le nom de l'attribut est requis
+  mapper_source_required: Choisissez quel détail de l'utilisateur envoyer
+  mapper_name_format_required: Le format du nom est requis
+  mapper_custom_key_required: La clé de l'attribut est requise
