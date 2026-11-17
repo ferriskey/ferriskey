@@ -65,7 +65,22 @@ fn overloaded() -> ApiError {
     }
 }
 
-fn throttled() -> ApiError {
+pub(super) fn reserve_client_auth<'a>(
+    state: &'a AppState,
+    ip_address: Option<&str>,
+    realm_name: &str,
+    client_id: &str,
+) -> Result<ClientAuthAttempt<'a>, ApiError> {
+    let throttle_ip = ip_address
+        .and_then(|ip| ip.parse::<IpAddr>().ok())
+        .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+    state
+        .client_auth_throttle
+        .reserve(ThrottleKey::new(throttle_ip, realm_name, client_id))
+        .ok_or_else(throttled)
+}
+
+pub(super) fn throttled() -> ApiError {
     ApiError::OAuthTooManyRequests {
         error: "temporarily_unavailable".into(),
         error_description: "Too many failed client authentications from this address; retry later."
@@ -114,7 +129,7 @@ pub async fn exchange_token(
     response
 }
 
-async fn record_failure(
+pub(super) async fn record_failure(
     state: &AppState,
     attempt: ClientAuthAttempt<'_>,
     realm_name: &str,
@@ -239,15 +254,12 @@ async fn token_response(
     let client_id = presented.client_id;
     let client_credential = presented.credential;
 
-    let throttle_ip = context
-        .ip_address
-        .as_deref()
-        .and_then(|ip| ip.parse::<IpAddr>().ok())
-        .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
-    let attempt = state
-        .client_auth_throttle
-        .reserve(ThrottleKey::new(throttle_ip, &realm_name, &client_id))
-        .ok_or_else(throttled)?;
+    let attempt = reserve_client_auth(
+        &state,
+        context.ip_address.as_deref(),
+        &realm_name,
+        &client_id,
+    )?;
 
     // RFC 8693 has its own service and error codes; it never goes through
     // `exchange_token`, which would also open a second Compass flow.

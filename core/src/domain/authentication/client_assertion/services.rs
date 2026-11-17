@@ -212,9 +212,9 @@ fn bounded_expiry(exp: i64, now: DateTime<Utc>) -> Result<DateTime<Utc>, ClientA
         return Err(ClientAssertionError::TooLongLived);
     }
 
-    DateTime::from_timestamp(exp, 0).ok_or(ClientAssertionError::Rejected(
-        "exp is out of range".to_string(),
-    ))
+    DateTime::from_timestamp(exp.saturating_add(ASSERTION_LEEWAY_SECONDS as i64), 0).ok_or(
+        ClientAssertionError::Rejected("exp is out of range".to_string()),
+    )
 }
 
 #[cfg(test)]

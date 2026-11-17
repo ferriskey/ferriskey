@@ -9,15 +9,18 @@ use ferriskey_core::domain::authentication::{
 use validator::Validate;
 
 use super::authorization_server_metadata::realm_issuer;
+use super::token::{record_failure, reserve_client_auth};
 use crate::client_credentials::{ClientAuthParams, assertion_audiences, presented_client};
 use crate::validators::IntrospectRequestValidator;
 use ferriskey_api_core::api_entities::api_error::ApiErrorResponse;
+use ferriskey_api_core::request_context::RequestContext;
 use ferriskey_api_core::url::FullUrl;
 use ferriskey_api_core::{
     api_entities::{api_error::ApiError, response::Response},
     app_state::AppState,
 };
 use ferriskey_core::domain::authentication::client_authentication::ClientCredential;
+use ferriskey_core::domain::common::entities::app_errors::CoreError;
 
 #[utoipa::path(
     post,
@@ -40,6 +43,7 @@ pub async fn introspect_token(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    context: RequestContext,
     headers: HeaderMap,
     Form(payload): Form<IntrospectRequestValidator>,
 ) -> Result<Response<TokenIntrospectionResponse>, ApiError> {
@@ -63,16 +67,35 @@ pub async fn introspect_token(
         ));
     }
 
-    let response = state
+    let attempt = reserve_client_auth(
+        &state,
+        context.ip_address.as_deref(),
+        &realm_name,
+        &presented.client_id,
+    )?;
+
+    let response = match state
         .service
         .introspect_token(IntrospectTokenInput {
-            realm_name,
-            client_id: presented.client_id,
+            realm_name: realm_name.clone(),
+            client_id: presented.client_id.clone(),
             client_credential: presented.credential,
             token: payload.token,
             token_type_hint: payload.token_type_hint,
         })
-        .await?;
+        .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            if matches!(
+                error,
+                CoreError::ClientAuthenticationFailed | CoreError::InvalidClientSecret
+            ) {
+                record_failure(&state, attempt, &realm_name, &presented.client_id).await;
+            }
+            return Err(error.into());
+        }
+    };
 
     Ok(Response::OK(response))
 }

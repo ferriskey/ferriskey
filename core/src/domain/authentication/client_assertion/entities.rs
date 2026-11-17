@@ -34,6 +34,7 @@ pub const MAX_JWKS_BYTES: usize = 64 * 1024;
 pub const DEFAULT_JWKS_CACHE_AGE: Duration = Duration::from_secs(5 * 60);
 pub const MAX_JWKS_CACHE_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 pub const MIN_JWKS_REFETCH_INTERVAL: Duration = Duration::from_secs(10);
+pub const JWKS_FAILURE_CACHE_DURATION: Duration = Duration::from_secs(30);
 pub const MAX_JWKS_CACHE_ENTRIES: usize = 1024;
 
 /// `token_endpoint_auth_signing_alg_values_supported`, for discovery.

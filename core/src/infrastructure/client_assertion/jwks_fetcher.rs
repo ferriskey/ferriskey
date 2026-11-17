@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use ferriskey_webhook::endpoint::PrivateEndpoints;
@@ -7,10 +7,11 @@ use jsonwebtoken::jwk::JwkSet;
 use reqwest::header::{ACCEPT, CACHE_CONTROL, CONTENT_LENGTH};
 use reqwest::{Client, StatusCode, Url, redirect};
 use tokio::net::lookup_host;
+use tokio::sync::Mutex as AsyncMutex;
 
 use crate::domain::authentication::client_assertion::entities::{
-    ClientAssertionError, JWKS_FETCH_TIMEOUT, MAX_JWKS_BYTES, MAX_JWKS_CACHE_ENTRIES,
-    MIN_JWKS_REFETCH_INTERVAL,
+    ClientAssertionError, JWKS_FAILURE_CACHE_DURATION, JWKS_FETCH_TIMEOUT, MAX_JWKS_BYTES,
+    MAX_JWKS_CACHE_ENTRIES, MIN_JWKS_REFETCH_INTERVAL,
 };
 use crate::domain::authentication::client_assertion::ports::ClientJwksFetcher;
 use crate::infrastructure::client_metadata::fetcher::cache_max_age;
@@ -151,6 +152,8 @@ struct Entry {
 pub struct CachedClientJwksFetcher {
     inner: ReqwestClientJwksFetcher,
     entries: Mutex<HashMap<String, Entry>>,
+    failures: Mutex<HashMap<String, (Instant, ClientAssertionError)>>,
+    in_flight: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
     capacity: usize,
 }
 
@@ -159,6 +162,8 @@ impl CachedClientJwksFetcher {
         Self {
             inner,
             entries: Mutex::new(HashMap::new()),
+            failures: Mutex::new(HashMap::new()),
+            in_flight: Mutex::new(HashMap::new()),
             capacity: MAX_JWKS_CACHE_ENTRIES,
         }
     }
@@ -201,15 +206,90 @@ impl CachedClientJwksFetcher {
     }
 }
 
-impl ClientJwksFetcher for CachedClientJwksFetcher {
-    async fn fetch(&self, uri: &str, refresh: bool) -> Result<JwkSet, ClientAssertionError> {
-        if let Some(keys) = self.cached(uri, refresh, Instant::now()) {
-            return Ok(keys);
+impl CachedClientJwksFetcher {
+    fn recent_failure(&self, uri: &str, now: Instant) -> Option<ClientAssertionError> {
+        let failures = self.failures.lock().ok()?;
+        let (failed_at, error) = failures.get(uri)?;
+        (now.duration_since(*failed_at) < JWKS_FAILURE_CACHE_DURATION).then(|| error.clone())
+    }
+
+    fn remember_failure(&self, uri: &str, error: &ClientAssertionError, now: Instant) {
+        let Ok(mut failures) = self.failures.lock() else {
+            return;
+        };
+
+        if failures.len() >= self.capacity && !failures.contains_key(uri) {
+            failures.retain(|_, (failed_at, _)| {
+                now.duration_since(*failed_at) < JWKS_FAILURE_CACHE_DURATION
+            });
+        }
+        if failures.len() >= self.capacity && !failures.contains_key(uri) {
+            return;
         }
 
-        let fetched = self.inner.fetch_fresh(uri).await?;
-        self.store(uri, &fetched, Instant::now());
-        Ok(fetched.keys)
+        failures.insert(uri.to_string(), (now, error.clone()));
+    }
+
+    fn forget_failure(&self, uri: &str) {
+        if let Ok(mut failures) = self.failures.lock() {
+            failures.remove(uri);
+        }
+    }
+
+    fn gate(&self, uri: &str) -> Arc<AsyncMutex<()>> {
+        let Ok(mut in_flight) = self.in_flight.lock() else {
+            return Arc::new(AsyncMutex::new(()));
+        };
+        in_flight
+            .entry(uri.to_string())
+            .or_insert_with(|| Arc::new(AsyncMutex::new(())))
+            .clone()
+    }
+
+    fn release(&self, uri: &str, gate: &Arc<AsyncMutex<()>>) {
+        let Ok(mut in_flight) = self.in_flight.lock() else {
+            return;
+        };
+        if Arc::strong_count(gate) <= 2 {
+            in_flight.remove(uri);
+        }
+    }
+
+    fn lookup(&self, uri: &str, refresh: bool) -> Option<Result<JwkSet, ClientAssertionError>> {
+        let now = Instant::now();
+        if let Some(keys) = self.cached(uri, refresh, now) {
+            return Some(Ok(keys));
+        }
+        self.recent_failure(uri, now).map(Err)
+    }
+}
+
+impl ClientJwksFetcher for CachedClientJwksFetcher {
+    async fn fetch(&self, uri: &str, refresh: bool) -> Result<JwkSet, ClientAssertionError> {
+        if let Some(answer) = self.lookup(uri, refresh) {
+            return answer;
+        }
+
+        let gate = self.gate(uri);
+        let result = {
+            let _turn = gate.lock().await;
+            match self.lookup(uri, refresh) {
+                Some(answer) => answer,
+                None => match self.inner.fetch_fresh(uri).await {
+                    Ok(fetched) => {
+                        self.forget_failure(uri);
+                        self.store(uri, &fetched, Instant::now());
+                        Ok(fetched.keys)
+                    }
+                    Err(error) => {
+                        self.remember_failure(uri, &error, Instant::now());
+                        Err(error)
+                    }
+                },
+            }
+        };
+        self.release(uri, &gate);
+        result
     }
 }
 

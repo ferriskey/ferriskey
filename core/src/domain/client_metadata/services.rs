@@ -127,10 +127,16 @@ where
                 .await
             {
                 Ok(client) => client,
-                Err(CoreError::ClientIdAlreadyExists(_)) => self
-                    .find_existing(scope, &document.client_id)
-                    .await?
-                    .ok_or(CoreError::InternalServerError)?,
+                Err(CoreError::ClientIdAlreadyExists(_)) => {
+                    let recovered = self
+                        .find_existing(scope, &document.client_id)
+                        .await?
+                        .ok_or(CoreError::InternalServerError)?;
+                    if recovered.token_endpoint_auth_method != auth.method {
+                        return Err(ClientMetadataError::UnsupportedAuthMethod.into());
+                    }
+                    recovered
+                }
                 Err(error) => return Err(error),
             },
         };
@@ -138,7 +144,6 @@ where
         if client.registration_source != ClientRegistrationSource::MetadataDocument {
             return Err(ClientMetadataError::ClientIdTaken.into());
         }
-
         let keys_changed = client.jwks != auth.jwks || client.jwks_uri != auth.jwks_uri;
         if client.name != name || keys_changed {
             let scoped = self
