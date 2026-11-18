@@ -1,7 +1,12 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { useGetClientSecret, useUpdateClient } from '@/api/client.api'
+import {
+  useGetClientSecret,
+  useRevokePreviousClientSecret,
+  useRotateClientSecret,
+  useUpdateClient,
+} from '@/api/client.api'
 import type { Schemas } from '@/api/api.client'
 import { apiErrorMessage } from '@/lib/api-error'
 import ClientCredentialsTab from '../ui/client-credentials-tab'
@@ -18,8 +23,16 @@ interface Draft extends ClientAuthenticationDraft {
   key: string
 }
 
+const authenticationKey = (client: Client) =>
+  JSON.stringify([
+    client.id,
+    client.token_endpoint_auth_method,
+    client.jwks ?? null,
+    client.jwks_uri ?? null,
+  ])
+
 const pristineDraft = (client: Client): Draft => ({
-  key: `${client.id}:${client.updated_at}`,
+  key: authenticationKey(client),
   method:
     client.token_endpoint_auth_method === 'none'
       ? 'client_secret_basic'
@@ -40,6 +53,9 @@ const parseKeySet = (raw: string): Schemas.ClientJwks | undefined => {
   }
 }
 
+const sameInstant = (a: string | undefined, b: string | undefined) =>
+  a !== undefined && b !== undefined && Date.parse(a) === Date.parse(b)
+
 const usesSecret = (method: Schemas.TokenEndpointAuthMethod) => method !== 'private_key_jwt'
 
 export default function ClientCredentialsTabFeature({
@@ -48,6 +64,11 @@ export default function ClientCredentialsTabFeature({
 }: ClientCredentialsTabFeatureProps) {
   const { t } = useTranslation('client')
   const [revealed, setRevealed] = useState(false)
+  const visibilityChanges = useRef(0)
+  const toggleReveal = () => {
+    visibilityChanges.current += 1
+    setRevealed((r) => !r)
+  }
 
   const { data, error, isFetching } = useGetClientSecret({
     realm,
@@ -61,9 +82,22 @@ export default function ClientCredentialsTabFeature({
   if (draft.key !== pristine.key) setDraft(pristine)
   const current = draft.key === pristine.key ? draft : pristine
 
+  const { mutate: rotateSecret, isPending: rotating } = useRotateClientSecret()
+  const { mutate: revokePrevious, isPending: revoking } = useRevokePreviousClientSecret()
+  const path = { realm_name: realm, client_id: client.id }
+
   const status = (error as { status?: number } | null)?.status
   const forbidden = revealed && status === 403
   const failed = revealed && Boolean(error) && !forbidden
+
+  const settled = revealed && !isFetching && !error
+  const revealedPrevious = data?.previous_secret
+  const previousSecret =
+    settled &&
+    revealedPrevious &&
+    sameInstant(revealedPrevious.expires_at, client.previous_secret?.expires_at)
+      ? revealedPrevious.client_secret
+      : null
 
   const needsKeys = current.method === 'private_key_jwt'
   const inlineKeys = needsKeys && current.keySource === 'jwks'
@@ -102,11 +136,26 @@ export default function ClientCredentialsTabFeature({
     <ClientCredentialsTab
       client={client}
       revealed={revealed}
-      secret={revealed ? (data?.client_secret ?? null) : null}
+      secret={settled ? (data?.client_secret ?? null) : null}
       isFetching={isFetching}
       forbidden={forbidden}
       failed={failed}
-      onToggleReveal={() => setRevealed((r) => !r)}
+      previousSecret={previousSecret}
+      rotating={rotating}
+      revoking={revoking}
+      onToggleReveal={toggleReveal}
+      onRotate={(gracePeriodSecs) => {
+        const changesAtSubmit = visibilityChanges.current
+        rotateSecret(
+          { path, body: { grace_period_secs: gracePeriodSecs } },
+          {
+            onSuccess: () => {
+              if (visibilityChanges.current === changesAtSubmit) setRevealed(true)
+            },
+          }
+        )
+      }}
+      onRevokePrevious={() => revokePrevious({ path })}
       showSecret={client.public_client || usesSecret(client.token_endpoint_auth_method)}
       authentication={
         client.public_client || client.protocol !== 'openid-connect'

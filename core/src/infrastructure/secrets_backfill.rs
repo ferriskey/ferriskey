@@ -5,7 +5,9 @@ use uuid::Uuid;
 
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::infrastructure::abyss::federation::repository::BIND_PASSWORD_PURPOSE;
-use crate::infrastructure::client::repositories::client_postgres_repository::CLIENT_SECRET_PURPOSE;
+use crate::infrastructure::client::repositories::client_postgres_repository::{
+    CLIENT_PREVIOUS_SECRET_PURPOSE, CLIENT_SECRET_PURPOSE,
+};
 use crate::infrastructure::identity_provider::repositories::identity_provider_postgres_repository::IDENTITY_PROVIDER_SECRET_PURPOSE;
 use crate::infrastructure::realm::repositories::smtp_config_postgres_repository::SMTP_PASSWORD_PURPOSE;
 use crate::infrastructure::repositories::credential_repository::OTP_SECRET_PURPOSE;
@@ -22,6 +24,7 @@ pub struct SealedCounts {
     pub otp_enrollments: u64,
     pub smtp_passwords: u64,
     pub client_secrets: u64,
+    pub previous_client_secrets: u64,
     pub identity_provider_secrets: u64,
     pub ldap_bind_passwords: u64,
     pub webhook_secrets: u64,
@@ -35,7 +38,7 @@ struct SecretColumn {
     purpose: &'static str,
 }
 
-const SECRET_COLUMNS: [SecretColumn; 8] = [
+const SECRET_COLUMNS: [SecretColumn; 9] = [
     SecretColumn {
         table: "jwt_keys",
         value: "private_key",
@@ -70,6 +73,13 @@ const SECRET_COLUMNS: [SecretColumn; 8] = [
         assign: "secret = $1",
         filter: "secret IS NOT NULL",
         purpose: CLIENT_SECRET_PURPOSE,
+    },
+    SecretColumn {
+        table: "clients",
+        value: "previous_secret",
+        assign: "previous_secret = $1",
+        filter: "previous_secret IS NOT NULL",
+        purpose: CLIENT_PREVIOUS_SECRET_PURPOSE,
     },
     SecretColumn {
         table: "identity_providers",
@@ -181,9 +191,10 @@ pub async fn seal_existing_secrets(
         otp_enrollments: seal_column(db, cipher, active, &SECRET_COLUMNS[2]).await?,
         smtp_passwords: seal_column(db, cipher, active, &SECRET_COLUMNS[3]).await?,
         client_secrets: seal_column(db, cipher, active, &SECRET_COLUMNS[4]).await?,
-        identity_provider_secrets: seal_column(db, cipher, active, &SECRET_COLUMNS[5]).await?,
-        ldap_bind_passwords: seal_column(db, cipher, active, &SECRET_COLUMNS[6]).await?,
-        webhook_secrets: seal_column(db, cipher, active, &SECRET_COLUMNS[7]).await?,
+        previous_client_secrets: seal_column(db, cipher, active, &SECRET_COLUMNS[5]).await?,
+        identity_provider_secrets: seal_column(db, cipher, active, &SECRET_COLUMNS[6]).await?,
+        ldap_bind_passwords: seal_column(db, cipher, active, &SECRET_COLUMNS[7]).await?,
+        webhook_secrets: seal_column(db, cipher, active, &SECRET_COLUMNS[8]).await?,
     };
 
     info!(
@@ -286,7 +297,7 @@ mod tests {
             sqlx::query("INSERT INTO smtp_configs (id, realm_id, host, port, username, password, from_email, from_name, encryption, created_at, updated_at) VALUES ($1, $2, 'smtp.example.com', 587, 'm', 'smtp-secret', 'a@example.com', 'A', 'starttls', NOW(), NOW())")
                 .bind(smtp_id)
                 .bind(realm_id),
-            sqlx::query("INSERT INTO clients (id, realm_id, name, client_id, secret, enabled, protocol, public_client, service_account_enabled, client_type, created_at, updated_at) VALUES ($1, $2, 'c', 'confidential', 'client-secret', TRUE, 'openid-connect', FALSE, TRUE, 'confidential', NOW(), NOW())")
+            sqlx::query("INSERT INTO clients (id, realm_id, name, client_id, secret, previous_secret, previous_secret_expires_at, enabled, protocol, public_client, service_account_enabled, client_type, created_at, updated_at) VALUES ($1, $2, 'c', 'confidential', 'client-secret', 'previous-secret', NOW() + interval '1 day', TRUE, 'openid-connect', FALSE, TRUE, 'confidential', NOW(), NOW())")
                 .bind(client_id)
                 .bind(realm_id),
             sqlx::query("INSERT INTO clients (id, realm_id, name, client_id, enabled, protocol, public_client, service_account_enabled, client_type, created_at, updated_at) VALUES ($1, $2, 'p', 'public', TRUE, 'openid-connect', TRUE, FALSE, 'public', NOW(), NOW())")
@@ -346,6 +357,7 @@ mod tests {
                 otp_enrollments: 1,
                 smtp_passwords: 1,
                 client_secrets: 1,
+                previous_client_secrets: 1,
                 identity_provider_secrets: 1,
                 ldap_bind_passwords: 1,
                 webhook_secrets: 1,
@@ -386,6 +398,13 @@ mod tests {
                 seeded.client_id,
                 "client-secret",
                 CLIENT_SECRET_PURPOSE,
+            ),
+            (
+                "clients",
+                "previous_secret",
+                seeded.client_id,
+                "previous-secret",
+                CLIENT_PREVIOUS_SECRET_PURPOSE,
             ),
             (
                 "identity_providers",
@@ -511,6 +530,7 @@ mod tests {
                 otp_enrollments: 1,
                 smtp_passwords: 1,
                 client_secrets: 1,
+                previous_client_secrets: 1,
                 identity_provider_secrets: 1,
                 ldap_bind_passwords: 1,
                 webhook_secrets: 1,

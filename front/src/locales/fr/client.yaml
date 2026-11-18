@@ -312,6 +312,7 @@ credentials:
   title: Identifiants du client
   description: Ce que ce client présente pour prouver son identité.
   copy: Copier
+  copy_failed: La valeur n'a pas pu être copiée. Vérifiez l'autorisation du presse-papiers pour ce site.
   client_id:
     label: ID client
     description: L'identifiant unique utilisé pour authentifier ce client.
@@ -324,7 +325,7 @@ credentials:
     hide_label: Masquer le secret client
     forbidden: Vous avez besoin de la permission manage-clients pour révéler ce secret. Demandez l'accès à un administrateur du realm.
     failed: Le secret n'a pas pu être révélé. Veuillez réessayer.
-    rotation_hint: La rotation du secret n'est pas encore exposée par l'API d'administration.
+    rotation_hint: Le renouvellement remplace ce secret. Choisissez combien de temps l'actuel reste valide pour que chaque déploiement puisse basculer. Un nouveau renouvellement met fin immédiatement à l'ancien secret précédent.
   authentication:
     title: Authentification du client
     description: Comment ce client prouve son identité auprès des points de terminaison de jeton, d'introspection et de révocation.
@@ -347,6 +348,33 @@ credentials:
       inline: JWKS en ligne
       uri_required: Saisissez l'URL où le client publie ses clés.
       invalid_json: 'Le jeu de clés doit être un objet JSON tel que { "keys" : [ … ] }.'
+  rotate:
+    action: Renouveler le secret
+    title: Renouveler le secret client ?
+    description: Un nouveau secret est généré. Les applications qui utilisent encore l'actuel continuent de fonctionner pendant la période de grâce choisie, puis sont refusées.
+    grace:
+      label: Garder le secret actuel valide pendant
+      none: Pas du tout, le remplacer maintenant
+      one_hour: 1 heure
+      one_day: 24 heures
+      one_week: 7 jours
+      thirty_days: 30 jours
+    replaces_previous: L'ancien secret encore en période de grâce cesse de fonctionner maintenant, avant son expiration.
+    confirm: Renouveler
+    cancel: Annuler
+    toast:
+      rotated: Secret client renouvelé.
+  previous:
+    label: Ancien secret
+    description: Toujours accepté jusqu'à son expiration. Il peut être révoqué avant.
+    expires: Expire le {{date}}
+    revoke:
+      action: Révoquer maintenant
+      title: Révoquer l'ancien secret ?
+      description: Les applications qui l'utilisent encore seront refusées immédiatement.
+      confirm: Révoquer
+    toast:
+      revoked: Ancien secret client révoqué.
 
 roles:
   title: Rôles du client

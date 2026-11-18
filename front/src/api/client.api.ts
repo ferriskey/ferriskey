@@ -151,6 +151,60 @@ export const useGetClientSecret = ({
   })
 }
 
+const clientSecretKey = (realm: string, clientId: string) =>
+  window.tanstackApi.get('/realms/{realm_name}/clients/{client_id}/client-secret', {
+    path: { realm_name: realm, client_id: clientId },
+  }).queryKey
+
+const clientKey = (realm: string, clientId: string) =>
+  window.tanstackApi.get('/realms/{realm_name}/clients/{client_id}', {
+    path: { realm_name: realm, client_id: clientId },
+  }).queryKey
+
+export const useRotateClientSecret = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'post',
+      '/realms/{realm_name}/clients/{client_id}/client-secret/rotate'
+    ).mutationOptions,
+    onSuccess: async (_, variables) => {
+      const { realm_name, client_id } = variables.path
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: clientSecretKey(realm_name, client_id) }),
+        queryClient.invalidateQueries({ queryKey: clientKey(realm_name, client_id) }),
+      ])
+      toast.success(translate('client:credentials.rotate.toast.rotated'))
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error))
+    },
+  })
+}
+
+export const useRevokePreviousClientSecret = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'delete',
+      '/realms/{realm_name}/clients/{client_id}/client-secret/previous'
+    ).mutationOptions,
+    onSuccess: async (_, variables) => {
+      const { realm_name, client_id } = variables.path
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: clientSecretKey(realm_name, client_id) }),
+        queryClient.invalidateQueries({ queryKey: clientKey(realm_name, client_id) }),
+      ])
+      toast.success(translate('client:credentials.previous.toast.revoked'))
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error))
+    },
+  })
+}
+
 export interface CreateClientMutate {
   realm: string
   payload: CreateClientSchema
