@@ -1,0 +1,123 @@
+# Catalogue français des codes d'erreur du backend.
+#
+# Chaque clé est exactement un code d'erreur `reason` renvoyé par l'API. La clé est le contrat
+# et n'est jamais traduite : seul le message l'est.
+#
+# STATUS: traduit, en attente de relecture native.
+access_denied: La demande d'autorisation a été refusée.
+account_locked: Votre compte est temporairement verrouillé après trop de tentatives de connexion échouées. Réessayez plus tard.
+already_exists: Cette ressource existe déjà.
+authorization_code_storage_failed: La connexion n'a pas pu aboutir. Veuillez recommencer.
+authorization_conflict: Les règles d'autorisation de ce realm ont changé entre-temps. Rechargez la page et réessayez.
+authorization_pending: En attente de votre approbation pour cet appareil.
+authorization_template_in_use: Ce modèle de politique est lié à une ou plusieurs politiques et ne peut pas être supprimé.
+breached_password: Ce mot de passe apparaît dans une fuite de données. Choisissez-en un autre.
+broker_session_expired: La session d'authentification unique a expiré. Veuillez recommencer.
+broker_session_not_found: La session d'authentification unique est introuvable. Veuillez recommencer.
+cannot_delete_master_realm: Le realm master ne peut pas être supprimé.
+client_id_already_exists: Un client avec cet ID existe déjà dans ce realm.
+client_not_found: Ce client est introuvable.
+common_password: Ce mot de passe est trop courant ou correspond aux informations de votre compte. Choisissez-en un plus robuste.
+configuration: Le serveur est mal configuré. Contactez un administrateur.
+create_client_error: Le client n'a pas pu être créé.
+create_credential_error: L'identifiant n'a pas pu être créé.
+database: La base de données est indisponible. Veuillez réessayer.
+delete_credential_error: L'identifiant n'a pas pu être supprimé.
+delete_password_credential_error: L'identifiant de mot de passe n'a pas pu être supprimé.
+device_session_forbidden: Vous ne pouvez pas agir sur une session d'appareil appartenant à un autre realm.
+email_already_exists: Cette adresse e-mail est déjà utilisée dans ce realm.
+email_template_not_found: Ce modèle d'e-mail est introuvable.
+email_template_render_error: Le modèle d'e-mail n'a pas pu être généré.
+email_verification_template_not_configured: Aucun modèle d'e-mail de vérification n'est configuré pour ce realm.
+expired_token: Ce jeton a expiré.
+external: Un service externe est indisponible. Veuillez réessayer.
+failed_webhook_notification: Le point de terminaison du webhook n'a pas pu être notifié.
+federation_authentication_failed: L'authentification auprès de l'annuaire fédéré a échoué.
+get_password_credential_error: L'identifiant de mot de passe n'a pas pu être lu.
+get_user_credentials_error: Les identifiants de l'utilisateur n'ont pas pu être lus.
+hash_password_error: Le mot de passe n'a pas pu être sécurisé. Veuillez réessayer.
+hints_not_found: Aucun indice de compte n'a été trouvé.
+idp_authentication_failed: Le fournisseur d'identité a rejeté l'authentification.
+idp_token_exchange_failed: Le fournisseur d'identité n'a pas renvoyé de jeton.
+idp_user_info_failed: Le fournisseur d'identité n'a pas renvoyé le profil de l'utilisateur.
+insufficient_entropy: Ce mot de passe n'est pas assez robuste. Allongez-le, ou mélangez majuscules, minuscules, chiffres et symboles.
+internal_server_error: Un problème est survenu de notre côté. Veuillez réessayer.
+invalid: Cette ressource n'est pas valide.
+invalid_authorization_policy: Les règles d'autorisation ne sont pas valides.
+invalid_broker_state: L'état de l'authentification unique n'est pas valide. Veuillez recommencer.
+invalid_client: Ce client n'est pas valide.
+invalid_client_secret: Ce secret client n'est pas valide.
+invalid_credentials: Nom d'utilisateur ou mot de passe incorrect.
+invalid_id_token: Le jeton d'ID n'est pas valide.
+invalid_key: La clé de signature n'est pas valide.
+invalid_magic_link: Ce lien magique n'est pas valide.
+invalid_or_expired_token: Ce lien de vérification d'e-mail n'est pas valide ou a expiré.
+invalid_password: Ce mot de passe est incorrect.
+invalid_provider_url: L'URL du fournisseur d'identité n'est pas valide.
+invalid_realm: Ce realm n'est pas valide.
+invalid_redirect_uri: Cette URI de redirection n'est pas autorisée pour ce client.
+invalid_refresh_token: Ce jeton d'actualisation n'est pas valide.
+invalid_request: Cette requête n'est pas valide.
+invalid_session: Cette session n'est pas valide.
+invalid_state: Le paramètre state ne correspond pas. Veuillez recommencer.
+invalid_token: Ce jeton n'est pas valide.
+invalid_totp_secret_format: Le secret de l'application d'authentification n'est pas dans un format lisible.
+invalid_user: Cet utilisateur n'est pas valide.
+link_not_found: Aucun lien de fournisseur d'identité n'a été trouvé pour ce compte.
+link_only_user_not_found: Aucun compte local ne correspond à cette identité. Demandez à un administrateur d'en créer un au préalable.
+magic_link_already_used: Ce lien magique a déjà été utilisé.
+magic_link_expired: Ce lien magique a expiré.
+magic_link_not_enabled: La connexion par lien magique n'est pas activée pour ce realm.
+missing_authorization_code: Le code d'autorisation est manquant.
+missing_lowercase: Le mot de passe doit contenir au moins une lettre minuscule.
+missing_number: Le mot de passe doit contenir au moins un chiffre.
+missing_special: Le mot de passe doit contenir au moins un caractère spécial.
+missing_uppercase: Le mot de passe doit contenir au moins une lettre majuscule.
+not_found: Cette ressource est introuvable.
+portal_layout_default: Cette mise en page du portail est celle par défaut du realm et ne peut pas être supprimée.
+portal_layout_in_use: Cette mise en page du portail est utilisée par un ou plusieurs thèmes et ne peut pas être supprimée.
+portal_theme_active: Ce thème du portail est actif et ne peut pas être supprimé.
+protocol_not_supported: Cette opération n'est pas prise en charge pour le protocole du client.
+provider_disabled: Ce fournisseur d'identité est désactivé.
+provider_name_already_exists: Un fournisseur d'identité portant ce nom existe déjà.
+provider_not_found: Ce fournisseur d'identité est introuvable.
+realm_already_exists: Un realm portant ce nom existe déjà.
+realm_key_not_found: Aucune clé de signature n'a été trouvée pour ce realm.
+redirect_uri_not_found: Aucune URI de redirection n'est enregistrée pour ce client.
+saml_attribute_mapper_not_found: Aucun mapper d'attributs SAML n'est enregistré sous cet identifiant.
+saml_config_not_found: Aucune configuration SAML n'est enregistrée pour ce client.
+service_account_not_found: Le compte de service de ce client est introuvable.
+service_unavailable: Le service est temporairement indisponible. Veuillez réessayer.
+session_create_error: La session n'a pas pu être créée.
+session_delete_error: La session n'a pas pu être supprimée.
+session_expired: Votre session a expiré. Veuillez vous reconnecter.
+session_not_found: Cette session est introuvable.
+session_revoked: Cette session a été révoquée. Veuillez vous reconnecter.
+slow_down: Vous vérifiez trop souvent. Veuillez patienter un instant.
+token_expiration_error: L'expiration du jeton n'a pas pu être lue.
+token_generation_error: Le jeton n'a pas pu être émis.
+token_issuance_failed: Le jeton n'a pas pu être émis.
+token_not_found: Ce jeton est introuvable.
+token_parsing_error: Le jeton n'a pas pu être lu.
+token_validation_error: Le jeton n'a pas pu être validé.
+too_short: Ce mot de passe est trop court.
+totp_generation_failed: Le code à usage unique n'a pas pu être généré.
+totp_verification_failed: Ce code à usage unique est incorrect.
+unauthorized_client: Ce client n'est pas autorisé à utiliser ce type d'autorisation.
+unexpected_credential_data: Cet identifiant est stocké dans un format inattendu.
+update_credential_error: L'identifiant n'a pas pu être mis à jour.
+user_code_generation_exhausted: Aucun code d'appareil n'a pu être généré. Veuillez réessayer.
+user_disabled: Ce compte est désactivé.
+user_linking_failed: Cette identité n'a pas pu être liée à un compte.
+user_not_found: Cet utilisateur est introuvable.
+username_already_exists: Ce nom d'utilisateur est déjà utilisé dans ce realm.
+verify_password_error: Le mot de passe n'a pas pu être vérifié. Veuillez réessayer.
+web_origin_not_found: Aucune origine web n'est enregistrée sous cet identifiant.
+webauthn_challenge_failed: Le défi de la clé d'accès a échoué. Veuillez réessayer.
+webauthn_credential_not_found: Cette clé d'accès est introuvable.
+webauthn_missing_challenge: Le défi de la clé d'accès est manquant. Veuillez recommencer.
+webhook_delivery_not_found: Cette livraison de webhook est introuvable.
+webhook_delivery_not_replayable: Cette livraison de webhook est encore en cours et ne peut pas être rejouée.
+webhook_forbidden: Vous n'êtes pas autorisé à agir sur ce webhook.
+webhook_not_found: Ce webhook est introuvable.
+webhook_realm_not_found: Le realm de ce webhook est introuvable.

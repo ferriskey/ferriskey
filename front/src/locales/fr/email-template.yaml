@@ -1,0 +1,242 @@
+# Catalogue français de la section E-mails : la liste des modèles, l'onglet SMTP, le détail d'un modèle
+# et l'interface de l'éditeur MJML. Le moteur de glisser-déposer lui-même (src/lib/builder-core,
+# src/lib/builder-mjml) est volontairement hors du périmètre de traduction et ne porte aucune clé ici.
+#
+# STATUS : traduit, en attente de relecture native.
+
+page:
+  title: E-mails
+  description: Modèles des e-mails transactionnels de ce realm, et le serveur qui les envoie.
+  import: Importer
+  create: Nouveau modèle
+  tabs:
+    templates: Modèles
+    smtp: SMTP
+
+# Les clés sont des valeurs de l'énumération EmailType envoyées par l'API et ne doivent jamais être renommées.
+# « label » nomme l'e-mail dans une phrase, « short » tient dans une tuile de métrique et une puce de filtre,
+# et « trigger » indique à un administrateur quand FerrisKey l'envoie réellement.
+type:
+  reset_password:
+    label: Réinitialisation du mot de passe
+    short: Mot de passe
+    trigger: Envoyé lorsqu'un utilisateur demande à réinitialiser son mot de passe.
+  magic_link:
+    label: Lien magique
+    short: Lien magique
+    trigger: Envoyé lorsqu'un utilisateur demande un lien de connexion.
+  email_verification:
+    label: Vérification de l'e-mail
+    short: Vérification
+    trigger: Envoyé lorsqu'un compte est créé, ou lors d'une demande de vérification.
+
+# « Dernière mise à jour » relative d'une ligne de modèle. Les formes abrégées ne s'accordent jamais,
+# elles prennent donc {{total}} plutôt que {{count}}.
+relative:
+  just_now: à l'instant
+  minutes: 'il y a {{total}} min'
+  hours: 'il y a {{total}} h'
+  days: 'il y a {{total}} j'
+
+list:
+  alert:
+    # {{names}} est une liste de libellés de types séparés par des virgules, construite dans le code.
+    unassigned_one: '{{names}} n''a aucun modèle attribué — FerrisKey envoie son e-mail par défaut en texte brut pour celui-ci.'
+    unassigned_many: '{{names}} n''ont aucun modèle attribué — FerrisKey envoie son e-mail par défaut en texte brut pour ceux-ci.'
+    unassigned_other: '{{names}} n''ont aucun modèle attribué — FerrisKey envoie son e-mail par défaut en texte brut pour ceux-ci.'
+  metrics:
+    total:
+      label: Modèles
+      hint: dans ce realm
+    type:
+      # En minuscules volontairement : ils servent de ligne d'indication sous une tuile de métrique.
+      assigned: attribué
+      none: aucun attribué
+  assignment:
+    title: Attribution
+    description: Un modèle par e-mail. Sans attribution, FerrisKey envoie son e-mail par défaut en texte brut.
+    not_configured: Non configuré
+    empty: Aucun modèle de ce type dans ce realm.
+    picker_label: Modèle
+  filters:
+    email_type: Type
+    created: Créé
+  columns:
+    name: Modèle
+    email_type: Type
+    updated_at: Mis à jour
+    created_at: Créé
+  templates:
+    title: Modèles
+    description: 'Le type d''un modèle est fixé à la création : il détermine les variables qui lui sont disponibles.'
+    search_placeholder: Rechercher par nom…
+    # En minuscules volontairement : affiché dans une pastille à côté du nom du modèle.
+    assigned: attribué
+    meta: '{{type}} · mis à jour {{when}}'
+    edit: Modifier
+    # Formats d'export, pas de la prose : ils nomment le fichier que le bouton télécharge.
+    export_json: JSON
+    export_mjml: MJML
+    delete_aria: Supprimer {{name}}
+  empty:
+    none:
+      label: Aucun modèle d'e-mail
+      hint: Tant qu'aucun modèle n'est attribué, FerrisKey envoie ses e-mails par défaut en texte brut.
+    filtered:
+      label: Aucun modèle ne correspond au filtre
+      hint: Ajustez la recherche ou le filtre de type.
+    clear: Effacer les filtres
+    create: Nouveau modèle
+  delete:
+    title: Supprimer le modèle d'e-mail
+    # {{targets}} est une liste de libellés de types séparés par des virgules, construite dans le code.
+    assigned_one: '« {{name}} » est attribué à {{targets}}. La suppression réussit et le retire : cet e-mail retombe sur le texte brut par défaut.'
+    assigned_many: '« {{name}} » est attribué à {{targets}}. La suppression réussit et le retire : ces e-mails retombent sur le texte brut par défaut.'
+    assigned_other: '« {{name}} » est attribué à {{targets}}. La suppression réussit et le retire : ces e-mails retombent sur le texte brut par défaut.'
+    plain: 'Cela supprime définitivement « {{name}} », sa structure et son MJML.'
+  toast:
+    export_failed: Impossible d'exporter ce modèle
+
+smtp:
+  alert:
+    no_server: Ce realm n'a aucun serveur SMTP. Aucun e-mail transactionnel ne part — les réinitialisations de mot de passe, les liens magiques et les vérifications sont enregistrés mais jamais livrés.
+  server:
+    title: Serveur SMTP
+    description: Le serveur par lequel ce realm envoie ses e-mails.
+    host:
+      label: Hôte
+      description: Nom d'hôte du serveur SMTP.
+    port:
+      label: Port
+      description: Port du serveur SMTP — 587, 465 ou 25.
+    encryption:
+      label: Chiffrement
+      description: Comment la connexion au serveur est chiffrée.
+      tls:
+        label: TLS
+        hint: Chiffrée dès le premier octet, généralement sur le port 465.
+      starttls:
+        label: STARTTLS
+        hint: Connexion en clair mise à niveau vers le chiffrement, généralement sur le port 587.
+      none:
+        label: Aucun
+        hint: En clair. Uniquement pour un relais local.
+    username:
+      label: Nom d'utilisateur
+      description: Compte utilisé pour s'authentifier auprès du serveur.
+    password:
+      label: Mot de passe
+      description: 'Jamais renvoyé par l''API, il ne peut donc pas être prérempli : il faut le saisir à nouveau pour enregistrer toute modification sur cet onglet.'
+      # En minuscules volontairement : affiché dans une pastille sous le champ du mot de passe.
+      stored: enregistré, en écriture seule
+  sender:
+    title: Expéditeur
+    description: Ce que les destinataires voient dans leur boîte de réception.
+    from_email:
+      label: E-mail de l'expéditeur
+      description: Adresse depuis laquelle les e-mails sortants sont envoyés.
+    from_name:
+      label: Nom de l'expéditeur
+      description: Nom d'affichage montré à côté de l'adresse.
+  danger:
+    label: Supprimer la configuration SMTP
+    description: Supprimer la configuration SMTP de ce realm. Les fonctionnalités d'e-mail (réinitialisation de mot de passe, liens magiques, vérification) cesseront de fonctionner.
+    button: Supprimer la config SMTP
+    confirm_title: Supprimer la configuration SMTP
+    confirm_description: Cela supprimera définitivement la configuration SMTP de ce realm. L'envoi d'e-mails sera désactivé.
+  save:
+    title_dirty: Modifications SMTP non enregistrées
+    title_new: Serveur SMTP pas encore configuré
+    description: L'enregistrement remplace toute la configuration, mot de passe compris.
+    cancel: Abandonner
+    action_dirty: Enregistrer les modifications
+    action_new: Enregistrer la configuration
+  # Vérifications côté client du formulaire SMTP. Le schéma dont elles proviennent se trouve dans
+  # src/pages/iam/realm/schemas/smtp-config.schema.ts, que ce lot ne possède pas, donc les
+  # messages sont résolus ici à partir du champ que désigne l'erreur.
+  validation:
+    host: L'hôte est requis
+    port: Le port doit être compris entre 1 et 65535
+    username: Le nom d'utilisateur est requis
+    password: Le mot de passe est requis
+    from_email: Doit être une adresse e-mail valide
+    from_name: Le nom de l'expéditeur est requis
+    encryption: Choisissez comment la connexion est chiffrée
+
+detail:
+  back: E-mails
+  not_found:
+    title: Modèle d'e-mail introuvable
+    hint: Il a peut-être été supprimé, ou il appartient à un autre realm.
+  pills:
+    # En minuscules volontairement : les deux sont dans une pastille à côté du nom du modèle.
+    assigned: attribué
+    not_assigned: non attribué
+  meta:
+    # Libellé réservé aux lecteurs d'écran de la date qui suit.
+    updated_at: Mis à jour le
+    updated: Mis à jour {{date}}
+    # Libellé réservé aux lecteurs d'écran de l'identifiant du modèle qui suit.
+    identifier: Identifiant
+    export: Exporter
+    open_builder: Ouvrir l'éditeur
+  general:
+    title: Général
+    name:
+      label: Nom
+      description: Comment ce modèle est nommé dans la console. Requis.
+    type:
+      label: Type
+      description: 'Fixé à la création : il détermine quelles variables le moteur fournit et quel e-mail utilise ce modèle.'
+    used_for:
+      label: Utilisé pour
+      description: Défini dans la liste des e-mails. Un e-mail sans modèle retombe sur le texte brut par défaut.
+      empty: Aucun e-mail n'utilise ce modèle
+  variables:
+    title: Variables disponibles
+    description: Interpolées à l'envoi et échappées en HTML. Toute autre expression est laissée telle quelle.
+    # Ajouté après la description de la variable, sur la même ligne.
+    absent: — absente de ce modèle
+    # Rendu avec <Trans>. <code> entoure le type d'e-mail, qui est une valeur d'énumération de l'API et
+    # n'est jamais traduit. {{names}} est une liste de jetons {{variable}} séparés par des virgules, construite dans le code.
+    unsupplied_one: '{{names}} n''est pas fournie pour le type <code>{{type}}</code> : elle part telle quelle dans l''e-mail que reçoit l''utilisateur.'
+    unsupplied_many: '{{names}} ne sont pas fournies pour le type <code>{{type}}</code> : elles partent telles quelles dans l''e-mail que reçoit l''utilisateur.'
+    unsupplied_other: '{{names}} ne sont pas fournies pour le type <code>{{type}}</code> : elles partent telles quelles dans l''e-mail que reçoit l''utilisateur.'
+  mjml:
+    title: MJML
+    description: Produit par l'éditeur à partir de la structure enregistrée.
+    export: Exporter le MJML
+    copy: Copier
+    copied: Copié
+  danger:
+    label: Supprimer ce modèle
+    # {{targets}} est une liste de libellés de types séparés par des virgules, construite dans le code.
+    assigned_one: 'Il est attribué à {{targets}}. La suppression réussit et le retire : cet e-mail retombe sur le texte brut par défaut.'
+    assigned_many: 'Il est attribué à {{targets}}. La suppression réussit et le retire : ces e-mails retombent sur le texte brut par défaut.'
+    assigned_other: 'Il est attribué à {{targets}}. La suppression réussit et le retire : ces e-mails retombent sur le texte brut par défaut.'
+    plain: Sa structure et son MJML généré sont définitivement perdus.
+    button: Supprimer le modèle
+    confirm_title: Supprimer le modèle d'e-mail
+    confirm_description: 'Cela supprimera définitivement le modèle « {{name}} ».'
+  save:
+    # Le nom est le seul champ modifiable sur cet écran, le compte vaut donc toujours un.
+    title: 1 modification non enregistrée
+    description: Seul le nom est modifiable ici ; le contenu se modifie dans l'éditeur.
+    cancel: Abandonner
+    action: Enregistrer les modifications
+  validation:
+    name_required: Le nom est requis
+  toast:
+    export_failed: Impossible d'exporter ce modèle
+
+builder:
+  back: E-mails
+  loading: Chargement du modèle…
+  name_placeholder: Nom du modèle…
+  email_type: Type d'e-mail
+  viewport:
+    desktop: Ordinateur
+    tablet: Tablette
+    mobile: Mobile
+  save: Enregistrer
+  saving: Enregistrement…

@@ -1,0 +1,433 @@
+# Catalogue de la section Portail de la console : liste des thèmes, liste des mises en page, détail
+# d'un thème et habillage des éditeurs de pages et de mises en page.
+#
+# STATUS: traduit, en attente de relecture native. Voir le glossaire français dans GLOSSARY.md.
+#
+# Hors périmètre volontairement : le moteur de glisser-déposer lui-même (src/lib/builder-core,
+# builder-portal). Les libellés de blocs, les champs de configuration des blocs et les noms et
+# descriptions des préréglages affichés dans la barre latérale de l'éditeur viennent de ce moteur
+# et ne sont pas traduits ici.
+#
+# Les identifiants de types de blocs (email_input, totp_input, page-content…), les identifiants de
+# types de pages (login, totp_setup…), les noms de jetons de design (primaryButton, widgetRadius…),
+# les unités CSS et l'exemple d'URL de police sont des valeurs techniques. Ils restent tels quels et
+# vivent dans le code, pas ici.
+
+header:
+  title: Portail
+  description: Apparence des pages d'authentification publiques de ce realm.
+  tabs:
+    themes: Thèmes
+    layouts: Mises en page
+
+actions:
+  import: Importer
+
+# Une entrée par PortalPageType renvoyé par l'API. Les clés reprennent les valeurs de l'énumération
+# et ne doivent pas être renommées ; la valeur de l'énumération est aussi affichée telle quelle à
+# côté du libellé.
+page_type:
+  login:
+    label: Connexion
+    description: Identifiants, fournisseurs d'identité et point d'entrée de chaque flux.
+  register:
+    label: Inscription
+    description: Création de compte en libre-service, quand le realm l'autorise.
+  totp:
+    label: Défi OTP
+    description: Second facteur demandé après une vérification réussie du mot de passe.
+  forgot_password:
+    label: Mot de passe oublié
+    description: Demande une adresse et envoie l'e-mail de réinitialisation.
+  reset_password:
+    label: Réinitialisation du mot de passe
+    description: Atteinte depuis le lien de l'e-mail ; définit le nouveau mot de passe.
+  magic_link_request:
+    label: Demande de lien magique
+    description: Demande une adresse et envoie un lien de connexion sans mot de passe.
+  magic_link_verify:
+    label: Vérification du lien magique
+    description: Page d'arrivée du lien, où la session est ouverte.
+  verify_email:
+    label: Vérification de l'e-mail
+    description: Demande à l'utilisateur de confirmer l'adresse avec laquelle il s'est inscrit.
+  email_verified:
+    label: E-mail vérifié
+    description: Écran de confirmation une fois l'adresse prouvée.
+  totp_setup:
+    label: Configuration TOTP
+    description: 'Première inscription : code QR, secret et code de confirmation.'
+  device_verify:
+    label: Vérification de l'appareil
+    description: 'Écran de consentement RFC 8628 : le code utilisateur, approuver et refuser.'
+  device_verified:
+    label: Appareil vérifié
+    description: Écran de confirmation ; l'appareil se connecte de lui-même.
+  consent:
+    label: Consentement
+    description: Demande à l'utilisateur d'approuver les scopes optionnels demandés par un client.
+  account_chooser:
+    label: Sélecteur de compte
+    description: Liste les comptes mémorisés dans ce navigateur pour que l'utilisateur en choisisse un avec lequel continuer.
+
+# Boutons d'aperçu par appareil dans les deux éditeurs. La largeur et le point de rupture Tailwind
+# sont des faits techniques que l'administrateur compare à son propre CSS : garder les nombres et
+# les identifiants `sm`/`md`/`xl` tels quels.
+viewport:
+  iphone: iPhone — 402 (base, sous Tailwind sm)
+  tablet: Tablette — 768 (Tailwind md)
+  desktop: Ordinateur — 1280 (Tailwind xl)
+
+themes:
+  create: Nouveau thème
+  section:
+    title: Thèmes
+    description: Un seul thème est actif à la fois ; c'est celui que le portail affiche.
+  empty:
+    label: Aucun thème pour l'instant
+    hint: Un thème regroupe les couleurs, la typographie et les {{total}} pages que le portail affiche.
+  filters:
+    layout: Mise en page
+    activatable: Activable
+    created: Créé
+  search_placeholder: Rechercher par nom…
+  columns:
+    name: Nom
+    layout: Mise en page
+    colors: Couleurs
+    updated_at: Mis à jour
+    created_at: Créé
+  metrics:
+    total:
+      label: Thèmes
+      hint: dans ce realm
+    active:
+      label: Actif
+      hint: affiché par le portail
+      empty_hint: le portail se rabat sur le thème par défaut
+    activatable:
+      label: Activables
+      hint: toutes les pages valides
+    pages:
+      label: Pages par thème
+      hint: types de pages
+  row:
+    active: actif
+    active_theme: thème actif
+    # <num> entoure le compteur « valides/total » pour l'afficher avec des chiffres tabulaires. Ne
+    # s'accorde jamais : ce sont deux compteurs bruts, d'où l'absence de {{count}}.
+    pages_valid: <num>{{valid}}/{{total}}</num> pages valides
+    no_layout: Aucune mise en page
+    # « theme_id » est le nom du champ de l'API, à garder tel quel.
+    identifier: 'theme_id : {{id}}'
+    incomplete_pages_one: <num>{{count}}</num> page incomplète
+    incomplete_pages_many: <num>{{count}}</num> de pages incomplètes
+    incomplete_pages_other: <num>{{count}}</num> pages incomplètes
+    activation_blocked: 'Activation impossible : {{detail}}'
+    activate: Activer
+    export: Exporter {{name}}
+    delete: Supprimer {{name}}
+    delete_blocked: Le thème actif ne peut pas être supprimé. Activez-en un autre d'abord.
+    # Info-bulle sur une pastille de couleur. {{token}} est un nom de jeton de design et reste en anglais.
+    swatch: '{{token}} · {{value}}'
+    swatch_default: par défaut
+  create_dialog:
+    title: Nouveau thème du portail
+    description: >-
+      Les {{total}} pages sont préremplies avec leur composition par défaut : le thème est donc
+      activable dès sa création.
+    name_placeholder: Nom du thème
+    cancel: Annuler
+    submit: Créer
+    submitting: Création…
+  toast:
+    seed_failed_one: '{{count}} page n''a pas pu être préremplie. Ouvrez-la avant d''activer ce thème.'
+    seed_failed_many: '{{count}} de pages n''ont pas pu être préremplies. Ouvrez-les avant d''activer ce thème.'
+    seed_failed_other: >-
+      {{count}} pages n'ont pas pu être préremplies. Ouvrez-les avant d'activer ce thème.
+    export_failed: Impossible d'exporter ce thème
+    saved: Thème du portail enregistré
+    created: Thème du portail créé
+    imported: Thème du portail importé
+    import_failed: Échec de l'import
+    activated: Thème du portail activé
+    activation_failed: Impossible d'activer le thème du portail
+    deleted: Thème du portail supprimé
+
+layouts:
+  create: Nouvelle mise en page
+  section:
+    title: Mises en page
+    description: 'La structure de page qu''un thème réutilise : où se placent la carte, le visuel et le pied de page.'
+  empty:
+    label: Aucune mise en page pour l'instant
+    hint: Un thème sans mise en page affiche ses pages telles quelles, ce qui est une composition valide.
+  filters:
+    is_default: Par défaut
+    in_use: Rattachée à un thème
+    created: Créée
+  search_placeholder: Rechercher par nom…
+  columns:
+    name: Nom
+    updated_at: Mise à jour
+    created_at: Créée
+  metrics:
+    total:
+      label: Mises en page
+      hint: dans ce realm
+    default:
+      label: Par défaut
+      hint: utilisée quand un thème n'en désigne aucune
+    used:
+      label: Rattachées
+      hint: utilisées par un thème
+    free:
+      label: Supprimables
+      hint: ni par défaut ni utilisées
+  row:
+    default: par défaut
+    unused: inutilisée
+    theme_count_one: '{{count}} thème'
+    theme_count_many: '{{count}} de thèmes'
+    theme_count_other: '{{count}} thèmes'
+    # <num> entoure le compteur de blocs pour l'afficher avec des chiffres tabulaires.
+    summary_one: <num>{{count}}</num> bloc · mise à jour {{date}}
+    summary_many: <num>{{count}}</num> de blocs · mise à jour {{date}}
+    summary_other: <num>{{count}}</num> blocs · mise à jour {{date}}
+    # « layout_id » est le nom du champ de l'API, à garder tel quel.
+    identifier: 'layout_id : {{id}}'
+    open: Ouvrir
+    export: Exporter {{name}}
+    delete: Supprimer {{name}}
+    refusal:
+      default: La mise en page par défaut ne peut pas être supprimée. Définissez d'abord une autre mise en page par défaut.
+      in_use_one: Utilisée par {{themes}}. Détachez-la d'abord de ce thème.
+      in_use_many: Utilisée par {{themes}}. Détachez-la d'abord de ces thèmes.
+      in_use_other: Utilisée par {{themes}}. Détachez-la d'abord de ces thèmes.
+  toast:
+    export_failed: Impossible d'exporter cette mise en page
+
+detail:
+  draft: brouillon
+  activate: Activer ce thème
+  activating: Activation…
+  activation_blocked: Activation bloquée
+  not_found:
+    title: Thème introuvable
+    hint: Il a peut-être été supprimé, ou il appartient à un autre realm.
+  tabs:
+    theme: Thème
+    layout: Mise en page
+    pages: Pages
+  meta:
+    updated: Mis à jour {{date}}
+    updated_label: Mis à jour le
+    identifier_label: Identifiant
+  banner:
+    active: >-
+      Le portail affiche ce thème : chaque page enregistrée est validée immédiatement, et un bloc
+      obligatoire manquant est refusé.
+    draft: >-
+      Brouillon : les pages s'enregistrent sans contrainte. Les blocs obligatoires sont vérifiés
+      à l'activation du thème.
+  identity:
+    title: Identité
+    name:
+      label: Nom du thème
+      description: Nomme le thème dans la console ; les utilisateurs finaux ne le voient jamais.
+      required: Un thème doit avoir un nom.
+  tokens:
+    title: Jetons de design
+    description: >-
+      Chaque modification se reflète en direct dans l'aperçu. Les champs non modifiés gardent la
+      valeur par défaut du domaine.
+  layout:
+    title: Mise en page
+    description: L'en-tête, le pied de page et l'enveloppe de carte dans lesquels chaque page de ce thème est affichée.
+    field:
+      label: Mise en page du portail
+      description: Facultatif. Sans mise en page, le portail affiche l'arbre de la page seul.
+    option_none: Aucune mise en page, afficher la page telle quelle
+    default: par défaut
+    locked: Tant que ce thème l'utilise, « {{name}} » ne peut pas être supprimée.
+    detaching: >-
+      L'enregistrement détache « {{name}} » de ce thème ; elle devient supprimable, sauf si un
+      autre thème l'utilise.
+  pages:
+    title: Pages
+    all_valid: 'Chaque page contient ses blocs obligatoires : ce thème peut être activé.'
+    blocking_one: >-
+      {{count}} page bloque l'activation. Elle est listée ci-dessous ; la corriger n'en révèle pas
+      de nouvelle.
+    blocking_many: >-
+      {{count}} de pages bloquent l'activation. Toutes sont listées ci-dessous ; en corriger une
+      n'en révèle pas de nouvelle.
+    blocking_other: >-
+      {{count}} pages bloquent l'activation. Toutes sont listées ci-dessous ; en corriger une
+      n'en révèle pas de nouvelle.
+    no_required_block: aucun bloc obligatoire
+    # {{block}} est un identifiant de type de bloc dont les tirets bas sont remplacés par des espaces.
+    block_missing: '{{block}} est manquant'
+    edit: Modifier
+  danger:
+    label: Supprimer ce thème
+    description: Ses jetons de design et les arbres de ses {{total}} pages sont perdus définitivement.
+    button: Supprimer le thème
+    confirm_title: Supprimer le thème
+    confirm_description: >-
+      Cela supprimera définitivement le thème « {{name}} » et la composition de ses {{total}} pages.
+  save_bar:
+    title_one: '{{count}} modification non enregistrée'
+    title_many: '{{count}} de modifications non enregistrées'
+    title_other: '{{count}} modifications non enregistrées'
+    description: Le portail ne lit que ce qui a été enregistré.
+    discard: Abandonner
+    save: Enregistrer les modifications
+    saving: Enregistrement…
+  toast:
+    saved: Thème du portail enregistré
+    save_failed: Échec de l'enregistrement du thème du portail
+
+page_builder:
+  title: 'Page {{page}}'
+  all_blocks_present: Tous les blocs obligatoires sont présents
+  # {{blocks}} est une liste, séparée par des virgules, d'identifiants de types de blocs construite dans le code.
+  missing_blocks: 'Manquants : {{blocks}}'
+  framed_by: encadrée par {{name}}
+  no_layout: aucune mise en page
+  unsaved: non enregistrée
+  save: Enregistrer la page
+  saving: Enregistrement…
+  toast:
+    saved: Page enregistrée
+    save_failed: Échec de l'enregistrement de cette page
+    unknown_error: Erreur inconnue
+  # Détails d'un enregistrement ou d'une activation refusés, construits à partir de la charge utile
+  # structurée renvoyée par l'API. {{blocks}} est une liste, séparée par des virgules, d'identifiants
+  # de types de blocs dont les tirets bas sont remplacés par des espaces, comme partout dans ce namespace.
+  error:
+    missing_on_page_one: 'Page {{page}} — bloc obligatoire manquant : {{blocks}}'
+    missing_on_page_many: 'Page {{page}} — blocs obligatoires manquants : {{blocks}}'
+    missing_on_page_other: 'Page {{page}} — blocs obligatoires manquants : {{blocks}}'
+    missing_one: 'Bloc obligatoire manquant : {{blocks}}'
+    missing_many: 'Blocs obligatoires manquants : {{blocks}}'
+    missing_other: 'Blocs obligatoires manquants : {{blocks}}'
+    pages_missing_blocks: 'Il manque des blocs obligatoires aux pages suivantes :'
+    unknown_page: Page inconnue
+
+layout_builder:
+  name_placeholder: Nom de la mise en page
+  create: Créer
+  save: Enregistrer
+  saving: Enregistrement…
+
+builder:
+  sidebar:
+    components: Composants
+    presets: Préréglages
+    tree: Arborescence
+  library:
+    required_for_page: Obligatoire pour cette page
+    required_for_layout: Obligatoire pour cette mise en page
+    group:
+      layout: Mise en page
+      content: Contenu
+      form: Formulaire et actions
+      identity: Champs d'identité
+      other: Autres
+  presets:
+    hint: Cliquez sur un préréglage pour l'ajouter à la page.
+    confirm_title: Confirmer la suppression du préréglage
+    confirm_description: Cette action est irréversible.
+  panel:
+    buttons:
+      title: Boutons
+      description: Boutons d'action principaux et secondaires, avec leur forme et leur typographie.
+      section:
+        primary: Principal
+        secondary: Secondaire
+        social: Réseaux sociaux (Google, GitHub, …)
+        magic_link: Lien magique
+        passkey: Clé d'accès
+        shape: Forme
+        typography: Typographie
+    inputs:
+      title: Champs de saisie
+      description: >-
+        Champs de formulaire (e-mail, mot de passe, OTP). Les couleurs de fond et de texte suivent
+        les jetons de la page ; réglez ici la forme et la typographie des libellés.
+      section:
+        shape: Forme
+        label_typography: Typographie des libellés
+    widget:
+      title: Widget
+      description: 'La carte qui enveloppe chaque flux d''authentification : connexion, inscription, lien magique, etc.'
+      section:
+        surface: Surface
+        shape: Forme
+        spacing: Espacement
+    typography:
+      title: Typographie
+      description: Famille de police, taille de base et styles de titre, de texte et de lien utilisés partout.
+      section:
+        family: Famille
+        body_color: Couleur du texte
+        links: Liens
+      style:
+        title: Titre
+        subtitle: Sous-titre
+        body: Texte
+    page:
+      title: Page
+      description: Surface la plus externe derrière le widget, avec les couleurs de retour d'information et l'espacement globaux.
+      section:
+        surface: Surface
+        feedback: Retour d'information
+        spacing: Espacement
+  control:
+    background: Arrière-plan
+    label: Libellé
+    border: Bordure
+    border_color: Couleur de la bordure
+    border_width: Épaisseur de la bordure
+    radius: Rayon
+    shadow: Ombre
+    padding: Marge intérieure
+    weight: Graisse
+    size: Taille
+    custom_url: URL personnalisée
+    base_size: Taille de base
+    default_text: Texte par défaut
+    color: Couleur
+    decoration: Décoration
+    error: Erreur
+    field_gap: Espace entre les champs
+    section_gap: Espace entre les sections
+    reset: Rétablir la valeur par défaut
+    reset_field: Rétablir la valeur par défaut de {{label}}
+    pick_color: Choisir la couleur de {{label}}
+  # Les clés reprennent les valeurs ThemeShadow stockées dans la configuration du thème.
+  shadow:
+    none: Aucune
+    small: Petite
+    large: Grande
+  # Les clés reprennent les valeurs de style de lien stockées dans la configuration du thème.
+  link_style:
+    normal: Normal
+    underline: Souligné
+  # Maquette statique d'un écran d'authentification, affichée à côté des panneaux de jetons pour que
+  # l'administrateur voie l'effet d'une modification. C'est de l'habillage de console, pas du contenu
+  # prérempli : rien ici n'est écrit dans un thème.
+  preview:
+    title: Content de vous revoir
+    subtitle: Connectez-vous à votre espace de travail.
+    error: E-mail ou mot de passe invalide.
+    email: E-mail
+    password: Mot de passe
+    submit: Continuer
+    other_account: Utiliser un autre compte
+    separator: ou continuer avec
+    forgot_password: Mot de passe oublié  ?
+    social:
+      google: Continuer avec Google
+      github: Continuer avec GitHub

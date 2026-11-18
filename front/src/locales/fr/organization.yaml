@@ -1,0 +1,305 @@
+# Catalogue français des organisations.
+#
+# STATUS : traduit, en attente de relecture native.
+organization:
+  # Identifiant affiché quand une organisation n'a pas de description. « organization_id » est le nom du champ de l'API, à conserver tel quel.
+  identifier: 'organization_id: {{id}}'
+  no_domain: aucun domaine
+  status:
+    enabled: activée
+    disabled: désactivée
+
+member:
+  # Tient lieu de nom d'affichage pour un compte de service, qui n'a ni prénom ni nom.
+  service_account: Compte de service
+  kind:
+    service_account: compte de service
+    user_account: compte utilisateur
+  status:
+    active: actif
+    inactive: inactif
+
+form:
+  sections:
+    definition: Définition
+    general: Général
+    routing:
+      title: Contact et routage
+      description: Métadonnées facultatives, aucune n'est obligatoire.
+  name:
+    label: Nom
+    description: Affiché aux administrateurs partout où l'organisation est listée.
+  alias:
+    label: Alias
+    description:
+      create: Identifiant stable utilisé dans les URL et les recherches. Lettres minuscules, chiffres, traits d'union et tirets bas uniquement.
+      settings: Identifiant stable utilisé dans les URL et les recherches. Le renommer casse les liens qui pointent déjà ici.
+  enabled:
+    label: Activée
+    description:
+      create: Une organisation désactivée n'est pas accessible à ses membres.
+      settings: Une organisation désactivée est masquée des parcours des utilisateurs finaux.
+  domain:
+    label: Domaine
+    description:
+      create: 'Domaine e-mail associé à cette organisation, par exemple acme.com.'
+      settings: 'Domaine principal associé à cette organisation, par exemple acme.com.'
+  redirect_url:
+    label: URL de redirection
+    description: Là où les membres arrivent une fois leur authentification terminée.
+  description:
+    label: Description
+    description: Notes visibles uniquement par les administrateurs.
+
+list:
+  title: Organisations
+  description: Groupes de comptes partageant un domaine, une redirection et leurs propres rôles.
+  create: Nouvelle organisation
+  count_one: '{{count}} organisation'
+  count_many: '{{count}} d''organisations'
+  count_other: '{{count}} organisations'
+  columns:
+    name: Organisation
+    alias: Alias
+    domain: Domaine
+    description: Description
+    status: Statut
+    created: Création
+    updated: Mise à jour
+  metrics:
+    total:
+      label: Total
+      # Nom seul sous le total, le chiffre lui-même est au-dessus.
+      hint_one: organisation
+      hint_many: d'organisations
+      hint_other: organisations
+    enabled:
+      label: Activées
+      hint: '{{percent}}% du total'
+      empty_hint: aucune activée
+    disabled:
+      label: Désactivées
+      hint: masquées des parcours des utilisateurs finaux
+    domain:
+      label: Avec un domaine
+      hint: liées à un domaine e-mail
+  aggregates:
+    # Total en pied de tableau, jamais accordé — il se lit toujours comme un décompte brut d'organisations activées.
+    status: '{{total}} activées'
+  alerts:
+    disabled:
+      title_one: '{{count}} organisation est désactivée'
+      title_many: '{{count}} d''organisations sont désactivées'
+      title_other: '{{count}} organisations sont désactivées'
+      # « names » est la liste des organisations désactivées, déjà jointe.
+      detail_one: '{{names}} — ses membres ne peuvent pas y accéder.'
+      detail_many: '{{names}} — leurs membres ne peuvent pas y accéder.'
+      detail_other: '{{names}} — leurs membres ne peuvent pas y accéder.'
+      action: Examiner
+  search_placeholder: Rechercher par nom, alias, domaine ou description…
+  filter_fields:
+    created: Création
+    enabled: Activée
+    has_domain: Avec un domaine
+  card:
+    flags:
+      reachable: Accessible à ses membres
+      domain: Liée à un domaine e-mail
+      redirect: Redirige après la connexion
+  empty:
+    label: Aucune organisation
+    hint: Une organisation regroupe les comptes d'une même entreprise, avec son propre domaine et ses propres rôles.
+
+create:
+  back: Organisations
+  title: Nouvelle organisation
+  subtitle: Une organisation regroupe les comptes d'une même entreprise, avec son propre domaine et ses propres rôles.
+  save_bar:
+    title: Créer l'organisation
+    description: L'organisation est créée dans ce realm, sans aucun membre pour l'instant.
+    submit: Créer l'organisation
+  toast:
+    failed: Échec de la création de l'organisation
+
+detail:
+  back: Organisations
+  not_found:
+    title: Organisation introuvable
+    description: Elle a peut-être été supprimée, ou elle appartient à un autre realm.
+  meta:
+    created_label: Créée le
+    created: Créée le {{date}}
+    identifier_label: Identifiant
+  tabs:
+    settings: Paramètres
+    attributes: Attributs
+    members: Membres
+    groups: Groupes
+  save_bar:
+    title: Modifications non enregistrées
+    description: Vérifiez l'organisation avant d'appliquer les modifications.
+    cancel: Annuler
+    submit: Enregistrer les modifications
+  settings:
+    danger:
+      label: Supprimer cette organisation
+      description: Tous les membres, attributs, groupes et la configuration sont définitivement supprimés. Les comptes eux-mêmes sont conservés.
+      button: Supprimer l'organisation
+      confirm_title: Supprimer l'organisation
+      confirm_description: Cette action supprimera définitivement « {{name}} » et toutes ses données associées.
+  attributes:
+    title: Attributs ({{total}})
+    description: Métadonnées clé-valeur personnalisées portées par cette organisation.
+    add: Ajouter un attribut
+    columns:
+      key: Clé
+      value: Valeur
+    key_placeholder: Clé
+    value_placeholder: Valeur
+    save: Enregistrer l'attribut
+    cancel: Annuler
+    edit: Modifier {{key}}
+    delete: Supprimer {{key}}
+    empty: Aucun attribut défini pour cette organisation.
+  members:
+    add:
+      title: Ajouter des membres
+      description: Seuls les comptes de ce realm qui ne sont pas encore membres peuvent être choisis.
+      pick: Choisir un compte
+      search_placeholder: Rechercher un compte…
+      empty_hint: Aucun compte sélectionné pour le moment.
+      exhausted_hint: Tous les comptes de ce realm sont déjà membres.
+      submit_one: Ajouter {{count}} membre
+      submit_many: Ajouter {{count}} de membres
+      submit_other: Ajouter {{count}} membres
+    title: Membres ({{total}})
+    description: Comptes rattachés à cette organisation, avec leurs rôles limités à l'organisation.
+    columns:
+      member: Membre
+      email: E-mail
+      status: Statut
+      joined: Arrivée
+    search_placeholder: Rechercher par nom d'utilisateur ou e-mail…
+    filter_fields:
+      joined: Arrivée
+      enabled: Activé
+    empty: Cette organisation n'a pas encore de membre.
+    no_match: Aucun membre ne correspond à ces filtres.
+    show_all: Afficher tous les membres
+    manage_roles: Gérer les rôles
+    manage_roles_for: Gérer les rôles de {{name}}
+    remove: Retirer de l'organisation
+    remove_member: Retirer {{name}}
+    confirm_remove:
+      title: Retirer le membre ?
+      description: Retirer « {{name}} » de cette organisation ? Ses rôles limités à l'organisation seront révoqués. Cela ne supprime pas l'utilisateur.
+
+member_roles:
+  title: Gérer les rôles
+  title_for: Gérer les rôles — {{username}}
+  description: Attribuez des rôles de realm ou de client limités à ce membre au sein de l'organisation. Ces rôles apparaissent dans le jeton du membre, dans le contexte de l'organisation.
+  search_placeholder: Rechercher et attribuer des rôles…
+  empty: Aucun rôle trouvé.
+
+groups:
+  tree:
+    new_placeholder: Nouveau groupe de premier niveau
+    add: Ajouter
+    empty: Aucun groupe pour le moment.
+    add_child: Ajouter un sous-groupe
+    delete: Supprimer le groupe
+  list:
+    columns:
+      name: Nom
+      description: Description
+      parent: Parent
+      created: Création
+      updated: Mise à jour
+    search_placeholder: Rechercher par nom ou description…
+    filter_fields:
+      created: Création
+      parent: Groupe parent
+      is_root: Premier niveau
+    top_level: Premier niveau
+    show_subgroups: Afficher les sous-groupes
+    no_match: Aucun groupe ne correspond à ces filtres.
+    show_all: Afficher tous les groupes
+  no_selection: Sélectionnez un groupe pour gérer ses membres, ses rôles et ses attributs.
+  tabs:
+    members: Membres
+    roles: Attribution des rôles
+    attributes: Attributs
+    subgroups: Sous-groupes
+  members:
+    title: Membres ({{total}})
+    no_match: Aucun membre ne correspond à ces filtres.
+    empty: Aucun membre direct.
+    show_all: Afficher tous les membres
+    remove: Retirer le membre
+    status:
+      enabled: activé
+      disabled: désactivé
+    columns:
+      member: Membre
+      email: E-mail
+      status: Statut
+      joined: Arrivée
+    search_placeholder: Rechercher par nom d'utilisateur ou e-mail…
+    filter_fields:
+      joined: Arrivée
+      enabled: Activé
+    add:
+      trigger: Ajouter des membres
+      title: Ajouter des membres
+      description: Seuls les comptes de ce realm qui ne sont pas encore membres de ce groupe sont listés.
+      columns:
+        username: Utilisateur
+        name: Nom
+      search_placeholder: Rechercher des utilisateurs…
+      cancel: Annuler
+      submit: Ajouter
+      # Même bouton une fois des comptes cochés, le chiffre est la taille de la sélection.
+      submit_count: Ajouter ({{total}})
+      added_one: '{{count}} membre ajouté'
+      added_many: '{{count}} de membres ajoutés'
+      added_other: '{{count}} membres ajoutés'
+      failed_one: '{{count}} membre n''a pas pu être ajouté'
+      failed_many: '{{count}} de membres n''ont pas pu être ajoutés'
+      failed_other: '{{count}} membres n''ont pas pu être ajoutés'
+  roles:
+    description: Les rôles attribués ici sont hérités par les membres de ce groupe et de ses sous-groupes.
+    search_placeholder: Rechercher et attribuer des rôles…
+    empty: Aucun rôle trouvé.
+  attributes:
+    columns:
+      key: Clé
+      value: Valeur
+    empty: Aucun attribut.
+    key_placeholder: Clé
+    value_placeholder: Valeur
+    add: Ajouter
+  subgroups:
+    name_placeholder: Nom du nouveau sous-groupe
+    add: Ajouter
+    empty: Aucun sous-groupe.
+    browse: Afficher dans la liste
+    child_count: ({{total}})
+  create:
+    title: Ajouter un sous-groupe
+    description: Créer un sous-groupe sous « {{name}} ».
+    description_unknown: Créer un sous-groupe.
+    name_placeholder: Nom du sous-groupe
+    cancel: Annuler
+    submit: Créer
+  delete:
+    title: Supprimer le groupe
+    description: Supprimer le groupe « {{name}} » et tous ses sous-groupes ? Cette action est irréversible.
+    cancel: Annuler
+    submit: Supprimer
+
+validation:
+  name_required: Le nom est obligatoire
+  alias_required: L'alias est obligatoire
+  alias_pattern:
+    create: Uniquement des lettres minuscules, des chiffres, des traits d'union et des tirets bas
+    settings: L'alias ne peut contenir que des lettres minuscules, des chiffres, des traits d'union ou des tirets bas

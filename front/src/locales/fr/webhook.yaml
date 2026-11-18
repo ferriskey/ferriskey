@@ -1,0 +1,406 @@
+# Catalogue français des écrans webhook et du catalogue de déclencheurs.
+#
+# STATUS : traduit, en attente de relecture native.
+#
+# Les descriptions ambiguës en anglais (voir GLOSSARY.md) sont traduites littéralement, défauts inclus.
+
+# Pastille de ratio affichée sur la carte d'aperçu et dans l'en-tête de détail : déclencheurs souscrits
+# sur la taille du catalogue de déclencheurs. Ne s'accorde jamais — les deux nombres sont des compteurs bruts.
+events_ratio: '{{selected}}/{{total}} événements'
+
+form:
+  general:
+    title: Informations générales
+    description: Configuration du webhook.
+  name:
+    label: Nom du webhook
+    description: Un nom descriptif pour ce webhook.
+  endpoint:
+    label: URL du point de terminaison
+    description: L'URL HTTPS qui recevra les événements.
+  description:
+    label: Description
+    description: Description facultative pour ce webhook.
+
+list:
+  title: Webhooks
+  description: Points de terminaison notifiés des événements de ce realm.
+  create: Nouveau webhook
+  count_one: '{{count}} webhook'
+  count_many: '{{count}} de webhooks'
+  count_other: '{{count}} webhooks'
+  columns:
+    name: Webhook
+    endpoint: Point de terminaison
+    subscribers: Événements
+    triggered_at: Dernier déclenchement
+    created: Créé
+    updated: Mis à jour
+  search_placeholder: Rechercher par nom ou point de terminaison…
+  filter_fields:
+    created: Créé
+    triggered: Déjà déclenché
+    has_subscribers: Avec événements
+    secure_endpoint: En HTTPS
+  never_triggered: jamais
+  metrics:
+    total:
+      label: Total
+      hint: points de terminaison
+    never:
+      label: Jamais déclenchés
+      hint: aucune livraison pour l'instant
+    silent:
+      label: Sans événement
+      hint: ne se déclenchera jamais
+  alerts:
+    silent:
+      title_one: '{{count}} webhook ne souscrit à rien'
+      title_many: '{{count}} de webhooks ne souscrivent à rien'
+      title_other: '{{count}} webhooks ne souscrivent à rien'
+      detail: '{{names}} — ne porte aucun déclencheur, il ne sera donc jamais appelé.'
+      action: Vérifier
+    insecure:
+      title_one: '{{count}} webhook livre en HTTP non chiffré'
+      title_many: '{{count}} de webhooks livrent en HTTP non chiffré'
+      title_other: '{{count}} webhooks livrent en HTTP non chiffré'
+      detail: '{{names}} — la charge utile et ses en-têtes de signature circulent sans chiffrement.'
+      action: Vérifier
+  card:
+    triggered: déclenché
+    never_triggered: jamais déclenché
+    # Toujours au pluriel par conception : le pied de carte affiche un total brut, jamais une ligne au singulier.
+    footer_events: '{{total}} événements'
+    flags:
+      subscribed: Souscrit à au moins un événement
+      triggered: Déjà déclenché
+      secure: Livre en HTTPS
+  empty:
+    label: Aucun webhook
+    hint: Un webhook notifie un service externe des événements de ce realm.
+
+create:
+  back: Webhooks
+  title: Nouveau webhook
+  description: Configurez un point de terminaison pour recevoir des notifications d'événements en temps réel.
+  headers:
+    title: En-têtes HTTP
+    description: En-têtes joints à chaque appel sortant. Leurs valeurs ne sont jamais renvoyées à la lecture.
+  events:
+    title: Événements à souscrire
+    description_one: '{{count}} déclencheur sur {{total}} notifiera ce point de terminaison.'
+    description_many: '{{count}} de déclencheurs sur {{total}} notifieront ce point de terminaison.'
+    description_other: '{{count}} déclencheurs sur {{total}} notifieront ce point de terminaison.'
+    description_empty: 'Aucun déclencheur sélectionné : ce point de terminaison ne serait jamais appelé.'
+  save:
+    title: Créer le webhook
+    description: Créer un webhook pour ce realm.
+    action: Créer
+  toast:
+    created: Webhook créé avec succès
+    create_failed: Échec de la création du webhook
+
+detail:
+  back: Webhooks
+  not_found:
+    title: Webhook introuvable
+    hint: Il a peut-être été supprimé, ou il appartient à un autre realm.
+  meta:
+    last_triggered: Dernier déclenchement
+    triggered: Déclenché {{date}}
+    never: Jamais déclenché
+    identifier: Identifiant
+  tabs:
+    settings: Paramètres
+    events: Événements
+    deliveries: Livraisons
+  events:
+    title: Événements à souscrire
+    # « notifient » reste au pluriel au singulier : conservé tel quel depuis l'écran remplacé.
+    description_one: '{{count}} déclencheur sur {{total}} notifient ce point de terminaison.'
+    description_many: '{{count}} de déclencheurs sur {{total}} notifient ce point de terminaison.'
+    description_other: '{{count}} déclencheurs sur {{total}} notifient ce point de terminaison.'
+    description_empty: 'Aucun déclencheur : ce point de terminaison ne sera jamais appelé.'
+  save:
+    title_one: '{{count}} modification non enregistrée'
+    title_many: '{{count}} de modifications non enregistrées'
+    title_other: '{{count}} modifications non enregistrées'
+    description: Relisez le webhook avant d'appliquer les modifications.
+    cancel: Abandonner
+    action: Enregistrer les modifications
+  toast:
+    updated: Webhook mis à jour avec succès
+    update_failed: Échec de la mise à jour du webhook
+    deleted: Webhook supprimé avec succès
+
+settings:
+  headers:
+    title: En-têtes HTTP
+    description: En-têtes joints à chaque appel sortant. L'API ne renvoie jamais les valeurs stockées, rien n'est donc prérempli ici.
+    note: Laisser cette liste vide conserve les en-têtes déjà enregistrés. En ajouter un remplace l'ensemble.
+  signature:
+    title: Signature
+    description: Chaque livraison est signée afin que le destinataire puisse prouver que l'appel provient de ce realm.
+    secret:
+      label: Secret de signature
+      description: Stocké mais jamais renvoyé. En générer un nouveau l'affiche une seule fois, afin de pouvoir le communiquer au destinataire.
+  retry:
+    title: Politique de nouvelle tentative
+    description: Laissez un champ vide pour hériter du paramètre du realm. La valeur grisée est celle qui s'applique aujourd'hui.
+    inherited: Hérité
+    max_attempts:
+      label: Tentatives
+      description: Combien de fois essayer avant d'abandonner. Entre 1 et 20.
+    base_delay_ms:
+      label: Première attente (ms)
+      description: Combien de temps attendre après le premier échec. Elle double à chaque fois.
+    max_delay_ms:
+      label: Attente maximale (ms)
+      description: L'attente ne dépasse jamais cette valeur.
+    max_total_delay_ms:
+      label: Abandonner après (ms)
+      description: Durée totale qu'une livraison peut passer à réessayer.
+  danger:
+    label: Supprimer ce webhook
+    description: Ses souscriptions sont définitivement supprimées, et plus aucun événement n'est livré à ce point de terminaison.
+    button: Supprimer le webhook
+    confirm_title: Supprimer le webhook
+    confirm_description: 'Voulez-vous vraiment supprimer « {{name}} » ? Cette action est irréversible.'
+
+headers:
+  empty: Aucun en-tête configuré. Ajoutez des en-têtes pour envoyer des en-têtes HTTP personnalisés avec vos requêtes webhook.
+  name_label: Nom de l'en-tête
+  value_label: Valeur de l'en-tête
+  new_name_label: Nom du nouvel en-tête
+  new_value_label: Valeur du nouvel en-tête
+  value_placeholder: valeur
+  remove: Retirer l'en-tête {{name}}
+  add: Ajouter
+  add_header: Ajouter un en-tête
+  cancel: Annuler
+
+secret:
+  generate: Générer un nouveau secret
+  confirm:
+    title: Générer un nouveau secret de signature ?
+    description: Le secret actuel cesse de fonctionner immédiatement. Tout destinataire qui vérifie encore les signatures avec lui rejettera vos livraisons tant que vous ne lui aurez pas communiqué le nouveau.
+    cancel: Annuler
+    pending: Génération…
+    action: Générer
+  reveal:
+    title: Votre nouveau secret de signature
+    description: Copiez-le maintenant — c'est la seule fois qu'il est affiché. La fermeture de cette boîte de dialogue est la dernière occasion ; il ne pourra plus être relu ensuite.
+    copy: Copier
+    copied: Copié
+    done: Terminé
+  toast:
+    copy_failed: Copie impossible. Sélectionnez le secret et copiez-le manuellement.
+    regenerate_failed: Impossible de générer un nouveau secret
+
+events:
+  search_placeholder: Filtrer les événements…
+  selected: '{{selected}}/{{total}} sélectionnés'
+  clear_all: Tout effacer
+  no_match: 'Aucun événement ne correspond à « {{query}} ».'
+  # En minuscules volontairement : ces deux libellés sont des liens en ligne dans une ligne d'en-tête de catégorie.
+  select_all: tous
+  select_none: aucun
+
+delivery:
+  title: Livraisons
+  description: Chaque tentative de FerrisKey pour appeler ce point de terminaison, la plus récente en premier.
+  error: L'historique des livraisons est indisponible. Réessayez dans un instant.
+  search_placeholder: Rechercher par ID de ressource…
+  retry_failed: Impossible de mettre cette livraison en file d'attente
+  toast:
+    retry_queued: Livraison mise en file d'attente pour une nouvelle tentative
+    in_flight: Cette livraison est encore en cours. Attendez qu'elle se termine.
+  status:
+    pending: En file d'attente
+    delivering: Envoi en cours
+    succeeded: Livré
+    failed: Échec
+  columns:
+    status: Statut
+    event: Événement
+    attempts: Tentatives
+    outcome: Résultat
+    created_at: Quand
+    last_attempt_at: Dernière tentative
+    updated_at: Mis à jour
+  filter_fields:
+    created: Créé
+    status: Statut
+    event: Événement
+  inspect: Inspecter
+  retry: Renvoyer
+  failed_total_one: '{{count}} échec au total'
+  failed_total_many: '{{count}} d''échecs au total'
+  failed_total_other: '{{count}} échecs au total'
+  show_all: Tout afficher
+  empty:
+    all:
+      label: Aucune livraison pour l'instant
+      hint: Les livraisons apparaissent ici dès que ce webhook se déclenche.
+    filtered:
+      label: Aucune livraison ne correspond à ce filtre
+      hint: Modifiez le filtre pour voir les autres livraisons.
+  dialog:
+    title: Livraison
+    loading: Chargement de la livraison…
+    attempts_one: '{{count}} tentative'
+    attempts_many: '{{count}} de tentatives'
+    attempts_other: '{{count}} tentatives'
+    payload: Charge utile envoyée
+
+# En-têtes de regroupement du sélecteur de déclencheurs. Ils regroupent le catalogue ci-dessous ; ils ne sont pas envoyés à l'API.
+category:
+  client: Client
+  realm: Realm
+  role: Rôle
+  user: Utilisateur
+  authentication: Authentification
+  webhook: Webhook
+
+# Catalogue de déclencheurs, imbriqué sur la valeur d'énumération WebhookTrigger envoyée par l'API, de sorte que
+# « client.role.created » se lit trigger.client.role.created. Chaque description indique à un administrateur
+# ce que signifie l'événement : une traduction approximative le ferait souscrire au mauvais.
+trigger:
+  client:
+    created:
+      label: Client créé
+      description: Un nouveau client a été créé.
+    updated:
+      label: Client mis à jour
+      description: Un client a été mis à jour.
+    deleted:
+      label: Client supprimé
+      description: Un client a été supprimé.
+    role:
+      created:
+        label: Rôle de client créé
+        description: Un nouveau rôle de client a été créé.
+      updated:
+        label: Rôle de client mis à jour
+        description: Un rôle de client a été mis à jour.
+    maintenance:
+      enabled:
+        label: Maintenance du client activée
+        description: Le mode maintenance a été activé sur un client.
+      disabled:
+        label: Maintenance du client désactivée
+        description: Le mode maintenance a été désactivé sur un client.
+    saml_config:
+      updated:
+        label: Configuration SAML du client mise à jour
+        description: La configuration du fournisseur de services SAML d'un client a été mise à jour.
+    saml_attribute_mapper:
+      created:
+        label: Mappeur d'attributs SAML du client créé
+        description: Un mappeur d'attributs SAML a été ajouté à un client.
+      deleted:
+        label: Mappeur d'attributs SAML du client supprimé
+        description: Un mappeur d'attributs SAML a été retiré d'un client.
+  redirect_uri:
+    created:
+      label: URI de redirection créée
+      description: Une nouvelle URI de redirection a été créée.
+    updated:
+      label: URI de redirection mise à jour
+      description: Une URI de redirection a été mise à jour.
+    deleted:
+      label: URI de redirection supprimée
+      description: Une URI de redirection a été supprimée.
+  web_origin:
+    created:
+      label: Origine web créée
+      description: Une origine web a été enregistrée sur un client.
+    deleted:
+      label: Origine web supprimée
+      description: Une origine web a été retirée d'un client.
+  realm:
+    created:
+      label: Realm créé
+      description: Un nouveau realm a été créé.
+    updated:
+      label: Realm mis à jour
+      description: Un realm a été mis à jour.
+    deleted:
+      label: Realm supprimé
+      description: Un realm a été supprimé.
+    settings:
+      updated:
+        label: Paramètres du realm mis à jour
+        description: Les paramètres du realm ont été mis à jour.
+  role:
+    created:
+      label: Rôle créé
+      description: Un nouveau rôle a été créé.
+    updated:
+      label: Rôle mis à jour
+      description: Un rôle a été mis à jour.
+    deleted:
+      label: Rôle supprimé
+      description: Un rôle a été supprimé.
+    permission:
+      updated:
+        label: Permission de rôle mise à jour
+        description: Une permission de rôle a été mise à jour.
+  user:
+    created:
+      label: Utilisateur créé
+      description: Un nouvel utilisateur a été créé.
+    updated:
+      label: Utilisateur mis à jour
+      description: Un utilisateur a été mis à jour.
+    deleted:
+      label: Utilisateur supprimé
+      description: Un utilisateur a été supprimé.
+    email_verified:
+      label: E-mail de l'utilisateur vérifié
+      description: Un utilisateur a vérifié son adresse e-mail.
+    bulk_deleted:
+      label: Utilisateurs supprimés en masse
+      description: Plusieurs utilisateurs ont été supprimés.
+    role:
+      assigned:
+        label: Rôle attribué à l'utilisateur
+        description: Un rôle a été attribué à un utilisateur.
+      unassigned:
+        label: Rôle retiré à l'utilisateur
+        description: Un rôle a été retiré à un utilisateur.
+    credentials:
+      deleted:
+        label: Identifiants supprimés par l'utilisateur
+        # Anglais fautif conservé tel quel ; cela signifie que les identifiants d'un utilisateur ont été supprimés.
+        description: Les identifiants d'un utilisateur ont été supprimés.
+  auth:
+    reset_password:
+      label: Réinitialisation du mot de passe
+      description: Le mot de passe d'un utilisateur a été réinitialisé.
+    device_flow:
+      initiated:
+        label: Flux d'appareil initié
+        description: Un flux d'autorisation d'appareil a été initié.
+      denied:
+        label: Flux d'appareil refusé
+        description: Un flux d'autorisation d'appareil a été refusé.
+      expired:
+        label: Flux d'appareil expiré
+        description: Un flux d'autorisation d'appareil a expiré.
+  webhook:
+    created:
+      label: Webhook créé
+      description: Un nouveau webhook a été créé.
+    updated:
+      label: Webhook mis à jour
+      description: Un webhook a été mis à jour.
+    deleted:
+      label: Webhook supprimé
+      description: Un webhook a été supprimé.
+
+# Vérifications côté client des écrans de création et de paramètres. Elles vivent dans
+# src/pages/iam/realm/validators.ts, que le lot webhook ne possédait pas.
+validation:
+  name_required: Le nom du webhook est requis
+  endpoint_invalid: Le point de terminaison doit être une URL valide

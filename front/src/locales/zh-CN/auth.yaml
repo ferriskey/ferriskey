@@ -330,3 +330,19 @@ validation:
   # TRANSLATOR NOTE: "device code charset" is implementation vocabulary — an end user cannot act
   # on it. Translated literally; the English should name the allowed characters instead.
   device_code_format: 格式应为 XXXX-XXXX，使用设备代码字符集。
+
+document_title:
+  login: 登录
+  register: 创建账户
+  totp: 验证码
+  forgot_password: 忘记密码
+  reset_password: 重置密码
+  magic_link_verify: 魔法链接登录
+  magic_link_request: 获取魔法链接
+  verify_email: 验证邮箱
+  email_verified: 邮箱已验证
+  totp_setup: 设置多因素认证
+  device_verify: 验证设备
+  device_verified: 设备已验证
+  consent: 授权访问
+  account_chooser: 选择账户

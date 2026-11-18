@@ -1,0 +1,717 @@
+# Panneau Console (CIAM).
+# STATUS : traduit, en attente de relecture native.
+# Ce panneau s'adresse à un public produit : il dit « application » là où le panneau IAM dit
+# « client », et « identité » là où le panneau IAM dit « utilisateur ». Conservez ce vocabulaire.
+
+# Nombre simple, formaté pour la langue active.
+number: '{{value, number}}'
+
+activity:
+  # Fenêtre de temps sur laquelle chaque écran d'activité fait son rapport. Interpolée en {{window}} dans
+  # les phrases ci-dessous ; elle peut être déplacée n'importe où dans celles-ci.
+  window_one: '{{count}} dernier jour'
+  window_many: les {{count}} derniers jours
+  window_other: les {{count}} derniers jours
+  over_window: sur {{window}}
+  nothing_recorded: rien d'enregistré
+  no_failure: aucun échec enregistré
+  filter:
+    all: Tous
+  capped:
+    title: Limité à {{limit, number}} événements
+    detail_above: 'Le realm en a enregistré davantage sur {{window}} ; les comptes distincts, les tendances quotidiennes et l''historique ne couvrent que les {{limit, number}} plus récents.'
+    detail_below: 'Le realm en a enregistré davantage sur {{window}} ; les comptes distincts, les tendances quotidiennes et la répartition des échecs ne couvrent que les {{limit, number}} plus récents.'
+  event:
+    columns:
+      event: Événement
+      outcome: Résultat
+      actor: Compte
+      target: Cible
+      origin: Origine
+      when: Quand
+    unattributed: non attribué
+    unknown_type: type inconnu
+    no_target: aucune
+    not_recorded: non enregistré
+    no_detail: aucun détail supplémentaire
+    flags:
+      actor: Compte identifié
+      origin: Origine enregistrée
+      device: Appareil enregistré
+  journal:
+    view:
+      list: Vue en liste
+      cards: Vue en cartes
+    filtered:
+      label: Aucun résultat
+      hint: Aucune entrée ne correspond à la recherche et au filtre actuels.
+      action: Effacer le filtre
+    count_one: '{{count, number}} entrée'
+    count_many: '{{count, number}} d''entrées'
+    count_other: '{{count, number}} entrées'
+  live:
+    title: En direct
+    description: 'Inscriptions et connexions enregistrées dans ce realm sur {{window}}, comptées à partir des flux d''authentification tracés par Compass.'
+    range_one: '{{count}} jour'
+    range_many: '{{count}} de jours'
+    range_other: '{{count}} jours'
+    metrics:
+      signups: Inscriptions
+      logins: Connexions
+      failures: Connexions échouées
+      accounts: Pic quotidien de comptes
+      busiest: jour le plus chargé sur {{window}}
+    notices:
+      compass_off:
+        title: Le traçage Compass est désactivé pour ce realm
+        detail: Les inscriptions et les connexions sont comptées à partir des flux d'authentification tracés. Le traçage étant désactivé, rien n'est enregistré et cette page n'a rien à mesurer.
+      error:
+        title: Activité indisponible
+        detail: Nous n'avons pas pu récupérer l'activité de ce realm. Veuillez réessayer plus tard.
+    logins:
+      title: Connexions
+      description: Connexions réussies et échouées par jour sur {{window}}.
+      legend_logins: '<num>{{total, number}}</num> connexions'
+      legend_failures: '<num>{{total, number}}</num> échecs'
+    signups:
+      title: Inscriptions
+      description: Nouveaux comptes créés par jour sur {{window}}.
+      legend: '<num>{{total, number}}</num> inscriptions'
+    flows:
+      title: Dernières tentatives d'authentification
+      description: Les flux tracés les plus récents, au moment du chargement de cette page. Rien ici ne s'actualise tout seul.
+      loading: Chargement…
+      empty: Aucun flux d'authentification n'a encore été tracé. Chaque tentative de connexion ajoute une ligne ici.
+      unidentified: aucun compte identifié
+  logs:
+    title: Journaux et événements
+    description: 'Chaque événement d''authentification, d''identifiants et d''administration enregistré dans ce realm, du plus récent au plus ancien. Les chiffres ci-dessus couvrent {{window}}.'
+    metrics:
+      events: Événements
+      latest: dernier {{timestamp}}
+      failures: Échecs
+      rate: Taux de réussite
+      successful: '{{total, number}} réussis'
+      actors: Comptes distincts
+    notices:
+      error:
+        title: Flux d'événements indisponible
+        detail: Nous n'avons pas pu récupérer les derniers événements. Veuillez réessayer plus tard.
+      failures:
+        title_one: '{{count, number}} événement échoué sur {{window}}'
+        title_many: '{{count, number}} d''événements échoués sur {{window}}'
+        title_other: '{{count, number}} événements échoués sur {{window}}'
+        top_failure: '{{label}} représente {{count, number}}'
+        top_error_code: principalement {{code}}
+    feed:
+      title: Flux d'événements
+      description: Les filtres et le tri sont appliqués par le serveur à chaque événement enregistré.
+      empty_label: Aucun événement
+      empty_hint: Ce flux se remplit à mesure que les clients se connectent, réinitialisent leurs identifiants et que les administrateurs modifient le realm. Rien n'a encore été enregistré.
+    aggregates:
+      events_one: '{{count, number}} événement'
+      events_many: '{{count, number}} d''événements'
+      events_other: '{{count, number}} événements'
+      failed: '{{total, number}} échoués'
+  sessions:
+    title: Sessions
+    description: Sessions ouvertes et révoquées dans ce realm sur {{window}}.
+    description_with_latest: 'Sessions ouvertes et révoquées dans ce realm sur {{window}}, la plus récente le {{timestamp}}.'
+    filters:
+      opened: Ouvertes
+      revoked: Révoquées
+    metrics:
+      opened: Sessions ouvertes
+      revoked: Sessions révoquées
+      none_revoked: aucune révoquée
+      accounts: Comptes distincts
+      origins: Origines distinctes
+      no_origin: aucune adresse IP enregistrée
+      origins_hint: adresses IP observées
+    notices:
+      no_device_list:
+        title: Il n'existe aucune liste des appareils actifs à l'échelle du realm
+        detail: L'API liste et révoque les sessions un compte à la fois ; les appareils actuellement connectés sont donc affichés sur chaque compte. Ce qui est enregistré pour l'ensemble du realm, c'est l'historique ci-dessous.
+      error:
+        title: Historique des sessions indisponible
+        detail: Nous n'avons pas pu récupérer les événements de session de ce realm. Veuillez réessayer plus tard.
+    journal:
+      title: Historique des sessions
+      description: 'Une ligne par session ouverte ou révoquée, avec l''appareil et l''origine enregistrés à ce moment-là.'
+      empty_label: Aucun événement de session
+      empty_hint: Cet historique se remplit à mesure que les clients se connectent et que des sessions sont révoquées. Rien n'a encore été enregistré.
+    aggregates:
+      opened: '{{total, number}} ouvertes'
+      revoked: '{{total, number}} révoquées'
+  messages:
+    title: Envoi des messages
+    description: 'E-mails transactionnels que ce realm a tenté d''envoyer sur {{window}}, et endpoints webhook qu''il notifie.'
+    filters:
+      delivered: Remis
+      failed: Échoués
+    email_types:
+      magic_link: Lien magique
+      verify_email: Vérification de l'e-mail
+      reset_password: Réinitialisation du mot de passe
+    metrics:
+      delivered: E-mails remis
+      failed: Envois échoués
+      rate: Taux de remise
+      attempted: '{{total, number}} tentés'
+      recipients: Destinataires distincts
+    notices:
+      no_smtp:
+        title: Aucune configuration SMTP n'a pu être lue pour ce realm
+        detail: Sans serveur de messagerie, aucun e-mail transactionnel ne peut quitter le realm — ce que signifierait un historique vide ci-dessous.
+      error:
+        title: Historique des envois indisponible
+        detail: Nous n'avons pas pu récupérer les événements d'envoi de ce realm. Veuillez réessayer plus tard.
+      failed:
+        title_one: '{{count, number}} e-mail n''a pas pu être remis'
+        title_many: '{{count, number}} d''e-mails n''ont pas pu être remis'
+        title_other: '{{count, number}} e-mails n''ont pas pu être remis'
+        detail: Chaque ligne échouée indique la raison renvoyée par le serveur de messagerie.
+    columns:
+      recipient: Destinataire
+      message: Message
+    recipient_account: compte
+    default_message: E-mail transactionnel
+    no_template: aucun modèle enregistré
+    journal:
+      title: Envois d'e-mails
+      description: 'Une ligne par e-mail que le realm a confié à son serveur de messagerie, remis ou non.'
+      empty_label: Aucun envoi d'e-mail
+      empty_hint: Cet historique se remplit à mesure que le realm envoie des liens magiques, des e-mails de vérification et des réinitialisations de mot de passe. Aucune tentative n'a encore eu lieu.
+    aggregates:
+      attempts_one: '{{count, number}} tentative'
+      attempts_many: '{{count, number}} de tentatives'
+      attempts_other: '{{count, number}} tentatives'
+      failed: '{{total, number}} échoués'
+    webhooks:
+      title: Endpoints webhook
+      description: 'Les endpoints que ce realm notifie, et la dernière fois que chacun a été déclenché. Les envois individuels ne sont pas consignés ; il n''existe donc aucun statut par envoi à afficher.'
+      count_one: '{{count, number}} endpoint'
+      count_many: '{{count, number}} d''endpoints'
+      count_other: '{{count, number}} endpoints'
+      showing_one: '{{shown, number}} affiché sur {{count, number}} endpoint'
+      showing_many: '{{shown, number}} affichés sur {{count, number}} d''endpoints'
+      showing_other: '{{shown, number}} affichés sur {{count, number}} endpoints'
+      view_all: Tout afficher
+      empty: Aucun endpoint webhook n'est enregistré pour ce realm.
+      triggers_one: '{{count, number}} déclencheur'
+      triggers_many: '{{count, number}} de déclencheurs'
+      triggers_other: '{{count, number}} déclencheurs'
+      never_fired: jamais déclenché
+
+applications:
+  # Les valeurs « flow » sont des noms de grants OAuth 2.0 / OpenID Connect. Conservez-les telles quelles.
+  types:
+    native:
+      label: Mobile ou bureau
+      short: Native
+      description: 'Installée sur l''appareil de l''utilisateur ; son code peut donc être lu par quiconque la possède.'
+      flow: Authorization Code + PKCE
+    spa:
+      label: Application monopage
+      short: SPA
+      description: 'S''exécute entièrement dans le navigateur ; elle n''a donc aucun secret et s''appuie sur PKCE.'
+      flow: Authorization Code + PKCE
+    web:
+      label: Application web rendue côté serveur
+      short: Web
+      description: Conserve un secret sur votre serveur et y échange le code.
+      flow: Authorization Code
+    m2m:
+      label: Machine à machine
+      short: M2M
+      description: 'Un backend ou un démon qui se connecte en son nom propre, sans utilisateur devant lui.'
+      flow: Client Credentials
+    device:
+      label: Appareil ou CLI
+      short: Appareil
+      description: 'Pas de navigateur sur l''appareil : l''utilisateur approuve la demande sur un autre écran.'
+      flow: Device Authorization Grant (RFC 8628)
+    choice_description: '{{description}} Se connecte avec {{flow}}.'
+  fields:
+    callbacks:
+      label: URL de rappel autorisées
+      hint:
+        native: L'endroit où la connexion renvoie l'utilisateur. Utilisez un schéma personnalisé tel que com.acme.app://callback sur mobile, ou http://localhost pour le développement sur poste de travail. Une URL de rappel non listée est refusée.
+        spa: 'L''endroit où les utilisateurs arrivent après la connexion. Une URL de rappel non listée est refusée ; ajoutez donc chaque environnement sur lequel vous déployez.'
+        web: L'endpoint côté serveur qui échange le code d'autorisation contre des jetons. Une URL de rappel non listée est refusée.
+      placeholder:
+        native: com.acme.app://callback
+        spa: https://app.acme.com/callback
+        web: https://app.acme.com/auth/callback
+    origins:
+      label: Origines web autorisées
+      hint: 'Origines autorisées à appeler FerrisKey depuis le navigateur. Schéma, hôte et port uniquement — pas de chemin. Saisissez + pour les déduire des URL de rappel ci-dessus. Sans origine correspondante, le navigateur bloque l''appel.'
+      placeholder: https://app.acme.com
+    empty:
+      callbacks_required: Aucune URL de rappel — la connexion ne peut pas aboutir.
+      callbacks_optional: Aucune URL de rappel enregistrée.
+      origins: Aucune origine — les appels du navigateur depuis un autre hôte seront refusés.
+  list:
+    title: Applications
+    description: 'Tout ce qui communique avec FerrisKey : applications mobiles, applications monopages, serveurs web, démons.'
+    create: Créer une application
+    all: Toutes les applications
+    search_placeholder: Rechercher par nom ou ID client…
+    columns:
+      name: Application
+      client_id: ID client
+      type: Type
+      status: Statut
+      created: Création
+    status:
+      enabled: Activée
+      disabled: Désactivée
+    filter_fields:
+      created: Création
+      enabled: Activée
+      application_type: Type
+    alerts:
+      missing_callback:
+        title_one: '{{count, number}} application n''a aucune URL de rappel'
+        title_many: '{{count, number}} d''applications n''ont aucune URL de rappel'
+        title_other: '{{count, number}} applications n''ont aucune URL de rappel'
+        detail: '{{names}} : FerrisKey n''a nulle part où renvoyer l''utilisateur, la connexion s''arrête donc sur une erreur.'
+    empty:
+      label: Aucune application pour le moment
+      hint: 'Choisissez un type, donnez-lui un nom, et nous générons tout ce qu''il faut pour l''intégrer.'
+    card:
+      disabled: désactivée
+    picker:
+      title: Type d'application
+      description: Il détermine le flux de connexion utilisé par l'application et si elle reçoit un secret. Le modifier plus tard implique de recréer l'application.
+  create:
+    back: Applications
+    title: Nouvelle application
+    change_type: changer de type
+    type:
+      title: Ce que ce type vous apporte
+      description: Choisi à la création. Il détermine le flux de connexion et si l'application reçoit un secret.
+      flow_label: Flux de connexion
+      secret_label: Secret client
+      secret_held: 'Un secret est généré à la création de l''application. Conservez-le sur votre serveur : quiconque le détient peut se connecter en tant que cette application.'
+      secret_none: 'Aucun secret n''est généré. Cette application est livrée à l''utilisateur, un secret pourrait donc en être extrait — la connexion est protégée par PKCE à la place.'
+      secret_generated: Généré
+      secret_absent: Aucun
+    identity:
+      title: Identité
+      description: Comment cette application est nommée et identifiée.
+      name_label: Nom de l'application
+      name_description: Affiché à vos utilisateurs sur la page de connexion.
+      name_placeholder: Acme Mobile
+      client_id_label: ID client
+      client_id_description: 'Envoyé à chaque requête OAuth. Déduit du nom ; modifiez-le avant la création, car c''est ce que votre code écrira en dur.'
+      client_id_placeholder: acme-mobile
+    urls:
+      title: Où les utilisateurs reviennent
+      description: Adresses vers lesquelles FerrisKey est autorisé à envoyer l'utilisateur une fois connecté.
+    m2m:
+      title: Aucune URL de rappel nécessaire
+      description: Les applications machine à machine n'envoient jamais d'utilisateur dans un navigateur.
+      how_label: Comment elle obtient un jeton
+      how_description: Elle envoie son ID client et son secret à l'endpoint de jeton avec le grant client_credentials. Le secret se trouve dans l'onglet Identifiants une fois l'application créée.
+    device:
+      title: Aucune URL de rappel nécessaire
+      description: 'Le flux d''appareil ne redirige jamais : l''utilisateur ouvre une page de vérification sur un autre écran.'
+      how_label: Comment elle obtient un jeton
+      how_description: 'L''appareil demande un code utilisateur, l''affiche, et interroge l''endpoint de jeton jusqu''à ce que l''utilisateur l''ait approuvé.'
+    save_bar:
+      title: Créer l'application
+      description: 'L''application est créée, puis ses URL de rappel et ses origines sont enregistrées.'
+      cancel: Annuler
+      submit: Créer l'application
+    validation:
+      client_id_format: 'Uniquement des lettres minuscules, des chiffres, des tirets et des tirets bas.'
+      callback_format: Saisissez une URL complète telle que https://app.acme.com/callback.
+      callback_required: Au moins une URL de rappel est requise pour ce type d'application.
+      origin_format: 'Saisissez une origine telle que https://app.acme.com — sans chemin, sans caractère générique — ou {{sentinel}} pour les déduire des URL de rappel.'
+    toast:
+      created: Application créée
+      callback_failed: 'Impossible d''enregistrer l''URL de rappel : {{value}}'
+      origin_failed: 'Impossible d''enregistrer l''origine web : {{value}}'
+      create_failed: Échec de la création de l'application
+  detail:
+    back: Applications
+    not_found:
+      title: Application introuvable
+      description: 'Elle a peut-être été supprimée, ou elle appartient à un autre realm.'
+    state:
+      enabled: activée
+      disabled: désactivée
+      maintenance: en maintenance
+    meta:
+      flow_label: Flux de connexion
+      created_label: Créée le
+      created: Créée le {{date}}
+    tabs:
+      quickstart: Démarrage rapide
+      settings: Paramètres
+      credentials: Identifiants
+      api_access: Accès API
+      saml: SAML
+      maintenance: Maintenance
+  quickstart:
+    identity:
+      title: Identité
+      description: Ce que votre application envoie à chaque requête.
+      client_id_label: ID client
+      client_id_description: 'Public : il circule dans le navigateur à chaque connexion. Ce n''est pas un identifiant secret.'
+      copy_client_id: Copier l'ID client
+    endpoints:
+      title: Endpoints
+      description: Pointez votre bibliothèque OIDC ou OAuth vers ces URL. La plupart des bibliothèques n'ont besoin que du document de découverte.
+      copy: Copier l'URL {{label}}
+      issuer:
+        label: Émetteur
+        description: La valeur que votre bibliothèque vérifie dans la revendication iss de chaque jeton.
+      discovery:
+        label: Document de découverte
+        description: Donnez cette seule URL à votre bibliothèque et elle trouve les autres toute seule.
+      authorization:
+        label: Autorisation
+        description: L'endroit où vous envoyez l'utilisateur se connecter.
+      device_authorization:
+        label: Autorisation d'appareil
+        description: L'endroit où un appareil sans navigateur demande le code qu'il affiche à l'utilisateur.
+      token:
+        label: Jeton
+        description: 'L''endroit où le code d''autorisation, ou les identifiants, sont échangés contre des jetons.'
+      userinfo:
+        label: Informations utilisateur
+        description: Renvoie les revendications de profil de l'utilisateur connecté.
+      jwks:
+        label: JWKS
+        description: Les clés publiques que votre backend utilise pour vérifier la signature d'un jeton.
+      logout:
+        label: Déconnexion
+        description: 'Met fin à la session FerrisKey, et pas seulement à la session de votre application.'
+    snippet:
+      copy: Copier l'extrait
+      m2m:
+        title: Obtenir un jeton avec les identifiants client
+        description: 'Aucun utilisateur n''intervient : l''application s''authentifie en son nom propre et reçoit un jeton d''accès.'
+      device:
+        title: Obtenir un jeton avec le flux d'appareil
+        description: 'L''appareil affiche un code, l''utilisateur l''approuve sur un autre écran, puis l''appareil obtient ses jetons.'
+      authorization_code:
+        title: Connecter un utilisateur avec le flux de code d'autorisation
+        description: 'Redirigez l''utilisateur pour qu''il se connecte, puis échangez le code renvoyé contre des jetons de votre côté.'
+  credentials:
+    title: Identifiants client
+    description: Ce que cette application présente pour prouver son identité.
+    client_id_label: ID client
+    client_id_description: 'Public : il circule dans le navigateur à chaque connexion. Ce n''est pas un identifiant secret.'
+    secret_label: Secret client
+    secret_description: 'Cette application n''a pas de secret. Elle s''exécute là où vos utilisateurs peuvent lire son code, un secret fuiterait donc — la connexion est protégée par {{flow}} à la place.'
+    secret_note: Rien à copier ici. Ne collez jamais le secret d'une autre application dans celle-ci.
+  settings:
+    general:
+      title: Général
+      description: Comment cette application apparaît et si elle fonctionne.
+      name_label: Nom de l'application
+      name_description: Affiché à vos utilisateurs sur la page de connexion.
+      client_id_label: ID client
+      client_id_description: 'Envoyé à chaque requête OAuth et écrit en dur dans votre application. Le modifier casserait toutes les intégrations en cours, il est donc figé ici.'
+      type_label: Type d'application
+      type_description: 'Choisi à la création. Il détermine le flux de connexion et l''existence d''un secret ; il ne peut donc pas être changé ensuite — créez plutôt une nouvelle application.'
+      availability_label: Disponibilité
+      availability_description: 'La désactivation interrompt immédiatement toutes les connexions, y compris pour les utilisateurs qui utilisent déjà l''application.'
+      state_picker_label: État de l'application
+    state:
+      enabled:
+        label: Activée
+        description: Vos utilisateurs peuvent se connecter via cette application.
+      disabled:
+        label: Désactivée
+        description: Toute connexion est refusée. La configuration est conservée.
+    urls:
+      title: Où les utilisateurs reviennent
+      description: Adresses vers lesquelles FerrisKey est autorisé à envoyer l'utilisateur. Chaque entrée est enregistrée dès son ajout.
+      origins_label: Origines web autorisées
+      origins_description: 'Origines autorisées à appeler FerrisKey depuis un navigateur. Schéma, hôte et port uniquement — pas de chemin. Saisissez + pour les déduire des URL de rappel ci-dessus ; les motifs regex sont ignorés. La suppression d''une origine prend quelques minutes à vider les caches de requêtes préliminaires du navigateur, et jusqu''à 30 secondes sur les autres réplicas de l''API.'
+      origins_placeholder: https://app.acme.com
+    methods:
+      title: Méthodes de connexion
+      description: Façons dont cette application est autorisée à obtenir un jeton.
+      password_label: Échange par mot de passe
+      password_description: 'Permet à l''application de recueillir elle-même un nom d''utilisateur et un mot de passe et de les échanger contre des jetons. Cela contourne la page de connexion FerrisKey : l''authentification multifacteur et la connexion sociale ne s''exécutent donc jamais. Laissez désactivé, sauf si une intégration héritée en a besoin.'
+      device_label: Autorisation d'appareil
+      device_description: 'Permet à un client sans navigateur (CLI, IoT, TV) d''afficher un code que l''utilisateur approuve sur un autre écran.'
+      pkce_label: Exiger PKCE
+      pkce_description_confidential: Refuse une connexion qui ne comporte pas de code challenge S256 (RFC 7636). La méthode plain est également refusée.
+      pkce_description_public: 'Refuse une connexion qui ne comporte pas de code challenge S256 (RFC 7636). Fortement recommandé : cette application est livrée à vos utilisateurs, elle ne peut donc pas garder de secret.'
+      pkce_on: Exigé
+      pkce_off: Facultatif
+    lifetimes:
+      title: Durée de session
+      description: Laissez un champ vide pour suivre la valeur par défaut du realm.
+      access_token:
+        label: Jeton d'accès
+        description: Durée pendant laquelle un jeton est accepté par votre API avant de devoir être actualisé.
+      refresh_token:
+        label: Jeton d'actualisation
+        description: Durée pendant laquelle un utilisateur connecté le reste sans ressaisir son mot de passe.
+      id_token:
+        label: Jeton d'ID
+        description: Durée de validité du jeton d'identité qui décrit l'utilisateur.
+      temporary_token:
+        label: Jeton temporaire
+        description: 'Durée pendant laquelle un lien à usage unique, comme une réinitialisation de mot de passe, reste valide.'
+    danger:
+      label: Supprimer cette application
+      description: Tous les jetons qu'elle a émis cessent d'être acceptés et l'intégration se casse immédiatement. Cette action est irréversible.
+      button: Supprimer l'application
+      confirm_title: Supprimer l'application
+      confirm_description: Cela supprime définitivement « {{name}} » et toute sa configuration.
+    save_bar:
+      title_one: '{{count, number}} modification non enregistrée'
+      title_many: '{{count, number}} de modifications non enregistrées'
+      title_other: '{{count, number}} modifications non enregistrées'
+      description: Vérifiez l'application avant d'appliquer les modifications.
+      cancel: Annuler
+      submit: Enregistrer les modifications
+    validation:
+      callback_format: Saisissez une URL complète telle que https://app.acme.com/callback.
+      origin_format: 'Saisissez une origine telle que https://app.acme.com — sans chemin, sans caractère générique — ou {{sentinel}} pour les déduire des URL de rappel.'
+    toast:
+      deleted: Application supprimée
+      callback_added: URL de rappel ajoutée
+      callback_add_failed: Échec de l'ajout de l'URL de rappel
+      callback_removed: URL de rappel supprimée
+      callback_remove_failed: Échec de la suppression de l'URL de rappel
+      origin_added: Origine web ajoutée
+      origin_add_failed: Échec de l'ajout de l'origine web
+      origin_removed: Origine web supprimée
+      origin_remove_failed: Échec de la suppression de l'origine web
+
+authentication:
+  sign_in:
+    title: Méthodes de connexion
+    description: Ce que les personnes de ce realm peuvent utiliser pour prouver leur identité.
+    loading_failed:
+      title: Méthodes de connexion indisponibles
+      description: Ce realm ne comporte aucun paramètre que la console puisse lire.
+    smtp_warning: 'Le lien magique, la vérification de l''e-mail et la récupération du mot de passe envoient tous un message, et ce realm n''a aucune configuration SMTP enregistrée. Chacun d''eux échoue silencieusement pour la personne qui se connecte tant qu''un serveur n''est pas configuré dans Image de marque, onglet SMTP des modèles d''e-mail.'
+    identifiers:
+      title: Identifiants
+      description: Ce que la personne saisit sur la page de connexion pour désigner son compte.
+      label: Identifiants acceptés
+      description_row: Les deux peuvent être acceptés en même temps. L'ordre détermine lequel est essayé en premier quand une valeur correspond à deux comptes.
+      min_selected: Sélectionnez au moins un identifiant
+      username:
+        label: Nom d'utilisateur
+        description: Le nom choisi par la personne à l'ouverture du compte.
+      email:
+        label: E-mail
+        description: L'adresse e-mail enregistrée sur le compte.
+    passwordless:
+      title: Méthodes sans mot de passe
+      description: Proposées à côté du champ de mot de passe. Un mot de passe reste toujours accepté.
+      passkey_label: Clé d'accès
+      passkey_description: La page de connexion propose un bouton de clé d'accès. La personne déverrouille son appareil avec une empreinte digitale, un visage ou une clé de sécurité et ne saisit jamais de mot de passe.
+      magic_link_label: Lien magique
+      magic_link_description: La personne saisit son adresse e-mail et reçoit un lien de connexion à usage unique. L'ouverture du lien la connecte sans mot de passe.
+      magic_link_ttl_label: Validité du lien magique
+      magic_link_ttl_description: Durée pendant laquelle le lien reste utilisable après l'envoi du message. Passé ce délai, la personne doit en demander un autre.
+      minutes: minutes
+    mfa:
+      title: Authentification multifacteur
+      description: Un second facteur demandé une fois le premier réussi.
+      label: Exiger un second facteur
+      description_row: Tous les membres de ce realm doivent saisir un code à usage unique après leur mot de passe. Les comptes sans second facteur enregistré sont dirigés vers l'écran d'enrôlement avant de pouvoir continuer.
+    access:
+      title: Accès au compte
+      description: Les liens et cases à cocher que la page de connexion propose autour du formulaire.
+      registration_label: Inscription libre
+      registration_description: 'Un lien « Créer un compte » apparaît sur la page de connexion et n''importe qui peut ouvrir un compte sans opérateur.'
+      email_verification_label: Vérification de l'e-mail
+      email_verification_description: Un nouveau compte doit confirmer son adresse e-mail à partir d'un message avant que sa première connexion n'aboutisse.
+      forgot_password_label: Récupération du mot de passe
+      forgot_password_description: 'Un lien « Mot de passe oublié » apparaît sur la page de connexion et envoie un message de réinitialisation à l''adresse du compte.'
+      remember_me_label: Rester connecté
+      remember_me_description: 'Une case « Se souvenir de moi » apparaît sur la page de connexion et conserve la session après le redémarrage du navigateur.'
+    account_chooser:
+      title: Sélecteur de compte
+      description: Comment la page de connexion traite les personnes qui se sont déjà connectées avec un compte sur ce navigateur.
+      enabled_label: Proposer un sélecteur de compte
+      enabled_description: Une personne qui s'est connectée avec un ou plusieurs comptes sur ce navigateur peut en choisir un au lieu de ressaisir ses identifiants.
+      show_email_label: Afficher les adresses e-mail masquées
+      show_email_description: Le sélecteur affiche une adresse e-mail masquée à côté de chaque compte. Activez-le seulement si le nom seul ne suffit pas à distinguer les comptes.
+    protection:
+      title: Protection de la connexion
+      description: Ce qui se passe après des échecs répétés sur le même compte.
+      threshold_label: Tentatives échouées avant verrouillage
+      threshold_description: Nombre de mots de passe erronés consécutifs qui verrouillent le compte. 0 ne le verrouille jamais.
+      attempts: tentatives
+      duration_label: Durée du verrouillage
+      duration_description: Durée pendant laquelle un compte verrouillé refuse tout mot de passe avant d'en accepter de nouveau un.
+      seconds: secondes
+    summary:
+      passkey_on: Clé d'accès proposée
+      passkey_off: Clé d'accès masquée
+      magic_link_on: Lien magique proposé
+      magic_link_off: Lien magique masqué
+      mfa_on: Second facteur exigé
+      mfa_off: Second facteur facultatif
+      lockout_on_one: Verrouille après {{count, number}} tentative échouée
+      lockout_on_many: Verrouille après {{count, number}} de tentatives échouées
+      lockout_on_other: Verrouille après {{count, number}} tentatives échouées
+      lockout_off: Ne verrouille jamais un compte
+    save_bar:
+      title_one: '{{count, number}} modification non enregistrée'
+      title_many: '{{count, number}} de modifications non enregistrées'
+      title_other: '{{count, number}} modifications non enregistrées'
+      description: Ces modifications prennent effet à la prochaine connexion à ce realm.
+      cancel: Annuler
+      saving: Enregistrement…
+      submit: Enregistrer les modifications
+    validation:
+      aliases_required: Sélectionnez au moins un identifiant
+      magic_link_ttl: Un lien magique doit rester valide au moins une minute
+      not_negative: Ne peut pas être négatif
+      lockout_without_duration: Un verrouillage sans durée ne libère jamais le compte
+    toast:
+      updated: Méthodes de connexion mises à jour.
+      update_failed: Échec de la mise à jour des méthodes de connexion
+  password_policy:
+    title: Politique de mot de passe
+    description: 'Les règles auxquelles un mot de passe de ce realm doit satisfaire, à l''inscription et à chaque réinitialisation.'
+    loading_failed:
+      title: Échec du chargement de la politique de mot de passe
+      description: Ce realm n'a aucune politique de mot de passe que la console puisse lire.
+    preview:
+      title: Ce que voit la personne
+      description: Les pages d'inscription et de réinitialisation reçoivent cinq de ces règles et les listent à côté du champ. Les autres ne sont vérifiées qu'à l'envoi.
+      listed: Listées sur la page
+      none: Rien — la page demande un mot de passe sans exigence indiquée.
+      silent: 'Appliquées mais jamais listées : {{rules}}. La personne ne les découvre que par le message de rejet, après avoir envoyé un mot de passe.'
+      expiry_one: Chaque mot de passe expire après {{count, number}} jour ; la personne est dirigée vers l'écran de réinitialisation à sa première connexion après cette date.
+      expiry_many: Chaque mot de passe expire après {{count, number}} de jours ; la personne est dirigée vers l'écran de réinitialisation à sa première connexion après cette date.
+      expiry_other: Chaque mot de passe expire après {{count, number}} jours ; la personne est dirigée vers l'écran de réinitialisation à sa première connexion après cette date.
+    rules:
+      min_length_one: Au moins {{count, number}} caractère
+      min_length_many: Au moins {{count, number}} de caractères
+      min_length_other: Au moins {{count, number}} caractères
+      require_uppercase: Une lettre majuscule
+      require_lowercase: Une lettre minuscule
+      require_number: Un chiffre
+      require_special: Un caractère spécial
+      min_entropy_one: '{{count, number}} bit d''entropie'
+      min_entropy_many: '{{count, number}} de bits d''entropie'
+      min_entropy_other: '{{count, number}} bits d''entropie'
+      forbid_common: 'Aucun mot de passe courant, nom d''utilisateur ou adresse e-mail'
+      check_breached: Aucun mot de passe signalé comme compromis
+    save_bar:
+      title_one: '{{count, number}} modification non enregistrée'
+      title_many: '{{count, number}} de modifications non enregistrées'
+      title_other: '{{count, number}} modifications non enregistrées'
+      description: 'Les mots de passe existants ne sont pas revérifiés ; les nouvelles règles s''appliquent à la prochaine inscription ou réinitialisation.'
+      cancel: Annuler
+      saving: Enregistrement…
+      submit: Enregistrer les modifications
+    toast:
+      updated: Politique de mot de passe mise à jour.
+      update_failed: Échec de la mise à jour de la politique de mot de passe
+
+identities:
+  list:
+    title: Identités
+    description: 'Comptes clients de ce realm. Recherchez-les, consultez leur état de connexion et ce qu''ils doivent encore faire.'
+    create: Nouvelle identité
+    columns:
+      identity: Identité
+      email: E-mail
+      status: Statut
+      created: Inscription
+      roles: Rôles
+    no_email: aucun e-mail
+    status:
+      disabled: Désactivée
+      active: Active
+      pending_one: '{{count, number}} action'
+      pending_many: '{{count, number}} d''actions'
+      pending_other: '{{count, number}} actions'
+    card:
+      active: active
+      disabled: désactivée
+      email_verified: e-mail vérifié
+      email_unverified: e-mail non vérifié
+      pending_one: '{{count, number}} action en attente'
+      pending_many: '{{count, number}} d''actions en attente'
+      pending_other: '{{count, number}} actions en attente'
+      signed_up: Inscrite {{when}}
+      flags:
+        can_sign_in: Peut se connecter
+        email_verified: E-mail vérifié
+        nothing_required: Rien d'exigé à la prochaine connexion
+    metrics:
+      total:
+        label: Total
+        hint_one: identité
+        hint_many: identités
+        hint_other: identités
+      verified:
+        label: E-mail vérifié
+        hint: '{{percent}} % du total'
+        empty_hint: aucune vérifiée
+      pending:
+        label: Actions en attente
+        hint: bloquées à la prochaine connexion
+      disabled:
+        label: Désactivées
+        hint: ne peuvent pas se connecter
+    alerts:
+      pending:
+        title_one: '{{count, number}} identité a une action en attente à la prochaine connexion'
+        title_many: '{{count, number}} d''identités ont une action en attente à la prochaine connexion'
+        title_other: '{{count, number}} identités ont une action en attente à la prochaine connexion'
+        detail: '{{names}} — elles ne peuvent pas terminer une connexion tant qu''elle n''est pas effectuée.'
+        action: Vérifier
+    search_placeholder: Rechercher par nom d'utilisateur, e-mail, prénom ou nom…
+    filter_fields:
+      created: Création
+      role: Rôle
+      enabled: Active
+      email_verified: E-mail vérifié
+    empty:
+      label: Aucune identité
+      hint: Une identité est un compte client de ce realm. Les comptes de service appartiennent aux applications et sont listés là-bas.
+    aggregates:
+      identities_one: '{{count, number}} identité'
+      identities_many: '{{count, number}} d''identités'
+      identities_other: '{{count, number}} identités'
+      active: '{{total, number}} actives'
+  detail:
+    tabs:
+      overview: Vue d'ensemble
+      credentials: Identifiants
+      role_mapping: Attribution des rôles
+      organizations: Organisations
+      attributes: Attributs
+  toast:
+    created: L'identité a été créée avec succès
+    updated: Identité mise à jour
+    delete_failed: L'identité n'a pas pu être supprimée
+
+organizations:
+  detail:
+    tabs:
+      settings: Paramètres
+      attributes: Attributs
+      members: Membres
+  remove_member:
+    title: Retirer le membre ?
+    description: 'Retirer « {{name}} » de cette organisation ? Ses rôles propres à l''organisation seront révoqués. Cela ne supprime pas l''identité.'
+  toast:
+    create_failed: Échec de la création de l'organisation
+
+roles:
+  detail:
+    tabs:
+      settings: Paramètres
+      permissions: Permissions
+      users: Identités

@@ -1,0 +1,334 @@
+# Catalogue français des fournisseurs d'identité.
+#
+# STATUS : traduit, en attente de relecture native.
+# Acronymes de protocole, pas de la prose. OIDC, OAuth2, SAML et LDAP restent tels quels dans toutes les langues.
+provider_type:
+  oidc: OIDC
+  oauth2: OAuth2
+  saml: SAML
+  ldap: LDAP
+
+state:
+  enabled: Activé
+  disabled: Désactivé
+
+# En minuscules volontairement : ces deux libellés sont dans une pastille, à côté d'un point de statut,
+# jamais en début de phrase.
+badge:
+  enabled: activé
+  disabled: désactivé
+
+not_set: Non défini
+none: Aucun
+
+redirect_uri:
+  label: URI de redirection
+  copy: Copier l'URI de redirection
+
+template_category:
+  social: Réseaux sociaux
+  enterprise: Entreprise
+  developer: Outils de développement
+  custom: Personnalisé
+
+# Les noms de fournisseurs n'arrivent jamais dans ce catalogue — seulement la phrase qui les entoure.
+# Partout où « {{provider}} » apparaît, il est remplacé par le nom du fournisseur, écrit comme il
+# l'écrit lui-même (Google, GitHub, GitLab, LinkedIn, « X (Twitter) »…). Laissez ces graphies intactes.
+template:
+  google:
+    description: Connexion avec des comptes Google
+  discord:
+    description: Connexion avec des comptes Discord
+  github:
+    description: Connexion avec des comptes GitHub
+  microsoft:
+    description: Connexion avec Microsoft et Azure AD
+  apple:
+    description: Connexion avec un identifiant Apple
+  facebook:
+    description: Connexion avec des comptes Facebook
+  gitlab:
+    description: Connexion avec des comptes GitLab
+  twitter:
+    description: Connexion avec des comptes X/Twitter
+  linkedin:
+    description: Connexion avec des comptes LinkedIn
+  # Le seul modèle qui n'est pas un fournisseur : « Custom Provider » est notre propre formulation et
+  # se traduit, contrairement aux neuf noms ci-dessus.
+  custom:
+    display_name: Fournisseur personnalisé
+    description: Configurer un fournisseur OAuth2/OIDC personnalisé
+
+status:
+  complete:
+    label: complète
+    detail: Toutes les valeurs dont le broker a besoin sont enregistrées.
+  no_scope:
+    label: sans scope
+    detail: Aucun scope n'est demandé ; la plupart des fournisseurs rejettent une demande d'autorisation sans scope.
+  incomplete:
+    label: incomplète
+    # « {{keys}} » est une liste, séparée par des virgules, de noms bruts de champs de l'API (client_id, token_url…)
+    # et n'est jamais traduite. L'anglais ne s'accorde pas ici — les deux formes existent pour les langues qui s'accordent.
+    detail_one: 'La connexion via le broker échouera — {{keys}} manque dans la configuration.'
+    detail_many: 'La connexion via le broker échouera — {{keys}} manquent dans la configuration.'
+    detail_other: 'La connexion via le broker échouera — {{keys}} manquent dans la configuration.'
+
+list:
+  title: Fournisseurs d'identité
+  description: Sources d'authentification externes fédérées dans ce realm.
+  add: Ajouter un fournisseur
+  row_delete: Supprimer {{name}}
+  search_placeholder: Rechercher par alias ou nom d'affichage…
+  columns:
+    provider: Fournisseur
+    alias: Alias
+    type: Type
+    configuration: Configuration
+    status: Statut
+    created: Création
+    updated: Mise à jour
+  flags:
+    enabled: Proposé sur la page de connexion
+    trust_email: Adresse e-mail considérée comme vérifiée
+    link_only: Lie uniquement des comptes existants
+  metrics:
+    total:
+      label: Total des fournisseurs
+      hint: configurés
+    enabled:
+      label: Fournisseurs activés
+      hint: '{{percent}}% actifs'
+      empty_hint: aucun fournisseur activé
+    disabled:
+      label: Fournisseurs désactivés
+      hint: masqués de la page de connexion
+  alerts:
+    broken:
+      title_one: '{{count}} fournisseur ne peut pas établir de connexion via le broker'
+      title_many: '{{count}} de fournisseurs ne peuvent pas établir de connexion via le broker'
+      title_other: '{{count}} fournisseurs ne peuvent pas établir de connexion via le broker'
+      detail_one: '{{names}} — un point de terminaison ou un identifiant requis est manquant.'
+      detail_many: '{{names}} — un point de terminaison ou un identifiant requis est manquant.'
+      detail_other: '{{names}} — un point de terminaison ou un identifiant requis est manquant.'
+      action: Corriger
+    degraded:
+      title_one: '{{count}} fournisseur ne demande aucun scope'
+      title_many: '{{count}} de fournisseurs ne demandent aucun scope'
+      title_other: '{{count}} fournisseurs ne demandent aucun scope'
+      detail_one: '{{names}} — la plupart des fournisseurs rejettent une demande d''autorisation sans scope.'
+      detail_many: '{{names}} — la plupart des fournisseurs rejettent une demande d''autorisation sans scope.'
+      detail_other: '{{names}} — la plupart des fournisseurs rejettent une demande d''autorisation sans scope.'
+      action: Examiner
+  filter_fields:
+    provider_id: Type
+    enabled: Activé
+    health: Configuration
+    created: Création
+    health_values:
+      healthy: Complète
+      degraded: Sans scope
+      error: Incomplète
+  aggregates:
+    provider_count_one: '{{count}} fournisseur'
+    provider_count_many: '{{count}} de fournisseurs'
+    provider_count_other: '{{count}} fournisseurs'
+    # Compteur brut des lignes mal configurées, jamais accordé.
+    to_review: '{{total}} à examiner'
+  empty:
+    label: Aucun fournisseur d'identité
+    hint: Fédérez un fournisseur externe pour que les comptes puissent se connecter avec des identifiants qu'ils possèdent déjà.
+    popular: Fournisseurs populaires
+  delete:
+    title: Supprimer le fournisseur ?
+    description: Voulez-vous vraiment supprimer « {{name}} » ?
+    success: Fournisseur « {{name}} » supprimé
+    error: Échec de la suppression de « {{name}} »
+
+create:
+  back: Fournisseurs d'identité
+  title: Ajouter un fournisseur d'identité
+  description: Connexion d'un fournisseur externe à ce realm.
+  steps:
+    provider: Fournisseur
+    configuration: Configuration
+    review: Récapitulatif
+  templates:
+    title: Choisir un fournisseur
+    description: Un modèle renseigne les points de terminaison et les scopes ; il ne reste que les identifiants de votre application.
+    search_placeholder: Rechercher des fournisseurs…
+    empty: Aucun fournisseur trouvé pour « {{query}} »
+  credentials:
+    title: Configurer {{provider}}
+    description: Identifiants émis par la console du fournisseur.
+  alias:
+    label: Alias
+    description: Nom technique du fournisseur dans ce realm. Il apparaît dans l'URI de redirection et ne peut pas être modifié après la création.
+  display_name:
+    label: Nom d'affichage
+    description: Libellé du bouton sur lequel les utilisateurs cliquent sur la page de connexion.
+  client_id:
+    label: ID client
+    description: Identifiant de l'application OAuth créée chez {{provider}}.
+  client_secret:
+    label: Secret client
+    description: Émis par la console du fournisseur. L'API ne le renvoie plus jamais une fois enregistré.
+    show: Afficher le secret
+    hide: Masquer le secret
+  endpoints:
+    title: Points de terminaison
+    description_custom: 'Obligatoires : aucun modèle ne les connaît pour un fournisseur personnalisé.'
+    description_template: Préremplis à partir du modèle {{provider}} — ne les modifiez que pour une instance auto-hébergée.
+  authorization_url:
+    label: URL d'autorisation
+    description: Là où l'utilisateur est envoyé pour donner son consentement.
+  token_url:
+    label: URL du jeton
+    description: Là où le code d'autorisation est échangé contre un jeton.
+  userinfo_url:
+    label: URL Userinfo
+    description_oidc: 'Facultative avec OIDC : les claims peuvent provenir du jeton d''ID.'
+    description_oauth2: Là où le profil de l'utilisateur est lu une fois le jeton émis.
+  scopes:
+    label: Scopes
+    description: Demandés à chaque autorisation.
+    empty_hint: Aucun scope demandé — la plupart des fournisseurs rejettent une demande d'autorisation sans scope.
+  pkce:
+    label: PKCE
+    description: Envoie un code_challenge (S256) dans la demande d'autorisation et le vérificateur correspondant lors de l'échange du jeton. Ne le désactivez que pour un fournisseur qui rejette les paramètres supplémentaires.
+    enabled: Activé (S256)
+    disabled: Désactivé
+  review:
+    title: Récapitulatif
+    description: Ce qui sera créé dans le realm.
+    template: Modèle
+    protocol: Protocole
+  actions:
+    cancel: Annuler
+    back: Retour
+    continue: Continuer
+    submit: Créer le fournisseur
+  success: Fournisseur d'identité créé avec succès
+  error: Le fournisseur d'identité n'a pas pu être créé
+
+setup:
+  title: Guide de préparation
+  description: Ce qui doit exister côté fournisseur.
+  # « {{type}} » est la valeur brute du protocole (oidc, oauth2) ; l'interface la passe en majuscules en CSS.
+  provider_subtitle: 'Fournisseur {{type}}'
+  documentation: Voir le guide de configuration
+  redirect_uri_hint: Déclarez-la telle quelle dans l'application OAuth. Elle change si vous changez l'alias.
+  steps:
+    title: Étapes de configuration
+    custom:
+      console: Ouvrez la console développeur de votre fournisseur OAuth
+      application: Créez une nouvelle application OAuth
+      credentials: Copiez l'ID client et le secret client
+      redirect_uri: Ajoutez l'URI de redirection ci-dessous à l'application
+      urls: Renseignez les URL d'autorisation et de jeton
+    template:
+      console: Ouvrez la console développeur de {{provider}}
+      application: Créez une nouvelle application OAuth
+      redirect_uri: Ajoutez l'URI de redirection ci-dessous
+      credentials: Copiez votre ID client et votre secret client
+      paste: Collez-les dans le formulaire
+  note:
+    custom: 'Rien n''est prérempli pour un fournisseur personnalisé : les URL d''autorisation et de jeton sont à saisir par vos soins.'
+    template: Les URL OAuth sont déjà renseignées pour {{provider}}. Il ne manque que les identifiants de sa console.
+  scopes:
+    title: Scopes par défaut
+    hint: Demandés à chaque autorisation. Modifiables dans le formulaire.
+    empty: Aucun — ce modèle ne déclare aucun scope par défaut.
+  secret_note: Le secret est chiffré à l'enregistrement et n'est plus jamais lisible ensuite — seul son remplacement est possible.
+
+detail:
+  back: Fournisseurs d'identité
+  internal_id: Identifiant interne
+  not_found:
+    title: Fournisseur introuvable
+    hint: Il a peut-être été supprimé, ou il appartient à un autre realm.
+  general:
+    title: Paramètres généraux
+    description: Comment ce fournisseur s'identifie dans le realm.
+  alias:
+    label: Alias
+    description: 'Identifiant unique du fournisseur dans ce realm. Figé à la création : il fait partie de l''URI de redirection déjà déclarée chez le fournisseur, le changer casserait le rappel.'
+  display_name:
+    label: Nom d'affichage
+    description: Libellé du bouton sur lequel les utilisateurs cliquent sur la page de connexion.
+  enabled:
+    label: Activé
+    description: Indique si les utilisateurs peuvent s'authentifier via ce fournisseur.
+    choices_label: État du fournisseur
+    on:
+      label: Activé
+      description: Le fournisseur apparaît sur la page de connexion de ce realm.
+    off:
+      label: Désactivé
+      description: Masqué de la page de connexion ; les comptes déjà liés le restent.
+  client_id:
+    label: ID client
+    description: Identifiant de l'application OAuth créée chez le fournisseur.
+  client_secret:
+    label: Secret client
+    description: Laissez vide pour conserver le secret enregistré. Tout ce qui est saisi ici le remplace.
+    show: Afficher le secret
+    hide: Masquer le secret
+  authorization_url:
+    label: URL d'autorisation
+    description: Là où l'utilisateur est envoyé pour donner son consentement.
+  token_url:
+    label: URL du jeton
+    description: Là où le code d'autorisation est échangé contre un jeton.
+  userinfo_url:
+    label: URL Userinfo
+    description: Videz-la pour lire les claims uniquement depuis le jeton d'ID.
+  scopes:
+    label: Scopes
+    description: Demandés à chaque autorisation.
+    empty_hint: Aucun scope demandé — la plupart des fournisseurs rejettent une demande d'autorisation sans scope.
+  pkce:
+    label: PKCE
+    description: Envoie un code_challenge (S256) dans la demande d'autorisation et le vérificateur correspondant lors de l'échange du jeton. Ne le désactivez que pour un fournisseur qui rejette les paramètres supplémentaires.
+    enabled: Activé (S256)
+    disabled: Désactivé
+  redirect_uri_description: Déclarez cette URL dans l'application OAuth du fournisseur.
+  config:
+    title: Configuration
+    description: Paramètres de protocole utilisés pour établir une connexion via le broker. Les secrets ne quittent jamais le serveur en clair.
+    secret_title: L'API ne renvoie jamais cette valeur en clair.
+    empty: Aucun paramètre de configuration enregistré — ce fournisseur ne peut pas établir de connexion via le broker.
+    extra_title: Autres paramètres
+    extra_description: Enregistrés sur ce fournisseur mais non exposés par le formulaire, tels que l'API les renvoie.
+  metadata:
+    title: Métadonnées
+    description: Informations système, non modifiables.
+    provider_id: ID du fournisseur
+    first_broker_flow: First Broker Flow
+    post_broker_flow: Post Broker Flow
+  danger:
+    label: Supprimer ce fournisseur d'identité
+    description: Toutes les données associées seront définitivement supprimées. Cette action est irréversible.
+    button: Supprimer le fournisseur
+    confirm_title: Supprimer le fournisseur d'identité
+    confirm_description: Cette action supprimera définitivement le fournisseur « {{name}} » et toutes ses données associées.
+  save:
+    dirty_one: '{{count}} modification non enregistrée'
+    dirty_many: '{{count}} de modifications non enregistrées'
+    dirty_other: '{{count}} modifications non enregistrées'
+    description: Vérifiez le fournisseur avant d'appliquer les modifications.
+    discard: Annuler
+    submit: Enregistrer les modifications
+  update_success: Fournisseur mis à jour avec succès
+  update_error: Échec de la mise à jour du fournisseur
+  delete_success: Fournisseur supprimé avec succès
+  delete_error: Échec de la suppression du fournisseur
+
+validation:
+  alias_required: L'alias est obligatoire
+  alias_format: L'alias ne doit contenir que des lettres minuscules, des chiffres et des traits d'union
+  display_name_required: Le nom d'affichage est obligatoire
+  client_id_required: L'ID client est obligatoire
+  client_secret_required: Le secret client est obligatoire
+  url_invalid: Doit être une URL valide
+  url_required: Ce point de terminaison est obligatoire

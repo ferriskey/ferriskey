@@ -19,6 +19,7 @@ language:
   names:
     en: English
     zh-CN: 简体中文
+    fr: Français
 relative_time:
   just_now: 刚刚
   minutes_other: '{{count}} 分钟前'
@@ -456,3 +457,10 @@ toast:
     attribute_map_failed: 无法映射该属性
     attribute_removed: 属性映射已移除
     attribute_remove_failed: 无法移除该属性映射
+
+portal_input:
+  show_password: 显示密码
+  hide_password: 隐藏密码
+
+toaster:
+  label: 通知
