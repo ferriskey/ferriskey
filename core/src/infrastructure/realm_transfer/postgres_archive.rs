@@ -465,6 +465,7 @@ impl RealmArchiveRepository for PostgresRealmArchiveRepository {
             created: !existed,
             rows: import.rows,
             ignored_columns: import.ignored.into_iter().collect(),
+            unfinished_steps: Vec::new(),
         })
     }
 }
