@@ -41,6 +41,8 @@ event:
   client_maintenance_disabled: Maintenance du client désactivée
   signing_key_rotated: Clé de signature renouvelée
   signing_key_revoked: Clé de signature révoquée
+  realm_exported: Realm exporté
+  realm_imported: Realm importé
   session_created: Session ouverte
   session_revoked: Session révoquée
   webhook_delivery_exhausted: Livraison du webhook abandonnée
