@@ -10,7 +10,10 @@ use ferriskey_webhook::endpoint::PrivateEndpoints;
 
 use crate::domain::webhook::ports::{WebhookDeliveryRepository, WebhookRepository};
 
-use super::delivery::{DeliveryJob, deliver_once};
+use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::webhook::entities::webhook_delivery::{DeliveryErrorCode, WebhookDelivery};
+
+use super::delivery::{AttemptContext, DeliveryJob, deliver_once, record_failed_attempt};
 
 const TICK_INTERVAL: Duration = Duration::from_secs(5);
 const CLAIM_BATCH: u32 = 8;
@@ -52,7 +55,7 @@ pub async fn webhook_delivery_worker_task<D, W, S>(
 
         for delivery in claimed {
             let webhook = match webhooks
-                .get_webhook_by_id(delivery.webhook_id, delivery.realm_id)
+                .get_deliverable_webhook(delivery.webhook_id, delivery.realm_id)
                 .await
             {
                 Ok(Some(webhook)) => webhook,
@@ -62,6 +65,16 @@ pub async fn webhook_delivery_worker_task<D, W, S>(
                         delivery_id = %delivery.id,
                         "skipping a delivery whose webhook no longer exists"
                     );
+                    continue;
+                }
+                Err(CoreError::Configuration(reason)) => {
+                    error!(
+                        webhook_id = %delivery.webhook_id,
+                        delivery_id = %delivery.id,
+                        %reason,
+                        "cannot open the webhook signing secret; counting a failed attempt without sending"
+                    );
+                    settle_unreadable_secret(&delivery, &deliveries, &security_events).await;
                     continue;
                 }
                 Err(error) => {
@@ -121,6 +134,48 @@ pub async fn webhook_delivery_worker_task<D, W, S>(
             deliver_once(job, &deliveries, &security_events).await;
         }
     }
+}
+
+pub(crate) async fn settle_unreadable_secret<D, S>(
+    delivery: &WebhookDelivery,
+    deliveries: &D,
+    security_events: &S,
+) where
+    D: WebhookDeliveryRepository,
+    S: SecurityEventRepository,
+{
+    let policy = match deliveries
+        .resolve_retry_policy(delivery.realm_id, delivery.webhook_id)
+        .await
+    {
+        Ok(policy) => policy,
+        Err(error) => {
+            error!(
+                webhook_id = %delivery.webhook_id,
+                error = ?error,
+                "Failed to resolve the retry policy for a claimed delivery"
+            );
+            return;
+        }
+    };
+
+    let context = AttemptContext {
+        delivery_id: delivery.id,
+        realm_id: delivery.realm_id,
+        webhook_id: delivery.webhook_id,
+        event: delivery.event.clone(),
+        attempt_count: delivery.attempt_count,
+        elapsed: delivery.elapsed_since_created(Utc::now()),
+        policy,
+    };
+
+    record_failed_attempt(
+        &context,
+        DeliveryErrorCode::SecretUnavailable,
+        deliveries,
+        security_events,
+    )
+    .await;
 }
 
 pub async fn webhook_delivery_retention_task<D>(deliveries: D)
