@@ -44,9 +44,11 @@ pub struct RotateClientSecretResponse {
     request_body = RotateClientSecretRequest,
     responses(
         (status = 200, body = RotateClientSecretResponse),
-        (status = 400, description = "Public client, or grace period out of range", body = ApiErrorResponse),
+        (status = 400, description = "Public client or grace period out of range (`ApiErrorResponse`), or a body that is not valid JSON (plain-text extractor rejection)", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 404, description = "Client not found", body = ApiErrorResponse),
+        (status = 415, description = "Missing `Content-Type: application/json` (plain-text extractor rejection)"),
+        (status = 422, description = "JSON that does not match the request, such as a `grace_period_secs` that is not an integer (plain-text extractor rejection)"),
     )
 )]
 pub async fn rotate_client_secret(

@@ -32,7 +32,7 @@ pub struct RevokePreviousClientSecretResponse {
     responses(
         (status = 200, body = RevokePreviousClientSecretResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
-        (status = 404, description = "Client not found, or it has no previous secret", body = ApiErrorResponse),
+        (status = 404, description = "Client not found, or it has no previous secret whose grace period still runs", body = ApiErrorResponse),
     )
 )]
 pub async fn revoke_previous_client_secret(
