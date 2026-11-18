@@ -14,7 +14,7 @@ step:
     description: Le client a demandé un code d'autorisation au realm.
   credential_validation:
     label: Validation des identifiants
-    description: Le secret soumis a été comparé à l'identifiant enregistré.
+    description: Le secret soumis a été comparé au secret d'authentification enregistré.
   mfa_challenge:
     label: Second facteur
     description: Un second facteur a été demandé et vérifié avant l'émission de tout jeton.
