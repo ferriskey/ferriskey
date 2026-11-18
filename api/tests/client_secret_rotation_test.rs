@@ -201,11 +201,13 @@ fn the_old_secret_stops_working_when_its_grace_period_ends_without_waiting_for_t
         assert_eq!(status_with(&server, app, &client_id, &first).await, 401);
         assert_eq!(status_with(&server, app, &client_id, &second).await, 200);
 
-        let revealed: Value = server
+        let reveal = server
             .get(&app.path(&format!("/clients/{id}/client-secret")))
             .authorization_bearer(&token)
-            .await
-            .json();
+            .await;
+        assert_eq!(reveal.status_code(), 200);
+        let revealed: Value = reveal.json();
+        assert_eq!(revealed["client_secret"], second, "{revealed}");
         assert!(revealed["previous_secret"].is_null(), "{revealed}");
     });
 }
