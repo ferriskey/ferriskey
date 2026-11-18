@@ -113,6 +113,48 @@ impl PostgresWebhookRepository {
 
         Ok(Webhook::from(model))
     }
+
+    async fn subscribed_models(
+        &self,
+        realm_id: RealmId,
+        subscriber: WebhookTrigger,
+    ) -> Result<Vec<WebhookModel>, CoreError> {
+        WebhookEntity::find()
+            .join(
+                sea_orm::JoinType::InnerJoin,
+                WebhookRelation::WebhookSubscribers.def(),
+            )
+            .filter(WebhookColumn::RealmId.eq::<Uuid>(realm_id.into()))
+            .filter(WebhookSubscriberColumn::Name.eq(subscriber.to_string()))
+            .all(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Failed to fetch webhooks by subscriber: {}", e);
+                CoreError::InternalServerError
+            })
+    }
+
+    /// The webhooks `notify` can deliver to. One webhook whose secret cannot be
+    /// opened is left out on its own; the others still get the event.
+    async fn deliverable_webhooks(
+        &self,
+        realm_id: RealmId,
+        subscriber: WebhookTrigger,
+    ) -> Result<Vec<Webhook>, CoreError> {
+        let models = self.subscribed_models(realm_id, subscriber).await?;
+
+        Ok(models
+            .into_iter()
+            .filter_map(|model| {
+                let webhook_id = model.id;
+                self.webhook_of(model)
+                    .inspect_err(|err| {
+                        error!(%webhook_id, "Skipping webhook whose secret cannot be opened: {:?}", err);
+                    })
+                    .ok()
+            })
+            .collect())
+    }
 }
 
 impl SortColumn<WebhookEntity> for WebhookSortField {
@@ -229,21 +271,8 @@ impl WebhookRepository for PostgresWebhookRepository {
         realm_id: RealmId,
         subscriber: WebhookTrigger,
     ) -> Result<Vec<Webhook>, CoreError> {
-        let webhooks = WebhookEntity::find()
-            .join(
-                sea_orm::JoinType::InnerJoin,
-                WebhookRelation::WebhookSubscribers.def(),
-            )
-            .filter(WebhookColumn::RealmId.eq::<Uuid>(realm_id.into()))
-            .filter(WebhookSubscriberColumn::Name.eq(subscriber.to_string()))
-            .all(&self.db)
-            .await
-            .map_err(|e| {
-                error!("Failed to fetch webhooks by subscriber: {}", e);
-                CoreError::InternalServerError
-            })?;
-
-        webhooks
+        self.subscribed_models(realm_id, subscriber)
+            .await?
             .into_iter()
             .map(|model| self.webhook_of(model))
             .collect()
@@ -478,7 +507,7 @@ impl WebhookRepository for PostgresWebhookRepository {
         payload: WebhookPayload<T>,
     ) -> Result<(), CoreError> {
         let webhooks = match self
-            .fetch_webhooks_by_subscriber(realm_id, payload.event.clone())
+            .deliverable_webhooks(realm_id, payload.event.clone())
             .await
         {
             Ok(webhooks) => webhooks,
@@ -1011,5 +1040,36 @@ mod sealed_secret_tests {
             .await;
 
         assert!(result.is_err(), "{result:?}");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_webhook_with_an_unreadable_secret_does_not_hide_the_readable_ones() {
+        let schema = migrated_schema("webhook_secret_test").await;
+        let realm_id = schema.realm.id();
+        create(
+            &PostgresWebhookRepository::with_cipher(
+                schema.db.clone(),
+                PrivateEndpoints::Forbidden,
+                sealing_cipher(),
+            ),
+            realm_id,
+        )
+        .await;
+        let plain = PostgresWebhookRepository::new(schema.db, PrivateEndpoints::Forbidden);
+        let readable = create(&plain, realm_id).await;
+
+        let deliverable = plain
+            .deliverable_webhooks(realm_id, WebhookTrigger::UserCreated)
+            .await
+            .expect("read the subscribed webhooks");
+
+        assert_eq!(
+            deliverable
+                .iter()
+                .map(|webhook| webhook.id)
+                .collect::<Vec<_>>(),
+            vec![readable.id]
+        );
     }
 }
