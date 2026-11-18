@@ -1104,6 +1104,7 @@ mod secret_rotation_tests {
     use super::*;
     use crate::domain::authentication::entities::AuthProtocol;
     use crate::domain::client::entities::ClientType;
+    use crate::domain::client::entities::auth_method::ClientAuthSettings;
     use crate::infrastructure::sealed_secrets_testing::{
         TestSchema, migrated_schema, sealing_cipher, stored,
     };
@@ -1125,6 +1126,7 @@ mod secret_rotation_tests {
             require_pkce: false,
             consent_required: false,
             registration_source: ClientRegistrationSource::Admin,
+            auth: ClientAuthSettings::default_for(false),
         }
     }
 
