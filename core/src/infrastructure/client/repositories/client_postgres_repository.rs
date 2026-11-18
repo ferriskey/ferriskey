@@ -36,6 +36,7 @@ use crate::domain::{
 };
 use crate::entity::{clients, redirect_uris};
 use crate::infrastructure::pagination::{SortColumn, contains, paginate, within_naive};
+use ferriskey_domain::client::commands::SecretRotation;
 
 impl SortColumn<clients::Entity> for ClientSortField {
     fn column(&self) -> clients::Column {
@@ -511,8 +512,8 @@ impl ClientRepository for PostgresClientRepository {
         &self,
         client: &Scoped<Client>,
         new_secret: String,
-        previous_expires_at: Option<DateTime<Utc>>,
-    ) -> Result<Client, CoreError> {
+        grace_period: Option<chrono::Duration>,
+    ) -> Result<SecretRotation, CoreError> {
         let id = client.get().id;
         let transaction = self.db.begin().await.map_err(|e| {
             error!("failed to begin a client secret rotation: {:?}", e);
@@ -527,6 +528,19 @@ impl ClientRepository for PostgresClientRepository {
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::NotFound)?;
+
+        let now = Utc::now();
+        let replaced_expired = match (&row.previous_secret, row.previous_secret_expires_at) {
+            (Some(_), Some(expired_at)) if expired_at.and_utc() <= now => {
+                Some(ExpiredClientSecret {
+                    client_id: id,
+                    realm_id: RealmId::from(row.realm_id),
+                    expired_at: expired_at.and_utc(),
+                })
+            }
+            _ => None,
+        };
+        let previous_expires_at = grace_period.map(|grace| now + grace);
 
         let current = row
             .secret
@@ -545,7 +559,7 @@ impl ClientRepository for PostgresClientRepository {
         active.previous_secret = Set(previous.as_ref().map(|(secret, _)| secret.clone()));
         active.previous_secret_expires_at =
             Set(previous.map(|(_, expires_at)| expires_at.naive_utc()));
-        active.updated_at = Set(Utc::now().naive_utc());
+        active.updated_at = Set(now.naive_utc());
 
         let updated = active.update(&transaction).await.map_err(|e| {
             error!("failed to rotate a client secret: {:?}", e);
@@ -556,7 +570,10 @@ impl ClientRepository for PostgresClientRepository {
             CoreError::InternalServerError
         })?;
 
-        self.client_of(updated)
+        Ok(SecretRotation {
+            client: self.client_of(updated)?,
+            replaced_expired,
+        })
     }
 
     async fn revoke_previous_secret(&self, client: &Scoped<Client>) -> Result<bool, CoreError> {
@@ -572,6 +589,7 @@ impl ClientRepository for PostgresClientRepository {
             .filter(clients::Column::Id.eq(client.get().id))
             .filter(clients::Column::RealmId.eq(Uuid::from(client.get().realm_id)))
             .filter(clients::Column::PreviousSecret.is_not_null())
+            .filter(clients::Column::PreviousSecretExpiresAt.gt(Utc::now().naive_utc()))
             .exec(&self.db)
             .await
             .map_err(|e| {
@@ -1150,17 +1168,23 @@ mod secret_rotation_tests {
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn rotating_keeps_the_old_secret_as_previous_until_its_expiry_and_seals_both() {
         let (repository, schema, client) = seeded("backend").await;
-        let expires_at = Utc::now() + Duration::hours(1);
+        let before = Utc::now();
 
         let rotated = repository
-            .rotate_secret(&client, "second-secret".to_string(), Some(expires_at))
+            .rotate_secret(
+                &client,
+                "second-secret".to_string(),
+                Some(Duration::hours(1)),
+            )
             .await
-            .expect("rotate");
+            .expect("rotate")
+            .client;
 
         assert_eq!(rotated.secret_str(), Some("second-secret"));
         let previous = rotated.previous_secret.as_ref().expect("a previous secret");
         assert_eq!(previous.secret.expose(), "first-secret");
-        assert_eq!(previous.expires_at.timestamp(), expires_at.timestamp());
+        assert!(previous.expires_at >= before + Duration::hours(1));
+        assert!(previous.expires_at <= Utc::now() + Duration::hours(1));
 
         let current_at_rest = stored(&schema.pool, "clients", "secret", client.get().id)
             .await
@@ -1197,7 +1221,8 @@ mod secret_rotation_tests {
         let rotated = repository
             .rotate_secret(&client, "second-secret".to_string(), None)
             .await
-            .expect("rotate");
+            .expect("rotate")
+            .client;
 
         assert_eq!(rotated.secret_str(), Some("second-secret"));
         assert!(rotated.previous_secret.is_none());
@@ -1211,16 +1236,24 @@ mod secret_rotation_tests {
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn rotating_again_replaces_the_previous_secret_and_drops_the_older_one() {
         let (repository, _schema, client) = seeded("backend").await;
-        let expires_at = Utc::now() + Duration::hours(1);
         repository
-            .rotate_secret(&client, "second-secret".to_string(), Some(expires_at))
+            .rotate_secret(
+                &client,
+                "second-secret".to_string(),
+                Some(Duration::hours(1)),
+            )
             .await
             .expect("first rotation");
 
         let rotated = repository
-            .rotate_secret(&client, "third-secret".to_string(), Some(expires_at))
+            .rotate_secret(
+                &client,
+                "third-secret".to_string(),
+                Some(Duration::hours(1)),
+            )
             .await
-            .expect("second rotation");
+            .expect("second rotation")
+            .client;
 
         assert_eq!(rotated.secret_str(), Some("third-secret"));
         assert_eq!(
@@ -1241,7 +1274,7 @@ mod secret_rotation_tests {
             .rotate_secret(
                 &client,
                 "second-secret".to_string(),
-                Some(Utc::now() + Duration::hours(1)),
+                Some(Duration::hours(1)),
             )
             .await
             .expect("rotate");
@@ -1284,11 +1317,11 @@ mod secret_rotation_tests {
             .expect("in realm");
         let now = Utc::now();
         repository
-            .rotate_secret(&ended, "next".to_string(), Some(now + Duration::minutes(1)))
+            .rotate_secret(&ended, "next".to_string(), Some(Duration::minutes(1)))
             .await
             .expect("rotate the first");
         repository
-            .rotate_secret(&running, "next".to_string(), Some(now + Duration::hours(2)))
+            .rotate_secret(&running, "next".to_string(), Some(Duration::hours(2)))
             .await
             .expect("rotate the second");
 
@@ -1323,6 +1356,81 @@ mod secret_rotation_tests {
         assert!(still_running.previous_secret.is_some());
     }
 
+    async fn end_the_grace_period(schema: &TestSchema, client: &Scoped<Client>) {
+        sqlx::query(
+            "UPDATE clients SET previous_secret_expires_at = now() - interval '1 minute' WHERE id = $1",
+        )
+        .bind(client.get().id)
+        .execute(&schema.pool)
+        .await
+        .expect("end the grace period");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn revoking_leaves_an_ended_grace_period_to_the_sweep() {
+        let (repository, schema, client) = seeded("backend").await;
+        repository
+            .rotate_secret(
+                &client,
+                "second-secret".to_string(),
+                Some(Duration::hours(1)),
+            )
+            .await
+            .expect("rotate");
+        end_the_grace_period(&schema, &client).await;
+
+        assert!(
+            !repository
+                .revoke_previous_secret(&client)
+                .await
+                .expect("revoke")
+        );
+        let expired = repository
+            .expire_previous_secrets(Utc::now())
+            .await
+            .expect("expire");
+        assert_eq!(expired.len(), 1);
+        assert_eq!(expired[0].client_id, client.get().id);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn rotating_over_an_ended_grace_period_reports_its_expiry() {
+        let (repository, schema, client) = seeded("backend").await;
+        repository
+            .rotate_secret(
+                &client,
+                "second-secret".to_string(),
+                Some(Duration::hours(1)),
+            )
+            .await
+            .expect("first rotation");
+        end_the_grace_period(&schema, &client).await;
+
+        let rotation = repository
+            .rotate_secret(
+                &client,
+                "third-secret".to_string(),
+                Some(Duration::hours(1)),
+            )
+            .await
+            .expect("second rotation");
+
+        let expired = rotation
+            .replaced_expired
+            .expect("the ended secret is reported");
+        assert_eq!(expired.client_id, client.get().id);
+        assert_eq!(expired.realm_id, schema.realm.id());
+        assert!(expired.expired_at < Utc::now());
+
+        let again = repository
+            .rotate_secret(&client, "fourth-secret".to_string(), None)
+            .await
+            .expect("third rotation");
+        assert!(again.replaced_expired.is_none());
+    }
+
     #[tokio::test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn the_current_secret_and_the_previous_one_need_the_key_to_be_read() {
@@ -1331,7 +1439,7 @@ mod secret_rotation_tests {
             .rotate_secret(
                 &client,
                 "second-secret".to_string(),
-                Some(Utc::now() + Duration::hours(1)),
+                Some(Duration::hours(1)),
             )
             .await
             .expect("rotate");

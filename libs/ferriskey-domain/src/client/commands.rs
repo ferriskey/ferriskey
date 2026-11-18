@@ -2,8 +2,8 @@ use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
 use crate::authentication::entities::AuthProtocol;
-use crate::client::entities::ClientType;
 use crate::client::entities::auth_method::{ClientJwks, TokenEndpointAuthMethod};
+use crate::client::entities::{Client, ClientType};
 use crate::client::value_objects::{
     CreateSamlAttributeMapperRequest, CreateTokenExchangePolicyRequest, CreateWebOriginRequest,
     SetClientSamlConfigRequest, UpdateClientRequest,
@@ -117,6 +117,14 @@ pub struct ExpiredClientSecret {
     pub client_id: Uuid,
     pub realm_id: RealmId,
     pub expired_at: DateTime<Utc>,
+}
+
+/// What a rotation wrote. `replaced_expired` is the previous secret the
+/// rotation overwrote when its grace period had already ended, so its expiry
+/// is still reported even though the sweep will never see it.
+pub struct SecretRotation {
+    pub client: Client,
+    pub replaced_expired: Option<ExpiredClientSecret>,
 }
 
 pub struct GetClientRolesInput {

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
 use crate::auth::Identity;
@@ -13,7 +13,7 @@ use crate::client::{
         DeleteWebOriginInput, ExpiredClientSecret, GetClientInput, GetClientRolesInput,
         GetClientSamlConfigInput, GetPostLogoutRedirectUrisInput, GetRedirectUrisInput,
         GetSamlAttributeMappersInput, GetTokenExchangePoliciesInput, GetWebOriginsInput,
-        RevealedClientSecret, RotateClientSecretInput, RotatedClientSecret,
+        RevealedClientSecret, RotateClientSecretInput, RotatedClientSecret, SecretRotation,
         SetClientSamlConfigInput, UpdateClientInput, UpdatePostLogoutRedirectUriInput,
         UpdateRedirectUriInput,
     },
@@ -249,17 +249,20 @@ pub trait ClientRepository: Send + Sync {
     ) -> impl Future<Output = Result<u64, CoreError>> + Send;
 
     /// Replaces the secret of `client` with `new_secret`. The secret it had
-    /// becomes the previous one until `previous_expires_at`, or is dropped when
-    /// that is `None`. The old value is read under a row lock, not taken from
-    /// `client`, so two concurrent rotations never both keep the same one.
+    /// becomes the previous one for `grace_period`, or is dropped when that is
+    /// `None`. The old value is read and the expiry computed under a row lock,
+    /// so two concurrent rotations never both keep the same one and a wait for
+    /// the lock never eats into the grace period.
     fn rotate_secret(
         &self,
         client: &Scoped<Client>,
         new_secret: String,
-        previous_expires_at: Option<DateTime<Utc>>,
-    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+        grace_period: Option<Duration>,
+    ) -> impl Future<Output = Result<SecretRotation, CoreError>> + Send;
 
-    /// Drops the previous secret of `client`. Returns whether there was one.
+    /// Drops the previous secret of `client` while its grace period still
+    /// runs. Returns whether there was one; an ended one is left to
+    /// [`Self::expire_previous_secrets`] so its expiry is reported.
     fn revoke_previous_secret(
         &self,
         client: &Scoped<Client>,

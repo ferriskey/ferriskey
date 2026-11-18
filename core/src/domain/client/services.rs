@@ -6,6 +6,7 @@ use std::time::Duration;
 use chrono::Utc;
 use uuid::Uuid;
 
+use crate::domain::client::entities::ExpiredClientSecret;
 use crate::domain::client::entities::auth_method::{ClientAuthSettings, TokenEndpointAuthMethod};
 use crate::domain::{
     authentication::value_objects::Identity,
@@ -145,6 +146,25 @@ where
             client_scope_repository,
             scope_mapping_repository,
             policy,
+        }
+    }
+
+    async fn record_secret_expiry(&self, secret: &ExpiredClientSecret) {
+        let mut event = SecurityEvent::without_actor(
+            secret.realm_id,
+            SecurityEventType::ClientSecretExpired,
+            EventStatus::Success,
+        )
+        .with_target("client".to_string(), secret.client_id, None)
+        .with_details(serde_json::json!({ "expired_at": secret.expired_at }));
+        event.actor_type = Some(ActorType::System);
+
+        if let Err(error) = self.security_event_repository.store_event(event).await {
+            tracing::error!(
+                client = %secret.client_id,
+                ?error,
+                "failed to record the expiry of a previous client secret"
+            );
         }
     }
 
@@ -992,11 +1012,19 @@ where
             .await?;
 
         let new_secret = generate_random_string();
-        let previous_expires_at = grace_period.map(|grace| Utc::now() + grace);
 
-        self.client_repository
-            .rotate_secret(&client, new_secret.clone(), previous_expires_at)
+        let rotation = self
+            .client_repository
+            .rotate_secret(&client, new_secret.clone(), grace_period)
             .await?;
+        if let Some(expired) = &rotation.replaced_expired {
+            self.record_secret_expiry(expired).await;
+        }
+        let previous_expires_at = rotation
+            .client
+            .previous_secret
+            .as_ref()
+            .map(|previous| previous.expires_at);
 
         self.security_event_repository
             .store_event(
@@ -1069,22 +1097,7 @@ where
             .await?;
 
         for secret in &expired {
-            let mut event = SecurityEvent::without_actor(
-                secret.realm_id,
-                SecurityEventType::ClientSecretExpired,
-                EventStatus::Success,
-            )
-            .with_target("client".to_string(), secret.client_id, None)
-            .with_details(serde_json::json!({ "expired_at": secret.expired_at }));
-            event.actor_type = Some(ActorType::System);
-
-            if let Err(error) = self.security_event_repository.store_event(event).await {
-                tracing::error!(
-                    client = %secret.client_id,
-                    ?error,
-                    "failed to record the expiry of a previous client secret"
-                );
-            }
+            self.record_secret_expiry(secret).await;
         }
 
         Ok(expired.len())
@@ -1957,10 +1970,10 @@ mod tests {
 
     mod secret_rotation {
         use super::*;
-        use crate::domain::client::entities::ExpiredClientSecret;
         use crate::domain::client::entities::{PreviousClientSecret, RotateClientSecretInput};
         use crate::domain::seawatch::{ActorType, SecurityEvent};
-        use chrono::Duration;
+        use chrono::{DateTime, Duration};
+        use ferriskey_domain::client::commands::SecretRotation;
         use mockall::predicate::always;
 
         fn confidential(realm: &Realm) -> Client {
@@ -1992,6 +2005,18 @@ mod tests {
                 .returning(|_| Box::pin(async { Ok(()) }));
         }
 
+        fn rotated(client: Client, previous_expires_at: Option<DateTime<Utc>>) -> SecretRotation {
+            let mut client = client;
+            client.previous_secret = previous_expires_at.map(|expires_at| PreviousClientSecret {
+                secret: maskass::Masked::new("first-secret".to_string()),
+                expires_at,
+            });
+            SecretRotation {
+                client,
+                replaced_expired: None,
+            }
+        }
+
         fn rotation(client_id: Uuid, grace_period_secs: Option<i64>) -> RotateClientSecretInput {
             RotateClientSecretInput {
                 client_id,
@@ -2009,22 +2034,20 @@ mod tests {
             let client_id = client.id;
             serving(&mut mocks, client.clone());
             without_service_account(&mut mocks);
-            let rotated = client.clone();
+            let stored_expiry = Utc::now() + Duration::hours(1);
+            let written = client.clone();
             mocks
                 .client
                 .expect_rotate_secret()
-                .withf(|_, new_secret, expires_at| {
+                .withf(|_, new_secret, grace_period| {
                     !new_secret.is_empty()
                         && new_secret != "first-secret"
-                        && expires_at.is_some_and(|at| {
-                            let wait = at - Utc::now();
-                            wait > Duration::seconds(3_500) && wait <= Duration::seconds(3_600)
-                        })
+                        && *grace_period == Some(Duration::seconds(3_600))
                 })
                 .times(1)
                 .returning(move |_, _, _| {
-                    let rotated = rotated.clone();
-                    Box::pin(async move { Ok(rotated) })
+                    let rotation = rotated(written.clone(), Some(stored_expiry));
+                    Box::pin(async move { Ok(rotation) })
                 });
             recording(&mut mocks, SecurityEventType::ClientSecretRotated);
 
@@ -2036,7 +2059,51 @@ mod tests {
 
             assert!(!result.client_secret.is_empty());
             assert_ne!(result.client_secret, "first-secret");
-            assert!(result.previous_secret_expires_at.is_some());
+            assert_eq!(result.previous_secret_expires_at, Some(stored_expiry));
+        }
+
+        #[tokio::test]
+        async fn rotating_over_an_ended_grace_period_still_reports_its_expiry() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = confidential(&realm);
+            let client_id = client.id;
+            let realm_id = realm.id;
+            serving(&mut mocks, client.clone());
+            without_service_account(&mut mocks);
+            mocks
+                .client
+                .expect_rotate_secret()
+                .times(1)
+                .returning(move |_, _, _| {
+                    let mut rotation = rotated(client.clone(), None);
+                    rotation.replaced_expired = Some(ExpiredClientSecret {
+                        client_id,
+                        realm_id,
+                        expired_at: Utc::now() - Duration::seconds(30),
+                    });
+                    Box::pin(async move { Ok(rotation) })
+                });
+            let mut sequence = mockall::Sequence::new();
+            for expected in [
+                SecurityEventType::ClientSecretExpired,
+                SecurityEventType::ClientSecretRotated,
+            ] {
+                mocks
+                    .security_event
+                    .expect_store_event()
+                    .withf(move |event: &SecurityEvent| event.event_type == expected)
+                    .times(1)
+                    .in_sequence(&mut sequence)
+                    .returning(|_| Box::pin(async { Ok(()) }));
+            }
+
+            mocks
+                .build()
+                .rotate_client_secret(identity, rotation(client_id, None))
+                .await
+                .expect("the secret is rotated");
         }
 
         #[tokio::test]
@@ -2079,11 +2146,11 @@ mod tests {
             mocks
                 .client
                 .expect_rotate_secret()
-                .withf(|_, _, expires_at| expires_at.is_none())
+                .withf(|_, _, grace_period| grace_period.is_none())
                 .times(1)
                 .returning(move |_, _, _| {
-                    let client = client.clone();
-                    Box::pin(async move { Ok(client) })
+                    let rotation = rotated(client.clone(), None);
+                    Box::pin(async move { Ok(rotation) })
                 });
             recording(&mut mocks, SecurityEventType::ClientSecretRotated);
 

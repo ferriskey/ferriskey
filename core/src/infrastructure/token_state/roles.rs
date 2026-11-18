@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use ferriskey_domain::client::commands::ExpiredClientSecret;
+use ferriskey_domain::client::commands::{ExpiredClientSecret, SecretRotation};
 use ferriskey_domain::client::entities::{
     Client, ClientFilter, ClientRegistrationSource, ClientSortField,
 };
@@ -157,10 +157,10 @@ impl<R: ClientRepository> ClientRepository for InvalidatingClientRepository<R> {
         &self,
         client: &Scoped<Client>,
         new_secret: String,
-        previous_expires_at: Option<DateTime<Utc>>,
-    ) -> Result<Client, CoreError> {
+        grace_period: Option<chrono::Duration>,
+    ) -> Result<SecretRotation, CoreError> {
         self.inner
-            .rotate_secret(client, new_secret, previous_expires_at)
+            .rotate_secret(client, new_secret, grace_period)
             .await
     }
 
