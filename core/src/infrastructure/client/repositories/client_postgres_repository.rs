@@ -15,7 +15,7 @@ use sea_orm::{
     Statement, TransactionTrait,
     sea_query::{Expr, Func},
 };
-use tracing::{error, instrument};
+use tracing::{error, instrument, warn};
 use uuid::Uuid;
 
 use crate::domain::client::entities::ExpiredClientSecret;
@@ -205,9 +205,18 @@ impl PostgresClientRepository {
         if let Some(stored) = model.secret.as_deref() {
             model.secret = Some(self.open_secret(CLIENT_SECRET_PURPOSE, model.id, stored)?);
         }
-        if let Some(stored) = model.previous_secret.as_deref() {
-            model.previous_secret =
-                Some(self.open_secret(CLIENT_PREVIOUS_SECRET_PURPOSE, model.id, stored)?);
+        if let Some(stored) = model.previous_secret.take() {
+            match self.open_secret(CLIENT_PREVIOUS_SECRET_PURPOSE, model.id, &stored) {
+                Ok(previous) => model.previous_secret = Some(previous),
+                Err(error) => {
+                    warn!(
+                        client = %model.id,
+                        ?error,
+                        "the previous client secret cannot be opened, it is ignored until it expires"
+                    );
+                    model.previous_secret_expires_at = None;
+                }
+            }
         }
 
         Ok(Client::from(model))
@@ -1429,6 +1438,34 @@ mod secret_rotation_tests {
             .await
             .expect("third rotation");
         assert!(again.replaced_expired.is_none());
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_previous_secret_that_cannot_be_opened_does_not_lock_the_client_out() {
+        let (repository, schema, client) = seeded("backend").await;
+        repository
+            .rotate_secret(
+                &client,
+                "second-secret".to_string(),
+                Some(Duration::hours(1)),
+            )
+            .await
+            .expect("rotate");
+        sqlx::query("UPDATE clients SET previous_secret = 'fk1:kid-gone:AAAA' WHERE id = $1")
+            .bind(client.get().id)
+            .execute(&schema.pool)
+            .await
+            .expect("seal the previous secret under a lost key");
+
+        let read = repository
+            .get_by_client_id("backend".to_string(), schema.realm.id())
+            .await
+            .expect("the client is still read")
+            .across_realms();
+
+        assert_eq!(read.secret_str(), Some("second-secret"));
+        assert!(read.previous_secret.is_none());
     }
 
     #[tokio::test]
