@@ -65,6 +65,7 @@ pub const BUNDLE_TABLES: &[&str] = &[
     "authz_relation_tuples",
     "consent_sessions",
     "consent_session_scopes",
+    "device_sessions",
     "user_sessions",
     "session_participants",
     "session_token_revocations",
