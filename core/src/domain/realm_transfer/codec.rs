@@ -83,6 +83,9 @@ impl BundleWriter {
         self.line.clear();
         serde_json::to_writer(&mut self.line, line)
             .map_err(|error| CoreError::Database(error.to_string()))?;
+        if self.line.len() > LONGEST_LINE {
+            return Err(invalid("a row is too large to fit in a bundle line"));
+        }
         self.line.push(b'\n');
 
         let sealed = self.sealer.push(&self.line).map_err(envelope)?;
@@ -129,6 +132,9 @@ where
         loop {
             let unread = &self.buffer[self.cursor..];
             if let Some(end) = unread.iter().position(|byte| *byte == b'\n') {
+                if end > LONGEST_LINE {
+                    return Err(invalid("a line of the bundle is too long"));
+                }
                 let line = unread[..end].to_vec();
                 self.cursor += end + 1;
                 if self.cursor > COMPACT_AFTER {
@@ -396,6 +402,51 @@ mod tests {
             read(bundle, 1 << 20).await,
             Err(CoreError::RealmBundleWithoutKeys)
         ));
+    }
+
+    fn oversized_row() -> BundleRow {
+        row(
+            "users",
+            json!({ "id": "user-big", "realm_id": REALM_ID, "username": "x".repeat(LONGEST_LINE) }),
+        )
+    }
+
+    #[tokio::test]
+    async fn a_row_too_large_for_the_reader_stops_the_export() {
+        let (out, _chunks) = mpsc::channel(1024);
+        let key = BundleKey::create(PASSPHRASE, CHEAP).unwrap();
+        let mut writer = BundleWriter::start(key, header(), out).await.unwrap();
+
+        assert!(matches!(
+            writer.accept(oversized_row()).await,
+            Err(CoreError::InvalidRealmBundle(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn an_oversized_line_is_refused_however_the_body_is_cut() {
+        let key = BundleKey::create(PASSPHRASE, CHEAP).unwrap();
+        let mut sealer = BundleSealer::new(key);
+        let mut bundle = Vec::new();
+        for line in [
+            BundleLine::Header(header()),
+            BundleLine::Row(oversized_row()),
+        ] {
+            let mut bytes = serde_json::to_vec(&line).unwrap();
+            bytes.push(b'\n');
+            bundle.extend(sealer.push(&bytes).unwrap());
+        }
+        bundle.extend(sealer.finish().unwrap());
+
+        for piece in [64 << 20, 1 << 20] {
+            assert!(
+                matches!(
+                    read(bundle.clone(), piece).await,
+                    Err(CoreError::InvalidRealmBundle(_))
+                ),
+                "piece {piece}"
+            );
+        }
     }
 
     #[tokio::test]
