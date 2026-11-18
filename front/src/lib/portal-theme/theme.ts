@@ -77,6 +77,18 @@ export function mergeWithDefaults(partial: Schemas.PortalThemeConfig | undefined
   }
 }
 
+/**
+ * Swaps `colors` for `darkColors`, when the theme has them.
+ * Missing dark tokens take the defaults, like the backend.
+ *
+ * @example
+ * withDarkPalette({ darkColors: { bodyText: '#fff' } }) // { colors: { bodyText: '#fff' }, … }
+ */
+export function withDarkPalette(tokens: Schemas.PortalThemeConfig): Schemas.PortalThemeConfig {
+  if (!tokens.darkColors) return tokens
+  return { ...tokens, colors: tokens.darkColors }
+}
+
 // Tuned to match the FerrisKey default admin design — modern cards want
 // a soft, well-dispersed elevation rather than a tight 1-2px drop. Each
 // preset combines a wide ambient layer with a tighter contact layer so

@@ -61,7 +61,8 @@ export function PortalInput({
     border: `var(--fk-border-input, 1px) solid ${
       focused
         ? 'var(--fk-color-primary-button, #635dff)'
-        : 'rgba(0,0,0,0.18)'
+        : // Text colour at low alpha. It shows on light and dark widgets.
+          'color-mix(in srgb, var(--fk-color-body-text, #111827) 18%, transparent)'
     }`,
     backgroundColor: 'var(--fk-color-widget-bg, #ffffff)',
     paddingLeft: 12,
