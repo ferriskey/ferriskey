@@ -61,30 +61,40 @@ where
         let header =
             jsonwebtoken::decode_header(jwt).map_err(|_| ClientAssertionError::Malformed)?;
 
-        let (proof, key) = match client.token_endpoint_auth_method {
+        let verify =
+            |key: &DecodingKey| verified_claims(jwt, key, header.alg, &client.client_id, assertion);
+
+        let (proof, claims) = match client.token_endpoint_auth_method {
             TokenEndpointAuthMethod::PrivateKeyJwt => {
                 if !PRIVATE_KEY_JWT_ALGORITHMS.contains(&header.alg) {
                     return Err(ClientAssertionError::UnsupportedAlgorithm);
                 }
-                (
-                    ClientProof::PrivateKeyJwt,
-                    self.client_key(client, &header).await?,
-                )
+                let key = self.client_key(client, &header).await?;
+                (ClientProof::PrivateKeyJwt, verify(&key)?)
             }
             TokenEndpointAuthMethod::ClientSecretJwt => {
                 if !CLIENT_SECRET_JWT_ALGORITHMS.contains(&header.alg) {
                     return Err(ClientAssertionError::UnsupportedAlgorithm);
                 }
                 let secret = client.secret_str().ok_or(ClientAssertionError::NoKeys)?;
-                (
-                    ClientProof::SecretJwt,
-                    DecodingKey::from_secret(secret.as_bytes()),
-                )
+                let previous = client
+                    .previous_secret
+                    .as_ref()
+                    .filter(|previous| previous.is_valid_at(Utc::now()));
+                let claims = match (
+                    verify(&DecodingKey::from_secret(secret.as_bytes())),
+                    previous,
+                ) {
+                    (Err(ClientAssertionError::Rejected(_)), Some(previous)) => verify(
+                        &DecodingKey::from_secret(previous.secret.expose().as_bytes()),
+                    )?,
+                    (claims, _) => claims?,
+                };
+                (ClientProof::SecretJwt, claims)
             }
             _ => return Err(ClientAssertionError::MethodMismatch),
         };
 
-        let claims = verified_claims(jwt, &key, header.alg, &client.client_id, assertion)?;
         let expires_at = bounded_expiry(claims.exp, Utc::now())?;
 
         let jti = claims
@@ -233,6 +243,7 @@ mod tests {
         MockClientAssertionReplayStore, MockClientJwksFetcher,
     };
     use crate::domain::authentication::client_authentication::tests::client;
+    use crate::domain::client::entities::PreviousClientSecret;
     use crate::domain::client::entities::auth_method::ClientJwks;
 
     type Mutation = fn(&mut Value, i64);
@@ -508,6 +519,48 @@ mod tests {
             check(&verifier, &client, &sign(&signer, &claims("app"))).await,
             Err(ClientAssertionError::MethodMismatch)
         );
+    }
+
+    #[tokio::test]
+    async fn client_secret_jwt_signed_with_the_previous_secret_works_through_its_grace_period() {
+        let sign_with = |key: &[u8]| {
+            let jwt = jsonwebtoken::encode(
+                &Header::new(Algorithm::HS256),
+                &claims("app"),
+                &EncodingKey::from_secret(key),
+            )
+            .expect("sign");
+            ClientAssertion::new(jwt, vec![AUDIENCE.to_string()])
+        };
+        let rotated = |expires_at| {
+            let mut client = client(false);
+            client.token_endpoint_auth_method = TokenEndpointAuthMethod::ClientSecretJwt;
+            client.previous_secret = Some(PreviousClientSecret {
+                secret: maskass::Masked::new("0ld-s3cr3t".to_string()),
+                expires_at,
+            });
+            client
+        };
+        let verifier = verifier(no_fetch(), accepting_store());
+
+        assert_eq!(
+            check(
+                &verifier,
+                &rotated(Utc::now() + chrono::Duration::minutes(5)),
+                &sign_with(b"0ld-s3cr3t")
+            )
+            .await,
+            Ok(ClientProof::SecretJwt)
+        );
+        assert!(matches!(
+            check(
+                &verifier,
+                &rotated(Utc::now() - chrono::Duration::seconds(1)),
+                &sign_with(b"0ld-s3cr3t")
+            )
+            .await,
+            Err(ClientAssertionError::Rejected(_))
+        ));
     }
 
     #[tokio::test]
