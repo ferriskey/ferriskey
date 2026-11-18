@@ -319,6 +319,7 @@ credentials:
   title: 客户端凭据
   description: 该客户端用于证明自身身份的内容。
   copy: 复制
+  copy_failed: 无法复制该值。请检查此站点的剪贴板权限。
   client_id:
     label: 客户端 ID
     description: 用于对该客户端进行认证的唯一标识符。
@@ -332,7 +333,7 @@ credentials:
     # manage-clients is a permission name — never translated.
     forbidden: 显示该密钥需要 manage-clients 权限。请向域管理员申请权限。
     failed: 无法显示该密钥。请重试。
-    rotation_hint: 轮换会替换该密钥。请选择当前密钥继续有效的时长，以便所有部署完成切换。
+    rotation_hint: 轮换会替换该密钥。请选择当前密钥继续有效的时长，以便所有部署完成切换。再次轮换会立即终止之前保留的旧密钥。
   authentication:
     title: 客户端认证
     description: 该客户端在令牌、内省和撤销端点证明自身身份的方式。
@@ -366,6 +367,7 @@ credentials:
       one_day: 24 小时
       one_week: 7 天
       thirty_days: 30 天
+    replaces_previous: 仍在宽限期内的旧密钥将立即失效，不会等到其过期时间。
     confirm: 轮换
     cancel: 取消
     toast:

@@ -306,6 +306,7 @@ credentials:
   title: Client credentials
   description: What this client presents to prove who it is.
   copy: Copy
+  copy_failed: The value could not be copied. Check the clipboard permission of this site.
   client_id:
     label: Client ID
     description: The unique identifier used to authenticate this client.
@@ -318,7 +319,7 @@ credentials:
     hide_label: Hide client secret
     forbidden: You need the manage-clients permission to reveal this secret. Ask a realm administrator for access.
     failed: The secret could not be revealed. Please try again.
-    rotation_hint: Rotating replaces this secret. Choose how long the current one keeps working so every deployment can switch over.
+    rotation_hint: Rotating replaces this secret. Choose how long the current one keeps working so every deployment can switch over. Rotating again ends any earlier previous secret at once.
   authentication:
     title: Client authentication
     description: How this client proves who it is at the token, introspection and revocation endpoints.
@@ -352,6 +353,7 @@ credentials:
       one_day: 24 hours
       one_week: 7 days
       thirty_days: 30 days
+    replaces_previous: The previous secret still in its grace period stops working now, before its expiry.
     confirm: Rotate
     cancel: Cancel
     toast:
