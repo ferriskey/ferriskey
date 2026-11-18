@@ -2187,9 +2187,11 @@ export type post_Rotate_client_secret = {
         body: Schemas.RotateClientSecretRequest,
     },
     responses: {200: Schemas.RotateClientSecretResponse,
-400: Schemas.ApiErrorResponse,
+400: Schemas.ApiErrorResponse | string,
 403: Schemas.ApiErrorResponse,
 404: Schemas.ApiErrorResponse,
+415: string,
+422: string,
 },
 }
 export type delete_Revoke_previous_client_secret = {

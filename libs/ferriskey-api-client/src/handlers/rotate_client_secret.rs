@@ -36,7 +36,7 @@ pub struct RotateClientSecretResponse {
     path = "/{client_id}/client-secret/rotate",
     tag = "client",
     summary = "Rotate a confidential client's secret",
-    description = "Generates a new secret for a confidential client. The secret it had keeps working for `grace_period_secs` (none by default, 30 days at most) so every deployment can switch over, then stops. Rotating again during that window replaces the previous secret, the older one stops at once. Requires ManageClients (or ManageRealm) and records a `client_secret_rotated` security event.",
+    description = "Generates a new secret for a confidential client. The secret it had keeps working for `grace_period_secs` (none by default, 30 days at most) so every deployment can switch over, then stops. Rotating again during that window replaces the previous secret, the older one stops at once. Requires ManageClients (or ManageRealm); rotating the secret of a client whose service account holds permissions the caller lacks is refused with 403. Records a `client_secret_rotated` security event.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("client_id" = Uuid, Path, description = "Client ID"),
@@ -45,7 +45,7 @@ pub struct RotateClientSecretResponse {
     responses(
         (status = 200, body = RotateClientSecretResponse),
         (status = 400, description = "Public client or grace period out of range (`ApiErrorResponse`), or a body that is not valid JSON (plain-text extractor rejection)", body = ApiErrorResponse),
-        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions, or the client's service account holds permissions the caller lacks", body = ApiErrorResponse),
         (status = 404, description = "Client not found", body = ApiErrorResponse),
         (status = 415, description = "Missing `Content-Type: application/json` (plain-text extractor rejection)"),
         (status = 422, description = "JSON that does not match the request, such as a `grace_period_secs` that is not an integer (plain-text extractor rejection)"),
