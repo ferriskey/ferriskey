@@ -1033,7 +1033,10 @@ mod tests {
             .expect("connect admin pool");
 
         admin_pool
-            .execute(format!("CREATE SCHEMA IF NOT EXISTS \"{}\"", schema).as_str())
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                "CREATE SCHEMA IF NOT EXISTS \"{}\"",
+                schema
+            ))))
             .await
             .expect("create schema");
 
@@ -1222,7 +1225,10 @@ mod tests {
         assert_eq!(optional_count.0, 0);
 
         admin_pool
-            .execute(format!("DROP SCHEMA IF EXISTS \"{}\" CASCADE", schema).as_str())
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                "DROP SCHEMA IF EXISTS \"{}\" CASCADE",
+                schema
+            ))))
             .await
             .expect("drop schema");
     }
@@ -1246,7 +1252,10 @@ mod tests {
             .await
             .expect("connect admin pool");
         admin_pool
-            .execute(format!("CREATE SCHEMA IF NOT EXISTS \"{}\"", schema).as_str())
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                "CREATE SCHEMA IF NOT EXISTS \"{}\"",
+                schema
+            ))))
             .await
             .expect("create schema");
 
@@ -1336,7 +1345,10 @@ mod tests {
         );
 
         admin_pool
-            .execute(format!("DROP SCHEMA IF EXISTS \"{}\" CASCADE", schema).as_str())
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                "DROP SCHEMA IF EXISTS \"{}\" CASCADE",
+                schema
+            ))))
             .await
             .expect("drop schema");
     }

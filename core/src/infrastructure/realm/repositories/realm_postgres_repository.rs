@@ -517,7 +517,10 @@ mod tests {
             &RealmFilter::default(),
         );
         assert!(
-            sql.contains(&format!(r#""realms"."id" IN ('{first}', '{second}')"#)),
+            str::contains(
+                &sql,
+                &format!(r#""realms"."id" IN ('{first}', '{second}')"#)
+            ),
             "{sql}"
         );
     }
@@ -525,7 +528,7 @@ mod tests {
     #[test]
     fn no_accessible_realm_matches_nothing() {
         let sql = sql(&[], &RealmFilter::default());
-        assert!(sql.contains("WHERE 1 = 2"), "{sql}");
+        assert!(str::contains(&sql, "WHERE 1 = 2"), "{sql}");
     }
 
     #[test]
@@ -538,9 +541,12 @@ mod tests {
                 ..RealmFilter::default()
             },
         );
-        assert!(sql.contains(r#""realms"."name" ILIKE E'%a\\%%'"#), "{sql}");
         assert!(
-            sql.contains(r#""realms"."display_name" ILIKE '%b%'"#),
+            str::contains(&sql, r#""realms"."name" ILIKE E'%a\\%%'"#),
+            "{sql}"
+        );
+        assert!(
+            str::contains(&sql, r#""realms"."display_name" ILIKE '%b%'"#),
             "{sql}"
         );
     }
@@ -555,7 +561,8 @@ mod tests {
             },
         );
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#"(("realms"."name" ILIKE E'%a\\%%') OR ("realms"."display_name" ILIKE E'%a\\%%'))"#
             ),
             "{sql}"

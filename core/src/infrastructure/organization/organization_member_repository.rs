@@ -1,5 +1,6 @@
 use chrono::Utc;
 use sea_orm::ActiveValue::Set;
+use sea_orm::ExprTrait;
 use sea_orm::sea_query::{Expr, SimpleExpr};
 use sea_orm::{
     ColumnTrait, Condition, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
@@ -76,19 +77,17 @@ fn listing_select(
 impl SortExpr for OrganizationMemberSortField {
     fn expr(&self) -> SimpleExpr {
         match self {
-            OrganizationMemberSortField::Username => {
-                Expr::col((UserEntity, UserColumn::Username)).into()
-            }
-            OrganizationMemberSortField::Email => Expr::col((UserEntity, UserColumn::Email)).into(),
+            OrganizationMemberSortField::Username => Expr::col((UserEntity, UserColumn::Username)),
+            OrganizationMemberSortField::Email => Expr::col((UserEntity, UserColumn::Email)),
             OrganizationMemberSortField::CreatedAt => {
-                Expr::col((MemberEntity, MemberColumn::CreatedAt)).into()
+                Expr::col((MemberEntity, MemberColumn::CreatedAt))
             }
         }
     }
 }
 
 fn tie_breaker() -> SimpleExpr {
-    Expr::col((MemberEntity, MemberColumn::Id)).into()
+    Expr::col((MemberEntity, MemberColumn::Id))
 }
 
 impl OrganizationMemberRepository for PostgresOrganizationMemberRepository {
@@ -220,11 +219,11 @@ mod listing_tests {
     fn an_unbounded_created_range_adds_no_predicate() {
         let sql = sql(&OrganizationMemberFilter::default());
         assert!(
-            !sql.contains(r#""organization_members"."created_at" >"#),
+            !str::contains(&sql, r#""organization_members"."created_at" >"#),
             "{sql}"
         );
         assert!(
-            !sql.contains(r#""organization_members"."created_at" <"#),
+            !str::contains(&sql, r#""organization_members"."created_at" <"#),
             "{sql}"
         );
     }
@@ -239,13 +238,15 @@ mod listing_tests {
             ..OrganizationMemberFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""organization_members"."created_at" >= '2026-01-01 00:00:00.000000 +00:00'"#
             ),
             "{sql}"
         );
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""organization_members"."created_at" < '2026-02-01 00:00:00.000000 +00:00'"#
             ),
             "{sql}"
@@ -259,7 +260,8 @@ mod listing_tests {
             ..OrganizationMemberFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#"(("users"."username" ILIKE E'%a\\_%') OR ("users"."email" ILIKE E'%a\\_%'))"#
             ),
             "{sql}"
@@ -283,13 +285,15 @@ mod listing_tests {
     fn listing_is_always_bound_to_the_organization_and_joins_users() {
         let sql = sql(&OrganizationMemberFilter::default());
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#"INNER JOIN "users" ON "organization_members"."user_id" = "users"."id""#
             ),
             "{sql}"
         );
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""organization_members"."organization_id" = '00000000-0000-0000-0000-000000000000'"#
             ),
             "{sql}"
@@ -304,10 +308,13 @@ mod listing_tests {
             ..OrganizationMemberFilter::default()
         });
         assert!(
-            sql.contains(r#""users"."username" ILIKE E'%a\\%%'"#),
+            str::contains(&sql, r#""users"."username" ILIKE E'%a\\%%'"#),
             "{sql}"
         );
-        assert!(sql.contains(r#""users"."email" ILIKE E'%b\\_%'"#), "{sql}");
+        assert!(
+            str::contains(&sql, r#""users"."email" ILIKE E'%b\\_%'"#),
+            "{sql}"
+        );
     }
 
     #[test]
@@ -316,7 +323,7 @@ mod listing_tests {
             enabled: Some(false),
             ..OrganizationMemberFilter::default()
         });
-        assert!(sql.contains(r#""users"."enabled" = FALSE"#), "{sql}");
+        assert!(str::contains(&sql, r#""users"."enabled" = FALSE"#), "{sql}");
     }
 
     #[test]
@@ -335,9 +342,12 @@ mod listing_tests {
             for (order, keyword) in [(SortOrder::Asc, "ASC"), (SortOrder::Desc, "DESC")] {
                 let sql = ordered(field, order);
                 assert!(
-                    sql.contains(&format!(
-                        r#"ORDER BY {column} {keyword}, "organization_members"."id" {keyword}"#
-                    )),
+                    str::contains(
+                        &sql,
+                        &format!(
+                            r#"ORDER BY {column} {keyword}, "organization_members"."id" {keyword}"#
+                        )
+                    ),
                     "{sql}"
                 );
             }
@@ -348,9 +358,12 @@ mod listing_tests {
     fn the_page_selects_only_the_membership_columns() {
         let sql = ordered(OrganizationMemberSortField::default(), SortOrder::default());
         assert!(
-            sql.starts_with(r#"SELECT "organization_members"."id", "organization_members"."organization_id", "organization_members"."user_id", "organization_members"."created_at" FROM"#),
+            str::starts_with(
+                &sql,
+                r#"SELECT "organization_members"."id", "organization_members"."organization_id", "organization_members"."user_id", "organization_members"."created_at" FROM"#
+            ),
             "{sql}"
         );
-        assert!(sql.contains("LIMIT 20 OFFSET 0"), "{sql}");
+        assert!(str::contains(&sql, "LIMIT 20 OFFSET 0"), "{sql}");
     }
 }

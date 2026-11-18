@@ -82,10 +82,10 @@ mod tests {
             .expect("connect admin pool");
 
         admin_pool
-            .execute(sqlx::query(&format!(
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
                 "CREATE SCHEMA IF NOT EXISTS \"{}\"",
                 schema
-            )))
+            ))))
             .await
             .expect("create schema");
 
@@ -671,7 +671,7 @@ mod tests {
     }
 
     async fn bound_session_query(sql: &str, code: &str) {
-        let affected = sqlx::query(sql)
+        let affected = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned()))
             .bind(code)
             .execute(&shared_ctx().pool)
             .await

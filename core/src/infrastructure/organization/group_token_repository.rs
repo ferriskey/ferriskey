@@ -96,7 +96,7 @@ impl PostgresGroupTokenRepository {
     ) -> Result<TokenGroupMembership, CoreError> {
         let rows = self
             .db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 sql,
                 [key.into()],
@@ -168,7 +168,7 @@ impl GroupTokenRepository for PostgresGroupTokenRepository {
     ) -> Result<Vec<Uuid>, CoreError> {
         let rows = self
             .db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 EFFECTIVE_ROLE_IDS_SQL,
                 [user_id.into()],
@@ -218,11 +218,18 @@ mod tests {
             .await
             .expect("connect admin pool");
         admin_pool
-            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                r#"CREATE SCHEMA "{}""#,
+                schema
+            ))))
             .await
             .expect("create test schema");
 
-        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let separator = if str::contains(base_url.as_str(), '?') {
+            '&'
+        } else {
+            '?'
+        };
         let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
         let pool = sqlx::PgPool::connect(&schema_url)
             .await
@@ -252,7 +259,7 @@ mod tests {
     }
 
     async fn run(pool: &sqlx::PgPool, sql: &str, binds: &[Uuid]) {
-        let mut query = sqlx::query(sql);
+        let mut query = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned()));
         for bind in binds {
             query = query.bind(*bind);
         }

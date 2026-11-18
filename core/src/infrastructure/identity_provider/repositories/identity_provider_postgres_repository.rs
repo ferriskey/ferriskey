@@ -1,3 +1,4 @@
+use sea_orm::ExprTrait;
 use sea_orm::{
     ActiveModelTrait,
     ActiveValue::Set,
@@ -353,7 +354,8 @@ mod tests {
             ..IdentityProviderFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#"(("identity_providers"."alias" ILIKE E'%a\\%%') OR ("identity_providers"."display_name" ILIKE E'%a\\%%'))"#
             ),
             "{sql}"
@@ -364,11 +366,11 @@ mod tests {
     fn an_unbounded_created_range_adds_no_predicate() {
         let sql = sql(&IdentityProviderFilter::default());
         assert!(
-            !sql.contains(r#""identity_providers"."created_at" >"#),
+            !str::contains(&sql, r#""identity_providers"."created_at" >"#),
             "{sql}"
         );
         assert!(
-            !sql.contains(r#""identity_providers"."created_at" <"#),
+            !str::contains(&sql, r#""identity_providers"."created_at" <"#),
             "{sql}"
         );
     }
@@ -383,13 +385,15 @@ mod tests {
             ..IdentityProviderFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""identity_providers"."created_at" >= '2026-01-01 00:00:00.000000 +00:00'"#
             ),
             "{sql}"
         );
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""identity_providers"."created_at" < '2026-02-01 00:00:00.000000 +00:00'"#
             ),
             "{sql}"
@@ -417,12 +421,13 @@ mod tests {
     fn listing_is_always_bound_to_the_realm() {
         let sql = sql(&IdentityProviderFilter::default());
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""identity_providers"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
             ),
             "{sql}"
         );
-        assert!(!sql.contains("->"), "{sql}");
+        assert!(!str::contains(&sql, "->"), "{sql}");
     }
 
     #[test]
@@ -433,11 +438,11 @@ mod tests {
             ..IdentityProviderFilter::default()
         });
         assert!(
-            sql.contains(r#""identity_providers"."alias" ILIKE E'%a\\%%'"#),
+            str::contains(&sql, r#""identity_providers"."alias" ILIKE E'%a\\%%'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""identity_providers"."display_name" ILIKE '%b%'"#),
+            str::contains(&sql, r#""identity_providers"."display_name" ILIKE '%b%'"#),
             "{sql}"
         );
     }
@@ -450,11 +455,11 @@ mod tests {
             ..IdentityProviderFilter::default()
         });
         assert!(
-            sql.contains(r#""identity_providers"."provider_id" = 'oidc'"#),
+            str::contains(&sql, r#""identity_providers"."provider_id" = 'oidc'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""identity_providers"."enabled" = FALSE"#),
+            str::contains(&sql, r#""identity_providers"."enabled" = FALSE"#),
             "{sql}"
         );
     }
@@ -462,10 +467,10 @@ mod tests {
     #[test]
     fn error_health_is_any_required_key_missing() {
         let sql = health(IdentityProviderHealth::Error);
-        assert!(sql.contains(MISSING_CLIENT_ID), "{sql}");
-        assert!(sql.contains(MISSING_SECRET), "{sql}");
-        assert!(sql.contains(" OR "), "{sql}");
-        assert!(!sql.contains("'scopes'"), "{sql}");
+        assert!(str::contains(&sql, MISSING_CLIENT_ID), "{sql}");
+        assert!(str::contains(&sql, MISSING_SECRET), "{sql}");
+        assert!(str::contains(&sql, " OR "), "{sql}");
+        assert!(!str::contains(&sql, "'scopes'"), "{sql}");
     }
 
     #[test]

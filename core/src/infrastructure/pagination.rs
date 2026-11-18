@@ -172,7 +172,7 @@ mod tests {
         .build(DbBackend::Postgres)
         .to_string();
         assert!(
-            sql.ends_with(r#"ORDER BY "realms"."name" ASC, "realms"."id" ASC"#),
+            str::ends_with(&sql, r#"ORDER BY "realms"."name" ASC, "realms"."id" ASC"#),
             "{sql}"
         );
     }
@@ -186,7 +186,10 @@ mod tests {
         .build(DbBackend::Postgres)
         .to_string();
         assert!(
-            sql.ends_with(r#"ORDER BY "realms"."created_at" DESC, "realms"."id" DESC"#),
+            str::ends_with(
+                &sql,
+                r#"ORDER BY "realms"."created_at" DESC, "realms"."id" DESC"#
+            ),
             "{sql}"
         );
     }
@@ -194,10 +197,8 @@ mod tests {
     impl SortExpr for TestSort {
         fn expr(&self) -> SimpleExpr {
             match self {
-                TestSort::Name => Expr::col((users::Entity, users::Column::Username)).into(),
-                TestSort::CreatedAt => {
-                    Expr::col((realms::Entity, realms::Column::CreatedAt)).into()
-                }
+                TestSort::Name => Expr::col((users::Entity, users::Column::Username)),
+                TestSort::CreatedAt => Expr::col((realms::Entity, realms::Column::CreatedAt)),
             }
         }
     }
@@ -216,16 +217,17 @@ mod tests {
         let sql = page_by_expr(
             realms::Entity::find().select_also(users::Entity),
             &request,
-            Expr::col((realms::Entity, realms::Column::Id)).into(),
+            Expr::col((realms::Entity, realms::Column::Id)),
         )
         .build(DbBackend::Postgres)
         .to_string();
         assert!(
-            sql.contains(r#""users"."username" AS "B_username""#),
+            str::contains(&sql, r#""users"."username" AS "B_username""#),
             "{sql}"
         );
         assert!(
-            sql.ends_with(
+            str::ends_with(
+                &sql,
                 r#"ORDER BY "users"."username" ASC, "realms"."id" ASC LIMIT 10 OFFSET 20"#
             ),
             "{sql}"
@@ -234,12 +236,13 @@ mod tests {
         let sql = page_by_expr(
             realms::Entity::find(),
             &self::request(TestSort::CreatedAt, SortOrder::Desc),
-            Expr::col((realms::Entity, realms::Column::Id)).into(),
+            Expr::col((realms::Entity, realms::Column::Id)),
         )
         .build(DbBackend::Postgres)
         .to_string();
         assert!(
-            sql.ends_with(
+            str::ends_with(
+                &sql,
                 r#"ORDER BY "realms"."created_at" DESC, "realms"."id" DESC LIMIT 20 OFFSET 0"#
             ),
             "{sql}"
@@ -252,8 +255,11 @@ mod tests {
             .filter(contains(realms::Column::Name, "a_b"))
             .build(DbBackend::Postgres)
             .to_string();
-        assert!(sql.contains(r#""realms"."name" ILIKE E'%a\\_b%'"#), "{sql}");
-        assert!(!sql.contains("ESCAPE"), "{sql}");
+        assert!(
+            str::contains(&sql, r#""realms"."name" ILIKE E'%a\\_b%'"#),
+            "{sql}"
+        );
+        assert!(!str::contains(&sql, "ESCAPE"), "{sql}");
     }
 
     #[test]
@@ -268,11 +274,17 @@ mod tests {
             .build(DbBackend::Postgres)
             .to_string();
         assert!(
-            sql.contains(r#""realms"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""realms"."created_at" >= '2026-01-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""realms"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""realms"."created_at" < '2026-02-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
     }
@@ -289,11 +301,17 @@ mod tests {
             .build(DbBackend::Postgres)
             .to_string();
         assert!(
-            sql.contains(r#""organizations"."created_at" >= '2026-01-01 00:00:00.000000 +00:00'"#),
+            str::contains(
+                &sql,
+                r#""organizations"."created_at" >= '2026-01-01 00:00:00.000000 +00:00'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""organizations"."created_at" < '2026-02-01 00:00:00.000000 +00:00'"#),
+            str::contains(
+                &sql,
+                r#""organizations"."created_at" < '2026-02-01 00:00:00.000000 +00:00'"#
+            ),
             "{sql}"
         );
     }
@@ -307,8 +325,8 @@ mod tests {
             ))
             .build(DbBackend::Postgres)
             .to_string();
-        assert!(sql.ends_with("WHERE TRUE"), "{sql}");
-        assert!(!sql.contains(r#""realms"."created_at" >"#), "{sql}");
-        assert!(!sql.contains(r#""realms"."created_at" <"#), "{sql}");
+        assert!(str::ends_with(&sql, "WHERE TRUE"), "{sql}");
+        assert!(!str::contains(&sql, r#""realms"."created_at" >"#), "{sql}");
+        assert!(!str::contains(&sql, r#""realms"."created_at" <"#), "{sql}");
     }
 }

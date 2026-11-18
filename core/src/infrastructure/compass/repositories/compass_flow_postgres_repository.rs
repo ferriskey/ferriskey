@@ -347,7 +347,7 @@ impl CompassFlowRepository for PostgresCompassFlowRepository {
 
         let avg_duration_ms = self
             .db
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Postgres,
                 "SELECT AVG(duration_ms)::float8 as avg_duration FROM compass_flows WHERE realm_id = $1 AND duration_ms IS NOT NULL",
                 [realm_uuid.into()],
@@ -380,7 +380,7 @@ impl CompassFlowRepository for PostgresCompassFlowRepository {
 
         let rows = self
             .db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Postgres,
                 r#"
                 WITH days AS (
@@ -523,7 +523,8 @@ mod tests {
     fn listing_is_always_bound_to_the_realm() {
         let sql = sql(&FlowFilter::default());
         assert!(
-            sql.ends_with(
+            str::ends_with(
+                &sql,
                 r#"WHERE "compass_flows"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
             ),
             "{sql}"
@@ -537,10 +538,13 @@ mod tests {
             ..FlowFilter::default()
         });
         assert!(
-            sql.contains(r#""compass_flows"."ip_address" ILIKE E'%a\\%\\_\\\\%'"#),
+            str::contains(
+                &sql,
+                r#""compass_flows"."ip_address" ILIKE E'%a\\%\\_\\\\%'"#
+            ),
             "{sql}"
         );
-        assert!(!sql.contains(r#""user_agent" ILIKE"#), "{sql}");
+        assert!(!str::contains(&sql, r#""user_agent" ILIKE"#), "{sql}");
     }
 
     #[test]
@@ -550,7 +554,7 @@ mod tests {
             ..FlowFilter::default()
         });
         assert!(
-            sql.contains(r#""compass_flows"."ip_address" ILIKE E'%10.\\%\\_%'"#),
+            str::contains(&sql, r#""compass_flows"."ip_address" ILIKE E'%10.\\%\\_%'"#),
             "{sql}"
         );
     }
@@ -566,22 +570,25 @@ mod tests {
             ..FlowFilter::default()
         });
         assert!(
-            sql.contains(r#""compass_flows"."client_id" = 'web-app'"#),
+            str::contains(&sql, r#""compass_flows"."client_id" = 'web-app'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""compass_flows"."user_id" = 'ffffffff-ffff-ffff-ffff-ffffffffffff'"#),
+            str::contains(
+                &sql,
+                r#""compass_flows"."user_id" = 'ffffffff-ffff-ffff-ffff-ffffffffffff'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""compass_flows"."grant_type" = 'password'"#),
+            str::contains(&sql, r#""compass_flows"."grant_type" = 'password'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""compass_flows"."status" = 'expired'"#),
+            str::contains(&sql, r#""compass_flows"."status" = 'expired'"#),
             "{sql}"
         );
-        assert!(!sql.contains("ILIKE"), "{sql}");
+        assert!(!str::contains(&sql, "ILIKE"), "{sql}");
     }
 
     #[test]
@@ -623,11 +630,17 @@ mod tests {
             ..FlowFilter::default()
         });
         assert!(
-            sql.contains(r#""compass_flows"."started_at" >= '2026-01-01 00:05:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""compass_flows"."started_at" >= '2026-01-01 00:05:00.000000'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""compass_flows"."started_at" <= '2026-01-02 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""compass_flows"."started_at" <= '2026-01-02 00:00:00.000000'"#
+            ),
             "{sql}"
         );
     }
@@ -666,11 +679,18 @@ mod db_tests {
             .await
             .expect("connect admin pool");
         admin_pool
-            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                r#"CREATE SCHEMA "{}""#,
+                schema
+            ))))
             .await
             .expect("create test schema");
 
-        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let separator = if str::contains(base_url.as_str(), '?') {
+            '&'
+        } else {
+            '?'
+        };
         let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
         let pool = sqlx::PgPool::connect(&schema_url)
             .await

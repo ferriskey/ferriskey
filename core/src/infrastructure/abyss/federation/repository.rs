@@ -438,7 +438,10 @@ mod tests {
             ..FederationProviderFilter::default()
         });
         assert!(
-            sql.contains(r#""user_federation_providers"."name" ILIKE E'%b\\_%'"#),
+            str::contains(
+                &sql,
+                r#""user_federation_providers"."name" ILIKE E'%b\\_%'"#
+            ),
             "{sql}"
         );
     }
@@ -455,9 +458,10 @@ mod tests {
                 ..FederationProviderFilter::default()
             });
             assert!(
-                sql.contains(&format!(
-                    r#""user_federation_providers"."sync_mode" = '{stored}'"#
-                )),
+                str::contains(
+                    &sql,
+                    &format!(r#""user_federation_providers"."sync_mode" = '{stored}'"#)
+                ),
                 "{sql}"
             );
         }
@@ -473,13 +477,15 @@ mod tests {
             ..FederationProviderFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""user_federation_providers"."created_at" >= '2026-01-01 00:00:00.000000 +00:00'"#
             ),
             "{sql}"
         );
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""user_federation_providers"."created_at" < '2026-02-01 00:00:00.000000 +00:00'"#
             ),
             "{sql}"
@@ -496,13 +502,14 @@ mod tests {
     fn listing_is_always_bound_to_the_realm() {
         let sql = sql(&FederationProviderFilter::default());
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""user_federation_providers"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
             ),
             "{sql}"
         );
-        assert!(!sql.contains("ILIKE"), "{sql}");
-        assert!(!sql.contains("last_sync_at\" IS"), "{sql}");
+        assert!(!str::contains(&sql, "ILIKE"), "{sql}");
+        assert!(!str::contains(&sql, "last_sync_at\" IS"), "{sql}");
     }
 
     #[test]
@@ -512,7 +519,10 @@ mod tests {
             ..FederationProviderFilter::default()
         });
         assert!(
-            sql.contains(r#""user_federation_providers"."name" ILIKE E'%a\\%%'"#),
+            str::contains(
+                &sql,
+                r#""user_federation_providers"."name" ILIKE E'%a\\%%'"#
+            ),
             "{sql}"
         );
     }
@@ -526,15 +536,18 @@ mod tests {
             ..FederationProviderFilter::default()
         });
         assert!(
-            sql.contains(r#""user_federation_providers"."provider_type" = 'Ldap'"#),
+            str::contains(
+                &sql,
+                r#""user_federation_providers"."provider_type" = 'Ldap'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""user_federation_providers"."enabled" = FALSE"#),
+            str::contains(&sql, r#""user_federation_providers"."enabled" = FALSE"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""user_federation_providers"."sync_enabled" = TRUE"#),
+            str::contains(&sql, r#""user_federation_providers"."sync_enabled" = TRUE"#),
             "{sql}"
         );
     }
@@ -614,11 +627,18 @@ mod db_tests {
             .await
             .expect("connect admin pool");
         admin_pool
-            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                r#"CREATE SCHEMA "{}""#,
+                schema
+            ))))
             .await
             .expect("create test schema");
 
-        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let separator = if str::contains(base_url.as_str(), '?') {
+            '&'
+        } else {
+            '?'
+        };
         let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
         let pool = sqlx::PgPool::connect(&schema_url)
             .await

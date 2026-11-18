@@ -85,7 +85,9 @@ mod tests {
         PgPool::connect(&base)
             .await
             .expect("admin pool")
-            .execute(format!("CREATE SCHEMA IF NOT EXISTS \"{schema}\"").as_str())
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                "CREATE SCHEMA IF NOT EXISTS \"{schema}\""
+            ))))
             .await
             .expect("create schema");
 

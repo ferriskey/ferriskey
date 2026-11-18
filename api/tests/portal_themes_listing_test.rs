@@ -139,9 +139,9 @@ mod tests {
             .await
             .expect("connect admin pool");
         admin_pool
-            .execute(sqlx::query(&format!(
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
                 "CREATE SCHEMA IF NOT EXISTS \"{schema}\""
-            )))
+            ))))
             .await
             .expect("create schema");
 
@@ -396,10 +396,10 @@ mod tests {
                 Pages::OneBlockShort if index != last_page_with_blocks => Pages::Complete,
                 other => other,
             };
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "UPDATE portal_themes SET page_{} = $1::jsonb WHERE id = $2::uuid",
                 requirement.page_type
-            ))
+            )))
             .bind(page_tree(pages, &requirement.blocks).to_string())
             .bind(seed.id.to_string())
             .execute(pool)

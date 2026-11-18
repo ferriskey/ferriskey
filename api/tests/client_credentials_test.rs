@@ -34,11 +34,13 @@ fn subject(body: &Value) -> Uuid {
 }
 
 async fn stored_tokens(app: &TestApp, table: &str, user_id: Uuid) -> i64 {
-    sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table} WHERE user_id = $1"))
-        .bind(user_id)
-        .fetch_one(&app.pool)
-        .await
-        .expect("count the stored tokens")
+    sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT COUNT(*) FROM {table} WHERE user_id = $1"
+    )))
+    .bind(user_id)
+    .fetch_one(&app.pool)
+    .await
+    .expect("count the stored tokens")
 }
 
 #[test]

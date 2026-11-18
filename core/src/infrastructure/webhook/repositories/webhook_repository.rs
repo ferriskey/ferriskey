@@ -302,7 +302,7 @@ impl WebhookRepository for PostgresWebhookRepository {
                         webhook_id: Set(subscription_id),
                     }
                 }))
-                .exec_with_returning_many(&self.db)
+                .exec_with_returning(&self.db)
                 .await
                 .map_err(|_| CoreError::InternalServerError)?;
 
@@ -380,7 +380,7 @@ impl WebhookRepository for PostgresWebhookRepository {
             Vec::new()
         } else {
             WebhookSubscriberEntity::insert_many(derived_subscribers)
-                .exec_with_returning_many(&self.db)
+                .exec_with_returning(&self.db)
                 .await
                 .map_err(|_| CoreError::InternalServerError)?
                 .iter()
@@ -571,11 +571,18 @@ mod tests {
             .await
             .expect("connect admin pool");
         admin_pool
-            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                r#"CREATE SCHEMA "{}""#,
+                schema
+            ))))
             .await
             .expect("create test schema");
 
-        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let separator = if str::contains(base_url.as_str(), '?') {
+            '&'
+        } else {
+            '?'
+        };
         let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
         let schema_pool = sqlx::PgPool::connect(&schema_url)
             .await
@@ -753,7 +760,10 @@ mod listing_tests {
     fn listing_is_always_bound_to_the_realm() {
         let sql = sql(&WebhookFilter::default());
         assert!(
-            sql.contains(r#""webhooks"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            str::contains(
+                &sql,
+                r#""webhooks"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
             "{sql}"
         );
     }
@@ -765,7 +775,8 @@ mod listing_tests {
             ..WebhookFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#"(("webhooks"."name" ILIKE E'%a\\%%') OR ("webhooks"."endpoint" ILIKE E'%a\\%%'))"#
             ),
             "{sql}"
@@ -775,8 +786,14 @@ mod listing_tests {
     #[test]
     fn an_unbounded_created_range_adds_no_predicate() {
         let sql = sql(&WebhookFilter::default());
-        assert!(!sql.contains(r#""webhooks"."created_at" >"#), "{sql}");
-        assert!(!sql.contains(r#""webhooks"."created_at" <"#), "{sql}");
+        assert!(
+            !str::contains(&sql, r#""webhooks"."created_at" >"#),
+            "{sql}"
+        );
+        assert!(
+            !str::contains(&sql, r#""webhooks"."created_at" <"#),
+            "{sql}"
+        );
     }
 
     #[test]
@@ -789,11 +806,17 @@ mod listing_tests {
             ..WebhookFilter::default()
         });
         assert!(
-            sql.contains(r#""webhooks"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""webhooks"."created_at" >= '2026-01-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""webhooks"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""webhooks"."created_at" < '2026-02-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
     }
@@ -806,11 +829,11 @@ mod listing_tests {
             ..WebhookFilter::default()
         });
         assert!(
-            sql.contains(r#""webhooks"."name" ILIKE E'%a\\%%'"#),
+            str::contains(&sql, r#""webhooks"."name" ILIKE E'%a\\%%'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""webhooks"."endpoint" ILIKE '%b%'"#),
+            str::contains(&sql, r#""webhooks"."endpoint" ILIKE '%b%'"#),
             "{sql}"
         );
     }

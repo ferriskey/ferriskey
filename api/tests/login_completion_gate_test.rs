@@ -63,11 +63,13 @@ async fn user_with_otp(app: &TestApp, server: &axum_test::TestServer) -> SeededU
 }
 
 async fn flag_client(app: &TestApp, client: &SeededClient, assignment: &str) {
-    sqlx::query(&format!("UPDATE clients SET {assignment} WHERE id = $1"))
-        .bind(client.id)
-        .execute(&app.pool)
-        .await
-        .expect("flag the client");
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "UPDATE clients SET {assignment} WHERE id = $1"
+    )))
+    .bind(client.id)
+    .execute(&app.pool)
+    .await
+    .expect("flag the client");
 }
 
 struct OtpStep {

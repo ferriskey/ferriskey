@@ -1,4 +1,5 @@
 use chrono::{TimeZone, Utc};
+use sea_orm::ExprTrait;
 use sea_orm::{
     ActiveValue::Set,
     ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, QueryTrait, Select,
@@ -506,7 +507,7 @@ mod listing_tests {
             ..PortalThemeFilter::default()
         });
         assert!(
-            sql.contains(r#""portal_themes"."name" ILIKE E'%a\\%%'"#),
+            str::contains(&sql, r#""portal_themes"."name" ILIKE E'%a\\%%'"#),
             "{sql}"
         );
     }
@@ -514,8 +515,14 @@ mod listing_tests {
     #[test]
     fn an_unbounded_created_range_adds_no_predicate() {
         let sql = sql(&PortalThemeFilter::default());
-        assert!(!sql.contains(r#""portal_themes"."created_at" >"#), "{sql}");
-        assert!(!sql.contains(r#""portal_themes"."created_at" <"#), "{sql}");
+        assert!(
+            !str::contains(&sql, r#""portal_themes"."created_at" >"#),
+            "{sql}"
+        );
+        assert!(
+            !str::contains(&sql, r#""portal_themes"."created_at" <"#),
+            "{sql}"
+        );
     }
 
     #[test]
@@ -528,11 +535,17 @@ mod listing_tests {
             ..PortalThemeFilter::default()
         });
         assert!(
-            sql.contains(r#""portal_themes"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""portal_themes"."created_at" >= '2026-01-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""portal_themes"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""portal_themes"."created_at" < '2026-02-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
     }
@@ -547,11 +560,14 @@ mod listing_tests {
     fn listing_is_always_bound_to_the_realm() {
         let sql = sql(&PortalThemeFilter::default());
         assert!(
-            sql.contains(r#""portal_themes"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            str::contains(
+                &sql,
+                r#""portal_themes"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
             "{sql}"
         );
-        assert!(!sql.contains("ILIKE"), "{sql}");
-        assert!(!sql.contains("jsonb_path_exists"), "{sql}");
+        assert!(!str::contains(&sql, "ILIKE"), "{sql}");
+        assert!(!str::contains(&sql, "jsonb_path_exists"), "{sql}");
     }
 
     #[test]
@@ -561,7 +577,7 @@ mod listing_tests {
             ..PortalThemeFilter::default()
         });
         assert!(
-            sql.contains(r#""portal_themes"."name" ILIKE E'%a\\%%'"#),
+            str::contains(&sql, r#""portal_themes"."name" ILIKE E'%a\\%%'"#),
             "{sql}"
         );
     }
@@ -573,7 +589,10 @@ mod listing_tests {
             ..PortalThemeFilter::default()
         });
         assert!(
-            sql.contains(r#""portal_themes"."layout_id" = '00000000-0000-0000-0000-000000000000'"#),
+            str::contains(
+                &sql,
+                r#""portal_themes"."layout_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
             "{sql}"
         );
     }
@@ -587,17 +606,21 @@ mod listing_tests {
         let required: usize = REQUIRED_BLOCKS.iter().map(|(_, blocks)| blocks.len()).sum();
         assert_eq!(sql.matches("jsonb_path_exists").count(), required, "{sql}");
         assert!(
-            sql.contains(
-                r#"jsonb_path_exists("portal_themes"."page_login", CAST(E'strict $.** ? (@.type == \"email_input\")' AS jsonpath), CAST('{}' AS jsonb), TRUE)"#
+            str::contains(
+                &sql,
+                r#"jsonb_path_exists("portal_themes"."page_login", CAST('strict $.** ? (@.type == "email_input")' AS jsonpath), CAST('{}' AS jsonb), TRUE)"#
             ),
             "{sql}"
         );
-        assert!(sql.contains(r#""portal_themes"."page_consent""#), "{sql}");
         assert!(
-            sql.contains(r#""portal_themes"."page_account_chooser""#),
+            str::contains(&sql, r#""portal_themes"."page_consent""#),
             "{sql}"
         );
-        assert!(!sql.contains("NOT"), "{sql}");
+        assert!(
+            str::contains(&sql, r#""portal_themes"."page_account_chooser""#),
+            "{sql}"
+        );
+        assert!(!str::contains(&sql, "NOT"), "{sql}");
     }
 
     #[test]
@@ -606,6 +629,6 @@ mod listing_tests {
             activatable: Some(false),
             ..PortalThemeFilter::default()
         });
-        assert!(sql.contains("NOT (jsonb_path_exists("), "{sql}");
+        assert!(str::contains(&sql, "NOT (jsonb_path_exists("), "{sql}");
     }
 }
