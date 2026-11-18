@@ -17,6 +17,7 @@ pub struct ImportReport {
     pub created: bool,
     pub rows: BTreeMap<String, u64>,
     pub ignored_columns: Vec<String>,
+    pub unfinished_steps: Vec<String>,
 }
 
 pub type BundleChunk = Result<Vec<u8>, CoreError>;

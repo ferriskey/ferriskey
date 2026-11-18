@@ -17,7 +17,7 @@ use crate::domain::realm::ports::{RealmPolicy, RealmRepository};
 use crate::domain::realm_transfer::bundle::{BundleHeader, BundlePassphrase, BundleRealm};
 use crate::domain::realm_transfer::codec::{BundleReader, BundleWriter, derive_key};
 use crate::domain::realm_transfer::ports::{RealmArchiveRepository, RealmTransferService};
-use crate::domain::realm_transfer::value_objects::{ImportReport, RealmBundleStream};
+use crate::domain::realm_transfer::value_objects::{BundleChunk, ImportReport, RealmBundleStream};
 use crate::domain::role::entities::permission::Permissions;
 use crate::domain::role::ports::RoleRepository;
 use crate::domain::role::value_objects::CreateRoleRequest;
@@ -25,10 +25,54 @@ use crate::domain::seawatch::{
     EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType,
 };
 use crate::domain::user::ports::{UserRepository, UserRoleRepository};
+use ferriskey_security::crypto::bundle_envelope::BundleKey;
 
 const MASTER_REALM: &str = "master";
 const REALM_TARGET: &str = "realm";
 const EXPORT_BUFFERED_CHUNKS: usize = 8;
+const MIRROR_CLIENT_STEP: &str = "management_client";
+const AUDIT_STEP: &str = "security_event";
+
+fn transfer_event(
+    realm_id: RealmId,
+    identity: &Identity,
+    event_type: SecurityEventType,
+    status: EventStatus,
+    details: serde_json::Value,
+) -> SecurityEvent {
+    SecurityEvent::new(realm_id, event_type, status, identity.id())
+        .with_target(REALM_TARGET.to_string(), realm_id.into(), None)
+        .with_details(details)
+}
+
+async fn export_bundle<A: RealmArchiveRepository>(
+    archive: &A,
+    realm_id: RealmId,
+    key: BundleKey,
+    header: BundleHeader,
+    out: mpsc::Sender<BundleChunk>,
+) -> bool {
+    let mut writer = match BundleWriter::start(key, header, out.clone()).await {
+        Ok(writer) => writer,
+        Err(error) => {
+            let _ = out.send(Err(error)).await;
+            return false;
+        }
+    };
+    if let Err(error) = archive.export_rows(realm_id, &mut writer).await {
+        warn!(%error, "the realm export stopped before its end");
+        writer.fail(error).await;
+        return false;
+    }
+    match writer.finish().await {
+        Ok(()) => true,
+        Err(error) => {
+            warn!(%error, "the realm export could not be completed");
+            let _ = out.send(Err(error)).await;
+            false
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct RealmTransferServiceImpl<R, C, RO, U, UR, SE, A>
@@ -95,11 +139,13 @@ where
         details: serde_json::Value,
     ) -> Result<(), CoreError> {
         self.security_event_repository
-            .store_event(
-                SecurityEvent::new(realm_id, event_type, EventStatus::Success, identity.id())
-                    .with_target(REALM_TARGET.to_string(), realm_id.into(), None)
-                    .with_details(details),
-            )
+            .store_event(transfer_event(
+                realm_id,
+                identity,
+                event_type,
+                EventStatus::Success,
+                details,
+            ))
             .await
     }
 
@@ -110,33 +156,43 @@ where
         realm_name: &str,
     ) -> Result<(), CoreError> {
         let name = format!("{realm_name}-realm");
-        match self
+        let client = match self
             .client_repository
             .get_by_client_id(name.clone(), master.id())
             .await
         {
-            Ok(_) => return Ok(()),
-            Err(CoreError::NotFound) => {}
+            Ok(client) => client.across_realms(),
+            Err(CoreError::NotFound) => {
+                self.client_repository
+                    .create_client(CreateClientRequest::create_realm_system_client(
+                        master.id(),
+                        name.clone(),
+                    ))
+                    .await?
+            }
             Err(error) => return Err(error),
-        }
+        };
 
-        let client = self
-            .client_repository
-            .create_client(CreateClientRequest::create_realm_system_client(
-                master.id(),
-                name.clone(),
-            ))
-            .await?;
-        let role = self
+        let existing_role = self
             .role_repository
-            .create(CreateRoleRequest {
-                client_id: Some(client.id),
-                description: None,
-                name,
-                permissions: vec![Permissions::ManageRealm.name()],
-                realm_id: master.id(),
-            })
-            .await?;
+            .get_by_client_id(client.id)
+            .await?
+            .into_iter()
+            .find(|role| role.name == name);
+        let role = match existing_role {
+            Some(role) => role,
+            None => {
+                self.role_repository
+                    .create(CreateRoleRequest {
+                        client_id: Some(client.id),
+                        description: None,
+                        name,
+                        permissions: vec![Permissions::ManageRealm.name()],
+                        realm_id: master.id(),
+                    })
+                    .await?
+            }
+        };
 
         let user_id = match identity {
             Identity::User(user) => user.id,
@@ -148,6 +204,10 @@ where
                     .id
             }
         };
+        let assigned = self.user_role_repository.get_user_roles(user_id).await?;
+        if assigned.iter().any(|held| held.id == role.id) {
+            return Ok(());
+        }
         self.user_role_repository
             .assign_role(user_id, role.id)
             .await
@@ -183,7 +243,7 @@ where
     RO: RoleRepository,
     U: UserRepository,
     UR: UserRoleRepository,
-    SE: SecurityEventRepository,
+    SE: SecurityEventRepository + 'static,
     A: RealmArchiveRepository,
 {
     #[instrument(skip(self, identity, passphrase))]
@@ -219,36 +279,31 @@ where
         );
         let key = derive_key(passphrase, None).await?;
 
-        self.record(
+        let details = json!({ "schema": header.schema, "version": header.version });
+        let succeeded = transfer_event(
             scope.id(),
             &identity,
             SecurityEventType::RealmExported,
-            json!({ "schema": header.schema, "version": header.version }),
-        )
-        .await?;
+            EventStatus::Success,
+            details.clone(),
+        );
+        let failed = transfer_event(
+            scope.id(),
+            &identity,
+            SecurityEventType::RealmExported,
+            EventStatus::Failure,
+            details,
+        );
 
         let (out, chunks) = mpsc::channel(EXPORT_BUFFERED_CHUNKS);
         let archive = Arc::clone(&self.archive);
+        let events = Arc::clone(&self.security_event_repository);
         let realm_id = scope.id();
         tokio::spawn(async move {
-            let mut writer = match BundleWriter::start(key, header, out.clone()).await {
-                Ok(writer) => writer,
-                Err(error) => {
-                    let _ = out.send(Err(error)).await;
-                    return;
-                }
-            };
-            let result = match archive.export_rows(realm_id, &mut writer).await {
-                Ok(()) => writer.finish().await,
-                Err(error) => {
-                    warn!(%error, "the realm export stopped before its end");
-                    writer.fail(error).await;
-                    return;
-                }
-            };
-            if let Err(error) = result {
-                warn!(%error, "the realm export could not be completed");
-                let _ = out.send(Err(error)).await;
+            let outcome = export_bundle(archive.as_ref(), realm_id, key, header, out).await;
+            let event = if outcome { succeeded } else { failed };
+            if let Err(error) = events.store_event(event).await {
+                warn!(%error, "the realm export could not be recorded");
             }
         });
 
@@ -280,22 +335,32 @@ where
         header.check(self.archive.schema_version().await?)?;
         self.check_import_target(&identity, &header).await?;
 
-        let report = self.archive.import_rows(&header, &mut reader).await?;
+        let mut report = self.archive.import_rows(&header, &mut reader).await?;
 
-        self.ensure_mirror_client(&identity, &master, &header.realm.name)
-            .await?;
-        self.record(
-            header.realm.id.into(),
-            &identity,
-            SecurityEventType::RealmImported,
-            json!({
-                "schema": header.schema,
-                "version": header.version,
-                "exported_at": header.exported_at,
-                "created": report.created,
-            }),
-        )
-        .await?;
+        if let Err(error) = self
+            .ensure_mirror_client(&identity, &master, &header.realm.name)
+            .await
+        {
+            warn!(%error, "the imported realm has no management client in master yet");
+            report.unfinished_steps.push(MIRROR_CLIENT_STEP.to_owned());
+        }
+        if let Err(error) = self
+            .record(
+                header.realm.id.into(),
+                &identity,
+                SecurityEventType::RealmImported,
+                json!({
+                    "schema": header.schema,
+                    "version": header.version,
+                    "exported_at": header.exported_at,
+                    "created": report.created,
+                }),
+            )
+            .await
+        {
+            warn!(%error, "the realm import could not be recorded");
+            report.unfinished_steps.push(AUDIT_STEP.to_owned());
+        }
 
         Ok(report)
     }

@@ -30,18 +30,19 @@ cookie keeps skipping the login page.
 2. Export:
 
    ```sh
-   curl -sS -X POST "https://source.example/realms/acme/export" \
+   curl -sS --fail-with-body -X POST "https://source.example/realms/acme/export" \
      -H "Authorization: Bearer $ADMIN_TOKEN" \
      -H "X-Ferriskey-Bundle-Passphrase: $PASSPHRASE" \
      -o acme.fkrb
    ```
 
    The body is streamed. A file cut short is refused at import, so a broken
-   connection never imports half a realm.
+   connection never imports half a realm. If `curl` exits with an error, stop
+   here.
 3. Import on the target:
 
    ```sh
-   curl -sS -X POST "https://target.example/realms/import" \
+   curl -sS --fail-with-body -X POST "https://target.example/realms/import" \
      -H "Authorization: Bearer $TARGET_ADMIN_TOKEN" \
      -H "X-Ferriskey-Bundle-Passphrase: $PASSPHRASE" \
      -H "Content-Type: application/vnd.ferriskey.realm-bundle" \
@@ -50,7 +51,14 @@ cookie keeps skipping the login page.
 
    `201` means the realm was created, `200` that it existed and was
    overwritten. The response lists the rows written per table, and the columns
-   the target ignored because a later migration dropped them.
+   the target ignored because a later migration dropped them. Any other status,
+   or a `curl` error, means nothing was imported: stop here and keep serving
+   the realm from the source.
+
+   `unfinished_steps` lists what failed after the realm was written: the
+   `management_client` in the master realm, or the `security_event` of the
+   import. The realm is on the target either way; import the same bundle again
+   to finish them.
 4. Point the proxy route of the realm at the target.
 5. Once the target serves the realm, delete it on the source and delete the
    bundle file.
