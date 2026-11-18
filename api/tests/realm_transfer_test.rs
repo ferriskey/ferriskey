@@ -186,7 +186,7 @@ async fn export(server: &TestServer, token: &str, realm: &Realm, passphrase: &st
         .authorization_bearer(token)
         .add_header(
             PASSPHRASE_HEADER,
-            HeaderValue::from_str(passphrase).unwrap(),
+            HeaderValue::from_str(passphrase).expect("the passphrase is a valid header value"),
         )
         .await;
     assert_eq!(response.status_code(), 200, "export: {}", response.text());
@@ -208,7 +208,7 @@ async fn import(
         .authorization_bearer(token)
         .add_header(
             PASSPHRASE_HEADER,
-            HeaderValue::from_str(passphrase).unwrap(),
+            HeaderValue::from_str(passphrase).expect("the passphrase is a valid header value"),
         )
         .content_type("application/vnd.ferriskey.realm-bundle")
         .bytes(bundle)
@@ -454,7 +454,7 @@ fn a_realm_moved_to_another_instance_keeps_tokens_sessions_and_logins_working() 
             .add_query_param("client_id", &client.client_id)
             .add_query_param("redirect_uri", CALLBACK)
             .add_query_param("scope", "openid")
-            .add_header("Cookie", HeaderValue::from_str(&format!("FERRISKEY_SSO={sso}")).unwrap())
+            .add_header("Cookie", HeaderValue::from_str(&format!("FERRISKEY_SSO={sso}")).expect("the sso cookie is a valid header value"))
             .await;
         let location = skipped
             .headers()
@@ -549,5 +549,35 @@ fn the_master_realm_cannot_be_exported_and_a_short_passphrase_is_refused() {
             .add_header(PASSPHRASE_HEADER, HeaderValue::from_static(PASSPHRASE))
             .await;
         assert_eq!(anonymous.status_code(), 401, "{}", anonymous.text());
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test realm_transfer_test -- --ignored"]
+fn a_realm_named_import_is_still_managed_at_its_own_path() {
+    rt().block_on(async {
+        let instance = master_instance("").await;
+        let server = instance.server();
+        let token = admin_token(&instance, &server).await;
+
+        let created = server
+            .post("/realms")
+            .authorization_bearer(&token)
+            .json(&json!({ "name": "import" }))
+            .await;
+        assert_eq!(created.status_code(), 201, "{}", created.text());
+
+        let read = server
+            .get("/realms/import")
+            .authorization_bearer(&token)
+            .await;
+        assert_eq!(read.status_code(), 200, "{}", read.text());
+        assert_eq!(read.json::<Value>()["name"], "import");
+
+        let deleted = server
+            .delete("/realms/import")
+            .authorization_bearer(&token)
+            .await;
+        assert_eq!(deleted.status_code(), 200, "{}", deleted.text());
     });
 }
