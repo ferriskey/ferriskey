@@ -907,7 +907,7 @@ mod tests {
     }
 
     const MCP_SCHEMA: &str = r#"namespace App {
-  type UserExtension = { on_call: Bool, on_call_schedules: Set<String> };
+  type UserExtension = { on_call?: Bool, on_call_schedules?: Set<String> };
   type ToolExtension = { access: String, destructive: Bool, organisation?: String };
   type ContextExtension = {
     target: { service?: String },
@@ -920,7 +920,9 @@ mod tests {
   action == FerrisKey::Action::"call_tool",
   resource is FerrisKey::Tool
 ) when {
+  principal has on_call &&
   principal.on_call &&
+  principal has on_call_schedules &&
   principal.on_call_schedules.contains("primary") &&
   resource.access == "write" &&
   !resource.destructive &&

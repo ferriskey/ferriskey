@@ -10,8 +10,8 @@ use uuid::Uuid;
 
 const REALM_SCHEMA: &str = r#"namespace App {
   type UserExtension = {
-    on_call: Bool,
-    on_call_schedules: Set<String>,
+    on_call?: Bool,
+    on_call_schedules?: Set<String>,
   };
   type ToolExtension = {
     access: String,
@@ -34,7 +34,9 @@ const POLICY: &str = r#"permit (
   action == FerrisKey::Action::"call_tool",
   resource is FerrisKey::Tool
 ) when {
+  principal has on_call &&
   principal.on_call &&
+  principal has on_call_schedules &&
   principal.on_call_schedules.contains("primary") &&
   resource.access == "write" &&
   !resource.destructive &&
@@ -145,6 +147,12 @@ fn gateway_context() -> Value {
     })
 }
 
+fn dated_context() -> Value {
+    let mut context = gateway_context();
+    context["time"]["iso"] = json!("2026-11-03T10:05:00+01:00");
+    context
+}
+
 fn full_request() -> EvaluationRequest {
     request(
         user(json!({"on_call": true, "on_call_schedules": ["primary"], "nickname": "x"})),
@@ -170,7 +178,15 @@ fn without_a_schema_every_property_and_context_key_reaches_the_policy() {
 fn without_a_schema_nulls_and_floats_are_left_out_instead_of_failing() {
     let policies = vec![policy(
         "reads",
-        r#"permit (principal, action == FerrisKey::Action::"call_tool", resource) when { context.arguments.invoice == "inv-7" };"#,
+        r#"permit (principal, action == FerrisKey::Action::"call_tool", resource) when {
+  context.arguments.invoice == "inv-7" &&
+  !(context.arguments has score) &&
+  !(context.arguments has gone) &&
+  !(context has extra) &&
+  !(principal has on_call) &&
+  !(principal has ratio) &&
+  !(resource has access)
+};"#,
     )];
     let noisy = request(
         user(json!({"on_call": null, "ratio": 0.5})),
@@ -223,6 +239,7 @@ fn a_policy_using_an_undeclared_attribute_is_rejected_when_a_schema_is_stored() 
         .validate_policies(Some(&schema(REALM_SCHEMA)), &policies, &[])
         .expect_err("undeclared attribute");
     assert_eq!(issues[0].policy.as_deref(), Some("undeclared"));
+    assert!(issues[0].message.contains("pager"), "{issues:?}");
 }
 
 #[test]
@@ -239,12 +256,17 @@ fn undeclared_properties_and_context_keys_are_ignored_when_a_schema_is_stored() 
 #[test]
 fn a_declared_attribute_of_the_wrong_type_is_a_bad_request() {
     let policies = vec![policy("on-call-writes", POLICY)];
-    let wrong = request(
-        user(json!({"on_call": "yes"})),
-        tool(json!({})),
-        gateway_context(),
+    assert_eq!(
+        decide(Some(REALM_SCHEMA), policies.clone(), &full_request()),
+        Ok(true)
     );
-    assert!(decide(Some(REALM_SCHEMA), policies, &wrong).is_err());
+    let mut wrong = full_request();
+    let Subject::Asserted(subject) = &mut wrong.subject else {
+        panic!("an asserted subject");
+    };
+    subject.properties["on_call"] = json!("yes");
+    let error = decide(Some(REALM_SCHEMA), policies, &wrong).expect_err("wrong type");
+    assert!(error.contains("on_call"), "{error}");
 }
 
 #[test]
@@ -323,4 +345,122 @@ fn a_schema_nested_within_the_depth_limit_is_accepted() {
     });
     let source = format!("namespace App {{ type ContextExtension = {{ deep?: {nested} }}; }}");
     assert_eq!(compiler.validate_schema(&schema(&source)), Ok(()));
+}
+
+#[test]
+fn a_required_user_or_client_extension_attribute_is_rejected() {
+    let compiler = CedarPolicyCompiler::new();
+    for (source, path) in [
+        (
+            "namespace App { type UserExtension = { on_call: Bool }; }",
+            "user.on_call",
+        ),
+        (
+            "namespace App { type ClientExtension = { tier: String }; }",
+            "client.tier",
+        ),
+        (
+            "namespace App { type UserExtension = { roles: Set<String> }; }",
+            "user.roles",
+        ),
+    ] {
+        let issues = compiler
+            .validate_schema(&schema(source))
+            .expect_err("a required attribute FerrisKey cannot supply");
+        assert!(
+            issues[0].message.contains(path) && issues[0].message.contains("optional"),
+            "{issues:?}"
+        );
+    }
+}
+
+#[test]
+fn an_optional_user_extension_attribute_may_be_absent() {
+    let policies = vec![policy("on-call-writes", POLICY)];
+    let bare = request(
+        user(json!({})),
+        tool(json!({"access": "write", "destructive": false})),
+        gateway_context(),
+    );
+    assert_eq!(decide(Some(REALM_SCHEMA), policies, &bare), Ok(false));
+}
+
+#[test]
+fn a_required_attribute_stays_allowed_on_asserted_only_types() {
+    let compiler = CedarPolicyCompiler::new();
+    assert_eq!(
+        compiler.validate_schema(&schema(
+            "namespace App { type ToolExtension = { access: String }; type AgentExtension = { tier: String }; }"
+        )),
+        Ok(())
+    );
+}
+
+#[test]
+fn a_realm_alias_named_like_a_cedar_type_keeps_its_realm_meaning() {
+    let source = "namespace App { type ipaddr = Long; type UserExtension = { zone?: ipaddr }; }";
+    let policies = vec![policy(
+        "zone",
+        r#"permit (principal is FerrisKey::User, action == FerrisKey::Action::"call_tool", resource) when { principal has zone && principal.zone == 5 };"#,
+    )];
+    let call = request(user(json!({"zone": 5})), tool(json!({})), dated_context());
+    assert_eq!(decide(Some(source), policies, &call), Ok(true));
+}
+
+#[test]
+fn a_built_in_attribute_may_be_relaxed_with_its_qualified_type_name() {
+    let compiler = CedarPolicyCompiler::new();
+    assert_eq!(
+        compiler.validate_schema(&schema(
+            "namespace App { type ContextExtension = { time: { iso?: __cedar::String } }; }"
+        )),
+        Ok(())
+    );
+    let issues = compiler
+        .validate_schema(&schema(
+            "namespace App { type ContextExtension = { time: { iso?: __cedar::Long } }; }",
+        ))
+        .expect_err("a different type");
+    assert!(issues[0].message.contains("built-in"), "{issues:?}");
+}
+
+#[test]
+fn an_extension_may_name_a_common_record_type() {
+    let compiler = CedarPolicyCompiler::new();
+    let source = "namespace App { type Extra = { tier?: String }; type ToolExtension = Extra; }";
+    let policies = vec![policy(
+        "tier",
+        r#"permit (principal, action == FerrisKey::Action::"call_tool", resource is FerrisKey::Tool) when { resource has tier && resource.tier == "gold" };"#,
+    )];
+    assert_eq!(
+        compiler.validate_policies(Some(&schema(source)), &policies, &[]),
+        Ok(())
+    );
+    let call = request(
+        user(json!({})),
+        tool(json!({"tier": "gold"})),
+        dated_context(),
+    );
+    assert_eq!(decide(Some(source), policies, &call), Ok(true));
+
+    let issues = compiler
+        .validate_schema(&schema(
+            "namespace App { type Bad = Long; type ToolExtension = Bad; }",
+        ))
+        .expect_err("not a record");
+    assert!(issues[0].message.contains("record"), "{issues:?}");
+}
+
+#[test]
+fn without_a_schema_a_legacy_expression_escape_is_left_out() {
+    let policies = vec![policy(
+        "reads",
+        r#"permit (principal, action == FerrisKey::Action::"call_tool", resource) when { context.arguments.invoice == "inv-7" && !(context.arguments has note) };"#,
+    )];
+    let call = request(
+        user(json!({})),
+        tool(json!({})),
+        json!({"arguments": {"invoice": "inv-7", "note": {"__expr": "text"}}}),
+    );
+    assert_eq!(decide(None, policies, &call), Ok(true));
 }
