@@ -79,6 +79,7 @@ struct Seeded {
     otp_id: Uuid,
     password_id: Uuid,
     role_id: Uuid,
+    org_id: Uuid,
     child_group_id: Uuid,
 }
 
@@ -187,7 +188,9 @@ async fn seed(source: &Instance, name: &str) -> Seeded {
     exec(pool, "INSERT INTO organizations (id, realm_id, name, alias, enabled, created_at, updated_at) VALUES ($1, $2, 'Acme', 'acme', true, NOW(), NOW())", &[org_id, realm_id]).await;
     exec(pool, "INSERT INTO organization_groups (id, organization_id, parent_group_id, name, created_at, updated_at) VALUES ($1, $2, NULL, 'parent', NOW(), NOW())", &[parent_group_id, org_id]).await;
     exec(pool, "INSERT INTO organization_groups (id, organization_id, parent_group_id, name, created_at, updated_at) VALUES ($1, $2, $3, 'child', NOW(), NOW())", &[child_group_id, org_id, parent_group_id]).await;
-    exec(pool, "INSERT INTO user_sessions (id, user_id, realm_id, created_at, expires_at, persistent, authenticated_at) VALUES ($1, $2, $3, NOW(), NOW() + interval '1 day', true, NOW())", &[Uuid::now_v7(), user_id, realm_id]).await;
+    let device_id = Uuid::now_v7();
+    exec(pool, "INSERT INTO device_sessions (id, realm_id, device_token_hash, expires_at) VALUES ($1, $2, md5($1::text), NOW() + interval '1 day')", &[device_id, realm_id]).await;
+    exec(pool, "INSERT INTO user_sessions (id, user_id, realm_id, created_at, expires_at, persistent, authenticated_at, device_session_id) VALUES ($1, $2, $3, NOW(), NOW() + interval '1 day', true, NOW(), $4)", &[Uuid::now_v7(), user_id, realm_id, device_id]).await;
 
     Seeded {
         realm: BundleRealm {
@@ -200,6 +203,7 @@ async fn seed(source: &Instance, name: &str) -> Seeded {
         otp_id,
         password_id,
         role_id,
+        org_id,
         child_group_id,
     }
 }
@@ -287,6 +291,8 @@ async fn a_realm_moves_with_its_ids_and_its_secrets_sealed_again_for_the_target(
     let report = import(&target, &seeded.realm, rows).await.expect("import");
     assert!(report.created);
     assert_eq!(report.rows["jwt_keys"], 2);
+    assert_eq!(report.rows["device_sessions"], 1);
+    assert_eq!(report.rows["user_sessions"], 1);
     assert!(
         report.ignored_columns.is_empty(),
         "{:?}",
@@ -556,4 +562,55 @@ async fn a_realm_name_taken_by_another_realm_is_refused() {
         import(&target, &seeded.realm, rows).await,
         Err(CoreError::RealmBundleConflict(_))
     ));
+}
+
+#[tokio::test]
+#[ignore = "requires PostgreSQL"]
+async fn a_group_under_a_parent_of_another_realm_fails_the_whole_import() {
+    let source = instance(RING_A).await;
+    let target = instance(RING_B).await;
+    let seeded = seed(&source, "acme").await;
+    let elsewhere = seed(&target, "elsewhere").await;
+    let mut rows = export(&source, &seeded.realm).await;
+
+    let child = rows
+        .iter_mut()
+        .find(|row| {
+            row.table == "organization_groups" && row.row["id"] == seeded.child_group_id.to_string()
+        })
+        .expect("the child group");
+    child.row.insert(
+        "parent_group_id".to_string(),
+        elsewhere.child_group_id.to_string().into(),
+    );
+
+    let refused = import(&target, &seeded.realm, rows).await;
+
+    assert!(
+        matches!(refused, Err(CoreError::RealmBundleConflict(_))),
+        "{refused:?}"
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires PostgreSQL"]
+async fn a_group_of_another_realm_hanging_under_this_realm_stays_out_of_the_export() {
+    let source = instance(RING_A).await;
+    let seeded = seed(&source, "acme").await;
+    let other = seed(&source, "other").await;
+    let stray = Uuid::now_v7();
+    exec(
+        &source.pool,
+        "INSERT INTO organization_groups (id, organization_id, parent_group_id, name, created_at, updated_at) VALUES ($1, $2, $3, 'stray', NOW(), NOW())",
+        &[stray, other.org_id, seeded.child_group_id],
+    )
+    .await;
+
+    let rows = export(&source, &seeded.realm).await;
+
+    assert!(
+        rows.iter()
+            .filter(|row| row.table == "organization_groups")
+            .all(|row| row.row["id"] != stray.to_string())
+    );
 }

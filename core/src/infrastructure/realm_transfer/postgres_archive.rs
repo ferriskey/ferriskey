@@ -139,6 +139,7 @@ impl PostgresRealmArchiveRepository {
 
     fn select_sql(spec: &TableSpec, shape: &TableShape) -> String {
         let scope = spec.scope_on("t", "$1");
+        let child_scope = spec.scope_on("c", "$1");
         let order = shape
             .primary_key
             .iter()
@@ -155,7 +156,7 @@ impl PostgresRealmArchiveRepository {
                 "WITH RECURSIVE tree AS ( \
                    SELECT t.id, 0 AS depth FROM {table} t WHERE {scope} AND t.{parent} IS NULL \
                    UNION ALL \
-                   SELECT c.id, tree.depth + 1 FROM {table} c JOIN tree ON c.{parent} = tree.id \
+                   SELECT c.id, tree.depth + 1 FROM {table} c JOIN tree ON c.{parent} = tree.id AND {child_scope} \
                  ) \
                  SELECT row_to_json(t)::text FROM {table} t JOIN tree ON tree.id = t.id \
                  ORDER BY tree.depth, {order}",
@@ -206,6 +207,11 @@ impl PostgresRealmArchiveRepository {
             else {
                 continue;
             };
+            let id = Uuid::parse_str(&id)
+                .map_err(|error| {
+                    CoreError::InvalidRealmBundle(format!("{table}.id is not a UUID: {error}"))
+                })?
+                .to_string();
             let stored = self
                 .cipher
                 .seal(sealed.purpose, &id, plain)
@@ -231,6 +237,17 @@ impl Import<'_> {
         spec_of(&row.table).ok_or_else(|| {
             CoreError::InvalidRealmBundle(format!("table {:?} cannot be imported", row.table))
         })
+    }
+
+    fn parent_is_staged(&self, spec: &TableSpec, row: &BundleRow) -> bool {
+        let Some(parent) = spec.tree_parent.and_then(|column| row.row.get(column)) else {
+            return false;
+        };
+        !parent.is_null()
+            && self
+                .batch
+                .iter()
+                .any(|staged| staged.get("id") == Some(parent))
     }
 
     fn stage(&mut self, spec: &'static TableSpec, row: BundleRow) -> Result<(), CoreError> {
@@ -417,7 +434,8 @@ impl RealmArchiveRepository for PostgresRealmArchiveRepository {
             let switching = import
                 .table
                 .is_some_and(|current| current.name != spec.name);
-            if switching || import.batch.len() == BATCH_ROWS {
+            if switching || import.batch.len() == BATCH_ROWS || import.parent_is_staged(spec, &row)
+            {
                 import.flush_batch(&mut tx).await?;
             }
             import.stage(spec, row)?;

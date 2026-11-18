@@ -174,7 +174,8 @@ pub(super) const TABLES: &[TableSpec] = &[
     ),
     TableSpec::new(
         "organization_groups",
-        "{a}.organization_id IN (SELECT id FROM organizations WHERE realm_id = {realm})",
+        "{a}.organization_id IN (SELECT id FROM organizations WHERE realm_id = {realm}) \
+         AND ({a}.parent_group_id IS NULL OR {a}.parent_group_id IN (SELECT g.id FROM organization_groups g JOIN organizations o ON o.id = g.organization_id WHERE o.realm_id = {realm}))",
     )
     .parents_first("parent_group_id"),
     TableSpec::new(
@@ -221,9 +222,11 @@ pub(super) const TABLES: &[TableSpec] = &[
         "consent_session_scopes",
         "{a}.consent_session_id IN (SELECT id FROM consent_sessions WHERE realm_id = {realm})",
     ),
+    TableSpec::new("device_sessions", IN_REALM),
     TableSpec::new(
         "user_sessions",
-        "{a}.realm_id = {realm} AND {a}.user_id IN (SELECT id FROM users WHERE realm_id = {realm})",
+        "{a}.realm_id = {realm} AND {a}.user_id IN (SELECT id FROM users WHERE realm_id = {realm}) \
+         AND ({a}.device_session_id IS NULL OR {a}.device_session_id IN (SELECT id FROM device_sessions WHERE realm_id = {realm}))",
     ),
     TableSpec::new(
         "session_participants",
@@ -262,6 +265,8 @@ pub(super) const NOT_EXPORTED: &[&str] = &[
     "webhook_deliveries",
     "compass_flows",
     "compass_flow_steps",
+    "client_assertion_jtis",
+    "pushed_authorization_requests",
 ];
 
 #[derive(Debug)]
