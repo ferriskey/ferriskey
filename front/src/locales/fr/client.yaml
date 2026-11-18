@@ -238,6 +238,9 @@ settings:
       description_public: 'Rejette les requêtes d''autorisation qui ne portent pas de code challenge S256 (RFC 7636). La méthode plain est refusée lorsque cette option est activée. Fortement recommandé : ce client ne peut pas garder un secret en sécurité.'
       required: Requis
       optional: Optionnel
+    par:
+      label: Exiger les requêtes d'autorisation poussées
+      description: Refuse les requêtes d'autorisation qui n'ont pas d'abord été poussées vers le point de terminaison PAR (RFC 9126). Les paramètres d'autorisation sont alors envoyés au point de terminaison PAR plutôt que dans l'URL du navigateur.
   access:
     title: Accès
     description: Adresses vers lesquelles ce client peut être redirigé, et origines depuis lesquelles il peut effectuer des appels.

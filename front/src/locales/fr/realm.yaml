@@ -150,6 +150,12 @@ mcp:
       aria: Propriétaire de {{entry}}
   add: Ajouter
   remove: Retirer {{entry}}
+  authorization:
+    title: Requêtes d'autorisation
+    description: Comment les clients de ce realm envoient leurs requêtes d'autorisation.
+  par:
+    label: Exiger les requêtes d'autorisation poussées
+    description: Refuse les requêtes d'autorisation qui n'ont pas d'abord été poussées vers le point de terminaison PAR (RFC 9126). S'applique à tous les clients du realm, quel que soit leur propre réglage.
 
 policy:
   title: Politique de mot de passe
