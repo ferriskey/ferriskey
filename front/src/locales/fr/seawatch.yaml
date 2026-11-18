@@ -32,6 +32,8 @@ event:
   client_deleted: Client supprimé
   client_secret_rotated: Secret client renouvelé
   client_secret_viewed: Secret client consulté
+  client_secret_revoked: Ancien secret client révoqué
+  client_secret_expired: Ancien secret client expiré
   realm_config_changed: Configuration du realm modifiée
   email_not_sent: Échec de l'envoi de l'e-mail
   email_sent: E-mail envoyé
