@@ -222,13 +222,16 @@ impl PostgresClientRepository {
         Ok(Client::from(model))
     }
 
-    /// Every field but the secret, which is never opened: a stored secret reads as an
+    /// Every field but the secrets, which are never opened: a stored one reads as an
     /// empty placeholder, so the client still shows one is configured. For listing and
     /// for the result of an edit, which only reach the API (where the secret always
     /// serializes masked) and never client authentication.
     fn metadata_of(mut model: clients::Model) -> Client {
         if model.secret.is_some() {
             model.secret = Some(String::new());
+        }
+        if model.previous_secret.is_some() {
+            model.previous_secret = Some(String::new());
         }
 
         Client::from(model)
@@ -598,7 +601,9 @@ impl ClientRepository for PostgresClientRepository {
             .filter(clients::Column::Id.eq(client.get().id))
             .filter(clients::Column::RealmId.eq(Uuid::from(client.get().realm_id)))
             .filter(clients::Column::PreviousSecret.is_not_null())
-            .filter(clients::Column::PreviousSecretExpiresAt.gt(Utc::now().naive_utc()))
+            .filter(Expr::cust(
+                "previous_secret_expires_at > (clock_timestamp() AT TIME ZONE 'UTC')",
+            ))
             .exec(&self.db)
             .await
             .map_err(|e| {
@@ -1175,6 +1180,38 @@ mod secret_rotation_tests {
 
     #[tokio::test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn listing_never_hands_out_a_stored_previous_secret() {
+        let (repository, schema, client) = seeded("backend").await;
+        let expires_at = repository
+            .rotate_secret(
+                &client,
+                "second-secret".to_string(),
+                Some(Duration::hours(1)),
+            )
+            .await
+            .expect("rotate")
+            .client
+            .previous_secret
+            .expect("a previous secret")
+            .expires_at;
+
+        let page = repository
+            .list(&schema.realm, &PageRequest::default())
+            .await
+            .expect("list the clients");
+
+        let listed = page
+            .data()
+            .iter()
+            .find(|listed| listed.id == client.get().id)
+            .expect("the client is listed");
+        let previous = listed.previous_secret.as_ref().expect("a previous secret");
+        assert_eq!(previous.secret.expose(), "");
+        assert_eq!(previous.expires_at, expires_at);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn rotating_keeps_the_old_secret_as_previous_until_its_expiry_and_seals_both() {
         let (repository, schema, client) = seeded("backend").await;
         let before = Utc::now();
@@ -1367,7 +1404,7 @@ mod secret_rotation_tests {
 
     async fn end_the_grace_period(schema: &TestSchema, client: &Scoped<Client>) {
         sqlx::query(
-            "UPDATE clients SET previous_secret_expires_at = now() - interval '1 minute' WHERE id = $1",
+            "UPDATE clients SET previous_secret_expires_at = (now() AT TIME ZONE 'UTC') - interval '1 minute' WHERE id = $1",
         )
         .bind(client.get().id)
         .execute(&schema.pool)

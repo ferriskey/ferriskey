@@ -262,7 +262,10 @@ pub trait ClientRepository: Send + Sync {
 
     /// Drops the previous secret of `client` while its grace period still
     /// runs. Returns whether there was one; an ended one is left to
-    /// [`Self::expire_previous_secrets`] so its expiry is reported.
+    /// [`Self::expire_previous_secrets`] so its expiry is reported. The
+    /// deadline is checked when the row is written, not when the call
+    /// starts: a revoke that waited on the row lock past the deadline finds
+    /// nothing to revoke.
     fn revoke_previous_secret(
         &self,
         client: &Scoped<Client>,
