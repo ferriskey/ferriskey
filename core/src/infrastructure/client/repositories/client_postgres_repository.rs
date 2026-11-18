@@ -758,6 +758,7 @@ mod sealed_secret_tests {
     use super::*;
     use crate::domain::authentication::entities::AuthProtocol;
     use crate::domain::client::entities::ClientType;
+    use crate::domain::client::entities::auth_method::ClientAuthSettings;
     use crate::infrastructure::sealed_secrets_testing::{migrated_schema, sealing_cipher, stored};
 
     fn confidential(realm_id: RealmId, client_id: &str, secret: &str) -> CreateClientRequest {
@@ -777,6 +778,7 @@ mod sealed_secret_tests {
             require_pkce: false,
             consent_required: false,
             registration_source: ClientRegistrationSource::Admin,
+            auth: ClientAuthSettings::default_for(false),
         }
     }
 
