@@ -196,6 +196,18 @@ impl PostgresClientRepository {
 
         Ok(Client::from(model))
     }
+
+    /// Every field but the secret, which is never opened: a stored secret reads as an
+    /// empty placeholder, so the client still shows one is configured. For listing and
+    /// for the result of an edit, which only reach the API (where the secret always
+    /// serializes masked) and never client authentication.
+    fn metadata_of(mut model: clients::Model) -> Client {
+        if model.secret.is_some() {
+            model.secret = Some(String::new());
+        }
+
+        Client::from(model)
+    }
 }
 
 impl ClientRepository for PostgresClientRepository {
@@ -342,11 +354,11 @@ impl ClientRepository for PostgresClientRepository {
             .into_iter()
             .map(|model| {
                 let redirect_uris = uris.remove(&model.id).unwrap_or_default();
-                let mut client = self.client_of(model)?;
+                let mut client = Self::metadata_of(model);
                 client.redirect_uris = Some(redirect_uris);
-                Ok(client)
+                client
             })
-            .collect::<Result<_, CoreError>>()?;
+            .collect();
 
         Ok(Page::new(clients, total, request.page, request.limit))
     }
@@ -457,7 +469,7 @@ impl ClientRepository for PostgresClientRepository {
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        self.client_of(client)
+        Ok(Self::metadata_of(client))
     }
 
     async fn delete_by_id(&self, client: &Scoped<Client>) -> Result<(), CoreError> {
@@ -854,5 +866,103 @@ mod sealed_secret_tests {
             .await;
 
         assert!(result.is_err(), "{result:?}");
+    }
+
+    fn public(realm_id: RealmId, client_id: &str) -> CreateClientRequest {
+        CreateClientRequest {
+            secret: None,
+            public_client: true,
+            service_account_enabled: false,
+            client_type: ClientType::Public,
+            auth: ClientAuthSettings::default_for(true),
+            ..confidential(realm_id, client_id, "unused")
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_client_whose_secret_cannot_be_opened_is_still_listed() {
+        let schema = migrated_schema("client_secret_test").await;
+        let realm_id = schema.realm.id();
+        let sealed = PostgresClientRepository::with_cipher(schema.db.clone(), sealing_cipher())
+            .create_client(confidential(realm_id, "sealed", "client-secret"))
+            .await
+            .expect("create the sealed client");
+        let without_key = PostgresClientRepository::new(schema.db);
+        let open = without_key
+            .create_client(public(realm_id, "spa"))
+            .await
+            .expect("create the public client");
+
+        let page = without_key
+            .list(&schema.realm, &PageRequest::default())
+            .await
+            .expect("list the clients");
+
+        let listed = |id: Uuid| {
+            page.data()
+                .iter()
+                .find(|client| client.id == id)
+                .unwrap_or_else(|| panic!("client {id} is listed"))
+        };
+        assert_eq!(listed(sealed.id).secret_str(), Some(""));
+        assert_eq!(listed(open.id).secret_str(), None);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn an_edit_of_a_client_whose_secret_cannot_be_opened_reports_success() {
+        let schema = migrated_schema("client_secret_test").await;
+        let realm_id = schema.realm.id();
+        let with_key = PostgresClientRepository::with_cipher(schema.db.clone(), sealing_cipher());
+        let created = with_key
+            .create_client(confidential(realm_id, "sealed", "client-secret"))
+            .await
+            .expect("create the sealed client");
+        let target = with_key
+            .get_by_id(realm_id, created.id)
+            .await
+            .expect("read the client")
+            .in_realm(&schema.realm)
+            .expect("the client is in the realm");
+
+        let updated = PostgresClientRepository::new(schema.db)
+            .update_client(
+                &target,
+                UpdateClientRequest {
+                    name: Some("renamed".to_string()),
+                    client_id: None,
+                    enabled: None,
+                    direct_access_grants_enabled: None,
+                    oauth_device_code_grant_enabled: None,
+                    token_exchange_enabled: None,
+                    require_pkce: None,
+                    require_pushed_authorization_requests: None,
+                    backchannel_logout_uri: None,
+                    backchannel_logout_session_required: None,
+                    access_token_lifetime: None,
+                    refresh_token_lifetime: None,
+                    id_token_lifetime: None,
+                    temporary_token_lifetime: None,
+                    maintenance_enabled: None,
+                    maintenance_reason: None,
+                    maintenance_session_strategy: None,
+                    consent_required: None,
+                    token_endpoint_auth_method: None,
+                    jwks: None,
+                    jwks_uri: None,
+                },
+            )
+            .await
+            .expect("the edit reports success");
+
+        assert_eq!(updated.name, "renamed");
+        assert_eq!(updated.secret_str(), Some(""));
+        let reread = with_key
+            .get_by_id(realm_id, created.id)
+            .await
+            .expect("read the client back")
+            .across_realms();
+        assert_eq!(reread.secret_str(), Some("client-secret"));
     }
 }
