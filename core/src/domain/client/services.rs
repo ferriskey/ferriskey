@@ -1000,8 +1000,7 @@ where
         let client = self
             .client_repository
             .get_by_id(scope.id(), input.client_id)
-            .await
-            .map_err(|_| CoreError::NotFound)?
+            .await?
             .in_realm(&scope)?;
 
         if client.get().public_client || client.get().secret.is_none() {
@@ -1026,7 +1025,10 @@ where
             .as_ref()
             .map(|previous| previous.expires_at);
 
-        self.security_event_repository
+        // The new secret is committed: failing now would hand back no secret
+        // while the old one may already be cut off.
+        if let Err(error) = self
+            .security_event_repository
             .store_event(
                 SecurityEvent::new(
                     realm.id,
@@ -1039,7 +1041,14 @@ where
                     "previous_secret_expires_at": previous_expires_at,
                 })),
             )
-            .await?;
+            .await
+        {
+            tracing::error!(
+                client = %client.get().id,
+                ?error,
+                "failed to record a client secret rotation"
+            );
+        }
 
         Ok(RotatedClientSecret {
             client_secret: new_secret,
@@ -1063,8 +1072,7 @@ where
         let client = self
             .client_repository
             .get_by_id(scope.id(), input.client_id)
-            .await
-            .map_err(|_| CoreError::NotFound)?
+            .await?
             .in_realm(&scope)?;
 
         if !self
@@ -2196,6 +2204,66 @@ mod tests {
                 .await;
 
             assert!(matches!(result, Err(CoreError::ClientHasNoSecret)));
+        }
+
+        #[tokio::test]
+        async fn a_committed_rotation_hands_back_its_secret_even_if_the_audit_write_fails() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = confidential(&realm);
+            let client_id = client.id;
+            serving(&mut mocks, client.clone());
+            without_service_account(&mut mocks);
+            mocks
+                .client
+                .expect_rotate_secret()
+                .times(1)
+                .returning(move |_, _, _| {
+                    let rotation = rotated(client.clone(), None);
+                    Box::pin(async move { Ok(rotation) })
+                });
+            mocks
+                .security_event
+                .expect_store_event()
+                .times(1)
+                .returning(|_| Box::pin(async { Err(CoreError::InternalServerError) }));
+
+            let result = mocks
+                .build()
+                .rotate_client_secret(identity, rotation(client_id, None))
+                .await
+                .expect("the rotation is committed");
+
+            assert!(!result.client_secret.is_empty());
+        }
+
+        #[tokio::test]
+        async fn a_failed_read_of_the_client_is_not_reported_as_a_missing_client() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            mocks
+                .client
+                .expect_get_by_id()
+                .returning(|_, _| Box::pin(async { Err(CoreError::InternalServerError) }));
+            let service = mocks.build();
+
+            let rotated = service
+                .rotate_client_secret(identity.clone(), rotation(Uuid::new_v4(), None))
+                .await;
+            let revoked = service
+                .revoke_previous_client_secret(
+                    identity,
+                    GetClientInput {
+                        client_id: Uuid::new_v4(),
+                        realm_name: "acme".to_string(),
+                    },
+                )
+                .await;
+
+            assert!(matches!(rotated, Err(CoreError::InternalServerError)));
+            assert!(matches!(revoked, Err(CoreError::InternalServerError)));
         }
 
         #[tokio::test]
