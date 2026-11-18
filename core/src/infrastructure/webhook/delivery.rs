@@ -46,6 +46,32 @@ pub struct DeliveryJob {
     pub private_endpoints: PrivateEndpoints,
 }
 
+/// What a delivery attempt is recorded against, whether or not a request was sent.
+#[derive(Debug, Clone)]
+pub struct AttemptContext {
+    pub delivery_id: WebhookDeliveryId,
+    pub realm_id: RealmId,
+    pub webhook_id: Uuid,
+    pub event: WebhookTrigger,
+    pub attempt_count: u32,
+    pub elapsed: Duration,
+    pub policy: RetryPolicy,
+}
+
+impl DeliveryJob {
+    fn context(&self) -> AttemptContext {
+        AttemptContext {
+            delivery_id: self.delivery_id,
+            realm_id: self.realm_id,
+            webhook_id: self.webhook_id,
+            event: self.event.clone(),
+            attempt_count: self.attempt_count,
+            elapsed: self.elapsed,
+            policy: self.policy,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DeliveryFailure {
     ReservedHeader,
@@ -111,21 +137,36 @@ where
     S: SecurityEventRepository,
 {
     let at = Utc::now();
+    let context = job.context();
 
-    let failure = match attempt_delivery(&job).await {
+    match attempt_delivery(&job).await {
         Ok(status_code) => {
             record(
                 deliveries,
-                &job,
+                &context,
                 DeliveryOutcome::Succeeded { at, status_code },
             )
             .await;
-            return;
         }
-        Err(failure) => failure,
-    };
+        Err(failure) => {
+            record_failed_attempt(&context, failure.error_code(), deliveries, security_events)
+                .await;
+        }
+    }
+}
 
-    let error = failure.error_code();
+/// Counts one failed attempt: schedules the next one while the retry policy allows it,
+/// otherwise marks the delivery exhausted and records a security event.
+pub async fn record_failed_attempt<D, S>(
+    job: &AttemptContext,
+    error: DeliveryErrorCode,
+    deliveries: &D,
+    security_events: &S,
+) where
+    D: WebhookDeliveryRepository,
+    S: SecurityEventRepository,
+{
+    let at = Utc::now();
     let attempt_count = job.attempt_count.saturating_add(1);
 
     let next_delay = if error.is_retryable() {
@@ -148,7 +189,7 @@ where
             );
             record(
                 deliveries,
-                &job,
+                job,
                 DeliveryOutcome::Retrying {
                     at,
                     next_attempt_at: at + delay,
@@ -168,7 +209,7 @@ where
             );
             record(
                 deliveries,
-                &job,
+                job,
                 DeliveryOutcome::Exhausted {
                     at,
                     error,
@@ -176,12 +217,12 @@ where
                 },
             )
             .await;
-            emit_exhausted_event(security_events, &job, error).await;
+            emit_exhausted_event(security_events, job, error).await;
         }
     }
 }
 
-async fn record<D>(deliveries: &D, job: &DeliveryJob, outcome: DeliveryOutcome)
+async fn record<D>(deliveries: &D, job: &AttemptContext, outcome: DeliveryOutcome)
 where
     D: WebhookDeliveryRepository,
 {
@@ -195,8 +236,11 @@ where
     }
 }
 
-async fn emit_exhausted_event<S>(security_events: &S, job: &DeliveryJob, error: DeliveryErrorCode)
-where
+async fn emit_exhausted_event<S>(
+    security_events: &S,
+    job: &AttemptContext,
+    error: DeliveryErrorCode,
+) where
     S: SecurityEventRepository,
 {
     let event = SecurityEvent::without_actor(
