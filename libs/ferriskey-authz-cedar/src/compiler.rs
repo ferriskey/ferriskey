@@ -79,7 +79,7 @@ pub(crate) fn compile_merged(schema: &AuthzSchema) -> Result<(Schema, Shapes), V
     if let (Some(all), Some(declared)) = (known.as_object_mut(), realm.as_object()) {
         all.extend(declared.iter().map(|(k, v)| (k.clone(), v.clone())));
     }
-    let shapes = Shapes::from_json(&known);
+    let shapes = Shapes::from_json(&known).map_err(|message| vec![plain(None, message)])?;
     let extended = SchemaFragment::from_json_value(builtin)
         .map_err(|e| issues_from(None, &e, &schema.source))?;
 

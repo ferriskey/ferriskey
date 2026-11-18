@@ -301,3 +301,26 @@ when { context.agent == "claude" && context.time.hour >= 8 && resource has annot
     );
     assert_eq!(decide(None, policies, &call), Ok(true));
 }
+
+#[test]
+fn a_schema_nested_past_the_depth_limit_is_rejected() {
+    let compiler = CedarPolicyCompiler::new();
+    let nested = (0..40).fold("String".to_string(), |inner, _| {
+        format!("{{ deeper?: {inner} }}")
+    });
+    let source = format!("namespace App {{ type ContextExtension = {{ deep?: {nested} }}; }}");
+    let issues = compiler
+        .validate_schema(&schema(&source))
+        .expect_err("too deep");
+    assert!(issues[0].message.contains("deeper than"), "{issues:?}");
+}
+
+#[test]
+fn a_schema_nested_within_the_depth_limit_is_accepted() {
+    let compiler = CedarPolicyCompiler::new();
+    let nested = (0..10).fold("String".to_string(), |inner, _| {
+        format!("{{ deeper?: {inner} }}")
+    });
+    let source = format!("namespace App {{ type ContextExtension = {{ deep?: {nested} }}; }}");
+    assert_eq!(compiler.validate_schema(&schema(&source)), Ok(()));
+}

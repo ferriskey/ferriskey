@@ -181,45 +181,48 @@ fn resolve(
     namespaces: &Map<String, Value>,
     current: &str,
     depth: usize,
-) -> Shape {
+) -> Result<Shape, String> {
     if depth > MAX_DEPTH {
-        return Shape::Leaf;
+        return Err(format!(
+            "the schema nests types deeper than {MAX_DEPTH} levels"
+        ));
     }
     match declared.get("type").and_then(Value::as_str) {
         Some("Record") => {
-            let attributes = declared
-                .get("attributes")
-                .and_then(Value::as_object)
-                .map(|attributes| {
-                    attributes
-                        .iter()
-                        .map(|(key, attribute)| {
-                            (
-                                key.clone(),
-                                resolve(attribute, namespaces, current, depth + 1),
-                            )
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-            Shape::Record(attributes)
+            let mut attributes = BTreeMap::new();
+            if let Some(declared) = declared.get("attributes").and_then(Value::as_object) {
+                for (key, attribute) in declared {
+                    attributes.insert(
+                        key.clone(),
+                        resolve(attribute, namespaces, current, depth + 1)?,
+                    );
+                }
+            }
+            Ok(Shape::Record(attributes))
         }
-        Some("Set") => declared.get("element").map_or(Shape::Leaf, |element| {
-            Shape::Set(Box::new(resolve(element, namespaces, current, depth + 1)))
-        }),
+        Some("Set") => match declared.get("element") {
+            Some(element) => Ok(Shape::Set(Box::new(resolve(
+                element,
+                namespaces,
+                current,
+                depth + 1,
+            )?))),
+            None => Ok(Shape::Leaf),
+        },
         Some("EntityOrCommon") => {
             let Some(name) = declared.get("name").and_then(Value::as_str) else {
-                return Shape::Leaf;
+                return Ok(Shape::Leaf);
             };
             let (namespace, leaf) = name.rsplit_once("::").unwrap_or((current, name));
-            namespaces
+            match namespaces
                 .get(namespace)
                 .and_then(|ns| ns.pointer(&format!("/commonTypes/{leaf}")))
-                .map_or(Shape::Leaf, |common| {
-                    resolve(common, namespaces, namespace, depth + 1)
-                })
+            {
+                Some(common) => resolve(common, namespaces, namespace, depth + 1),
+                None => Ok(Shape::Leaf),
+            }
         }
-        _ => Shape::Leaf,
+        _ => Ok(Shape::Leaf),
     }
 }
 
@@ -230,20 +233,20 @@ pub(crate) struct Shapes {
 }
 
 impl Shapes {
-    pub(crate) fn from_json(merged: &Value) -> Self {
+    pub(crate) fn from_json(merged: &Value) -> Result<Self, String> {
         let mut shapes = Self::default();
         let Some(namespaces) = merged.as_object() else {
-            return shapes;
+            return Ok(shapes);
         };
         let Some(root) = namespaces.get(FERRISKEY_NAMESPACE) else {
-            return shapes;
+            return Ok(shapes);
         };
         if let Some(Value::Object(types)) = root.get("entityTypes") {
             for (name, entity) in types {
                 if let Some(shape) = entity.get("shape") {
                     shapes.entities.insert(
                         format!("{FERRISKEY_NAMESPACE}::{name}"),
-                        resolve(shape, namespaces, FERRISKEY_NAMESPACE, 0),
+                        resolve(shape, namespaces, FERRISKEY_NAMESPACE, 0)?,
                     );
                 }
             }
@@ -261,12 +264,12 @@ impl Shapes {
                     };
                     shapes.contexts.insert(
                         name.clone(),
-                        resolve(&declared, namespaces, FERRISKEY_NAMESPACE, 0),
+                        resolve(&declared, namespaces, FERRISKEY_NAMESPACE, 0)?,
                     );
                 }
             }
         }
-        shapes
+        Ok(shapes)
     }
 
     pub(crate) fn prune_entity(
