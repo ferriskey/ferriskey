@@ -23,8 +23,16 @@ interface Draft extends ClientAuthenticationDraft {
   key: string
 }
 
+const authenticationKey = (client: Client) =>
+  JSON.stringify([
+    client.id,
+    client.token_endpoint_auth_method,
+    client.jwks ?? null,
+    client.jwks_uri ?? null,
+  ])
+
 const pristineDraft = (client: Client): Draft => ({
-  key: `${client.id}:${client.updated_at}`,
+  key: authenticationKey(client),
   method:
     client.token_endpoint_auth_method === 'none'
       ? 'client_secret_basic'
@@ -82,11 +90,10 @@ export default function ClientCredentialsTabFeature({
   const forbidden = revealed && status === 403
   const failed = revealed && Boolean(error) && !forbidden
 
+  const settled = revealed && !isFetching && !error
   const revealedPrevious = data?.previous_secret
   const previousSecret =
-    revealed &&
-    !isFetching &&
-    !error &&
+    settled &&
     revealedPrevious &&
     sameInstant(revealedPrevious.expires_at, client.previous_secret?.expires_at)
       ? revealedPrevious.client_secret
@@ -129,7 +136,7 @@ export default function ClientCredentialsTabFeature({
     <ClientCredentialsTab
       client={client}
       revealed={revealed}
-      secret={revealed ? (data?.client_secret ?? null) : null}
+      secret={settled ? (data?.client_secret ?? null) : null}
       isFetching={isFetching}
       forbidden={forbidden}
       failed={failed}

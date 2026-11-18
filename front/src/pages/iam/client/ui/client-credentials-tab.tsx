@@ -6,6 +6,7 @@ import { Button } from '@/components/kit/button'
 import { FieldRow, Section } from '@/components/kit'
 import {
   AlertDialog,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -97,22 +98,27 @@ function CopyButton({ value, disabled }: { value: string; disabled?: boolean }) 
   )
 }
 
+const MAX_TIMER_DELAY_MS = 2_147_483_647
+
 function useStillRunning(expiresAt: string | undefined) {
-  const deadline = expiresAt ? Date.parse(expiresAt) : undefined
+  const parsed = expiresAt ? Date.parse(expiresAt) : NaN
+  const deadline = Number.isNaN(parsed) ? undefined : parsed
   const [now, setNow] = useState(() => Date.now())
+  const running = deadline !== undefined && deadline > now
 
   useEffect(() => {
-    if (deadline === undefined) return
+    if (deadline === undefined || !running) return
     const refresh = () => setNow(Date.now())
-    const timer = setTimeout(refresh, Math.max(0, deadline - Date.now()) + 500)
+    const wait = Math.min(Math.max(0, deadline - Date.now()) + 500, MAX_TIMER_DELAY_MS)
+    const timer = setTimeout(refresh, wait)
     document.addEventListener('visibilitychange', refresh)
     return () => {
       clearTimeout(timer)
       document.removeEventListener('visibilitychange', refresh)
     }
-  }, [deadline, now])
+  }, [deadline, running, now])
 
-  return deadline !== undefined && deadline > now
+  return running
 }
 
 function Fingerprint({ value, muted }: { value: string; muted?: boolean }) {
@@ -211,6 +217,7 @@ export default function ClientCredentialsTab({
   const [graceSecs, setGraceSecs] = useState(DEFAULT_GRACE_SECS)
   const running = useStillRunning(client.previous_secret?.expires_at)
   const previous = running ? client.previous_secret : null
+  if (!previous && revokeOpen) setRevokeOpen(false)
   const confidential = !client.public_client
 
   return (
@@ -335,9 +342,11 @@ export default function ClientCredentialsTab({
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <Button variant='ghost' size='sm' onClick={() => setRevokeOpen(false)}>
-                            {t('credentials.rotate.cancel')}
-                          </Button>
+                          <AlertDialogCancel asChild>
+                            <Button variant='ghost' size='sm'>
+                              {t('credentials.rotate.cancel')}
+                            </Button>
+                          </AlertDialogCancel>
                           <Button
                             variant='destructive'
                             size='sm'
