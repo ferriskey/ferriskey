@@ -1,6 +1,6 @@
 use ferriskey_client::models::{GetSecurityEventsResponse, SecurityEventType};
 
-const WIRE_NAMES: [&str; 33] = [
+const WIRE_NAMES: [&str; 35] = [
     "login_success",
     "login_failure",
     "password_reset",
@@ -20,6 +20,8 @@ const WIRE_NAMES: [&str; 33] = [
     "client_deleted",
     "client_secret_rotated",
     "client_secret_viewed",
+    "client_secret_revoked",
+    "client_secret_expired",
     "realm_config_changed",
     "email_not_sent",
     "email_sent",
@@ -100,6 +102,39 @@ fn a_page_of_security_events_with_the_new_types_deserializes() {
             SecurityEventType::AccountSelected,
             SecurityEventType::AccountSelectionDenied,
             SecurityEventType::DeviceSessionCreated,
+        ]
+    );
+}
+
+#[test]
+fn a_page_mixing_secret_rotation_events_with_older_ones_deserializes() {
+    let event = |event_type: &str| {
+        serde_json::json!({
+            "id": "0191a0a0-0000-7000-8000-000000000001",
+            "realm_id": "0191a0a0-0000-7000-8000-000000000002",
+            "event_type": event_type,
+            "status": "success",
+            "timestamp": "2026-11-18T10:00:00Z",
+            "target_type": "client"
+        })
+    };
+    let page = serde_json::json!({
+        "data": [
+            event("client_secret_rotated"),
+            event("client_secret_revoked"),
+            event("client_secret_expired"),
+        ]
+    });
+
+    let parsed: GetSecurityEventsResponse = serde_json::from_value(page).expect("a returned page");
+
+    let types: Vec<SecurityEventType> = parsed.data.iter().map(|e| e.event_type).collect();
+    assert_eq!(
+        types,
+        vec![
+            SecurityEventType::ClientSecretRotated,
+            SecurityEventType::ClientSecretRevoked,
+            SecurityEventType::ClientSecretExpired,
         ]
     );
 }
