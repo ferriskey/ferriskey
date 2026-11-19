@@ -99,6 +99,31 @@ const SHADOW_TO_CSS: Record<ThemeShadow, string> = {
   large: '0 4px 14px rgba(0,0,0,0.06), 0 12px 32px -4px rgba(0,0,0,0.08)',
 }
 
+const OUTLINE_PERCENT = { floatingInput: 18, field: 15, card: 12 }
+
+/**
+ * Outline colour for a role, drawn in the outline ink.
+ * Without the variable, it is the black outline of old.
+ *
+ * @example
+ * outlineColor('card') // 'color-mix(in srgb, var(--fk-color-outline-ink, #000000) 12%, transparent)'
+ */
+export function outlineColor(role: keyof typeof OUTLINE_PERCENT): string {
+  return `color-mix(in srgb, var(--fk-color-outline-ink, #000000) ${OUTLINE_PERCENT[role]}%, transparent)`
+}
+
+/**
+ * What a dark palette changes on top of `themeToCssVars`.
+ * Outlines follow its body text, to show on dark widgets.
+ * Spread it only when `theme` holds the `darkColors`.
+ *
+ * @example
+ * darkPaletteCssVars(theme) // { '--fk-color-outline-ink': '#f5fafc' }
+ */
+export function darkPaletteCssVars(theme: PortalThemeConfig): Record<string, string> {
+  return { '--fk-color-outline-ink': theme.colors.bodyText }
+}
+
 export function themeToCssVars(theme: PortalThemeConfig): Record<string, string> {
   const { colors, fonts, borders, spacing } = theme
 
@@ -121,6 +146,7 @@ export function themeToCssVars(theme: PortalThemeConfig): Record<string, string>
     '--fk-color-body-text': colors.bodyText,
     '--fk-color-links': colors.links,
     '--fk-color-error': colors.error,
+    '--fk-color-outline-ink': '#000000',
 
     '--fk-font-base-size': `${fonts.baseSize}px`,
     '--fk-font-title-size': `${(fonts.title.sizePct / 100) * fonts.baseSize}px`,

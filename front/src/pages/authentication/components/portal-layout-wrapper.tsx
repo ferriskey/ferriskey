@@ -14,7 +14,12 @@ import type { BuilderNode } from '@/lib/builder-core'
 import { generateBreakpointCss, treeToReactNode } from '@/lib/builder-portal'
 import { collectRenderedTypes } from '@/lib/builder-portal/rendered-types'
 import type { AccountChooserOptions } from '@/lib/builder-portal/components/account-list-block'
-import { mergeWithDefaults, themeToCssVars, withDarkPalette } from '@/lib/portal-theme/theme'
+import {
+  darkPaletteCssVars,
+  mergeWithDefaults,
+  themeToCssVars,
+  withDarkPalette,
+} from '@/lib/portal-theme/theme'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import type { Schemas } from '@/api/api.client'
 import { useDevicePreview } from '@/api/device.api'
@@ -198,6 +203,13 @@ export function PortalLayoutWrapper({
     }
     return themeToCssVars(mergeWithDefaults(undefined)) as CSSProperties
   }, [tokens, cachedVars])
+  const hasDarkPalette = activeData ? Boolean(activeData.design_tokens.darkColors) : false
+  // A dark palette draws outlines in its text colour.
+  const darkOutlineVars = useMemo(
+    () =>
+      isDarkScheme && hasDarkPalette && tokens ? darkPaletteCssVars(mergeWithDefaults(tokens)) : {},
+    [isDarkScheme, hasDarkPalette, tokens],
+  )
   useEffect(() => {
     if (activeData?.design_tokens) {
       writeCachedCssVars(
@@ -333,7 +345,14 @@ export function PortalLayoutWrapper({
     // but visually hidden: its effects (the redirect) still run, the user just
     // never sees the fallback form flash.
     return (
-      <div style={{ ...cssVars, minHeight: '100vh', background: 'var(--fk-color-page-bg)' }}>
+      <div
+        style={{
+          ...cssVars,
+          ...darkOutlineVars,
+          minHeight: '100vh',
+          background: 'var(--fk-color-page-bg)',
+        }}
+      >
         <div
           aria-hidden
           style={{
@@ -429,6 +448,7 @@ export function PortalLayoutWrapper({
    */
   const pageSurface: CSSProperties = {
     ...cssVars,
+    ...darkOutlineVars,
     minHeight: '100vh',
     background: 'var(--fk-color-page-bg)',
     display: 'flex',
