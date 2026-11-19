@@ -85,7 +85,8 @@ export function mergeWithDefaults(partial: Schemas.PortalThemeConfig | undefined
 
 /**
  * Swaps `colors` for `darkColors`, when the theme has them.
- * Missing dark tokens take the defaults, like the backend.
+ * The result can miss dark tokens.
+ * Pass it to `mergeWithDefaults`, which gives them defaults.
  *
  * @example
  * withDarkPalette({ darkColors: { bodyText: '#fff' } }) // { colors: { bodyText: '#fff' }, … }
