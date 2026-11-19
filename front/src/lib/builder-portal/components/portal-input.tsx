@@ -1,6 +1,7 @@
 import { useId, useRef, useState, type CSSProperties } from 'react'
 import { Eye, EyeClosed } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { outlineColor } from '@/lib/portal-theme/theme'
 
 interface PortalInputProps {
   name: string | undefined
@@ -61,7 +62,7 @@ export function PortalInput({
     border: `var(--fk-border-input, 1px) solid ${
       focused
         ? 'var(--fk-color-primary-button, #635dff)'
-        : 'rgba(0,0,0,0.18)'
+        : outlineColor('floatingInput')
     }`,
     backgroundColor: 'var(--fk-color-widget-bg, #ffffff)',
     paddingLeft: 12,
