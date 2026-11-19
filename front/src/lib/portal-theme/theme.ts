@@ -8,12 +8,16 @@ export type ThemeBorders = Required<NonNullable<Schemas.ThemeBorders>>
 export type ThemeSpacing = Required<NonNullable<Schemas.ThemeSpacing>>
 export type ThemeShadow = Schemas.ThemeShadow
 
+// The editor keeps a stored dark palette as it is.
+// A theme without one has no such key.
+type StoredDarkPalette = { darkColors: Schemas.ThemeColors } | Record<never, never>
+
 export type PortalThemeConfig = {
   colors: ThemeColors
   fonts: ThemeFonts
   borders: ThemeBorders
   spacing: ThemeSpacing
-}
+} & StoredDarkPalette
 
 export const defaultTheme: PortalThemeConfig = {
   colors: {
@@ -69,11 +73,13 @@ export const defaultTheme: PortalThemeConfig = {
 }
 
 export function mergeWithDefaults(partial: Schemas.PortalThemeConfig | undefined): PortalThemeConfig {
+  const storedDark = partial ? partial.darkColors : null
   return {
     colors: { ...defaultTheme.colors, ...(partial?.colors ?? {}) },
     fonts: { ...defaultTheme.fonts, ...(partial?.fonts ?? {}) },
     borders: { ...defaultTheme.borders, ...(partial?.borders ?? {}) },
     spacing: { ...defaultTheme.spacing, ...(partial?.spacing ?? {}) },
+    ...(storedDark ? { darkColors: storedDark } : {}),
   }
 }
 

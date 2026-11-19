@@ -43,3 +43,30 @@ test('a selected dark palette draws outlines in its body text colour', () => {
 test('an outline without an ink variable is the black outline the portal always had', () => {
   assert.ok(outlineColor('floatingInput').includes('var(--fk-color-outline-ink, #000000) 18%'))
 })
+
+const storedWithDarkPalette = {
+  colors: { bodyText: '#000000' },
+  darkColors: { pageBackground: '#0a0a0a', bodyText: '#f5fafc' },
+}
+
+test('the editor seed keeps the stored dark palette as it is', () => {
+  const seed = mergeWithDefaults(storedWithDarkPalette)
+  assert.ok('darkColors' in seed)
+  assert.deepEqual(seed.darkColors, storedWithDarkPalette.darkColors)
+})
+
+test('saving after a light colour edit still sends the dark palette', () => {
+  const seed = mergeWithDefaults(storedWithDarkPalette)
+  // The editor sets a colour like this.
+  // It sends its whole state on save.
+  const edited = { ...seed, colors: { ...seed.colors, bodyText: '#111111' } }
+  assert.ok('darkColors' in edited)
+  assert.deepEqual(edited.darkColors, storedWithDarkPalette.darkColors)
+  assert.equal(edited.colors.bodyText, '#111111')
+})
+
+test('a theme without a dark palette seeds the editor without the key', () => {
+  for (const stored of [{ colors: { bodyText: '#000000' } }, { darkColors: null }, {}]) {
+    assert.equal('darkColors' in mergeWithDefaults(stored), false)
+  }
+})
