@@ -21,6 +21,7 @@ const LONGEST_RETRY: Duration = Duration::from_secs(30);
 ///
 /// NOTIFY reaches every session of the database.
 /// Each announcement names its schema: `<schema>/<replica>`.
+/// The schema is named as PostgreSQL resolves it.
 /// A replica ignores announcements of another schema.
 pub fn spawn_token_state_sync(
     pool: &PgPool,
@@ -36,7 +37,7 @@ pub fn spawn_token_state_sync(
     let listening = PgPoolOptions::new()
         .max_connections(1)
         .connect_lazy_with(options);
-    let origin = format!("{schema}/{}", Uuid::new_v4());
+    let origin = format!("{}/{}", canonical_schema(schema), Uuid::new_v4());
 
     tokio::spawn(publish(announcing, origin.clone(), feed));
     tokio::spawn(listen(listening, origin, state));
@@ -164,6 +165,21 @@ fn schema_of(announcement: &str) -> Option<&str> {
     announcement.rsplit_once('/').map(|(schema, _)| schema)
 }
 
+/// The schema as PostgreSQL resolves it from the search_path.
+///
+/// An unquoted name is folded to lowercase.
+/// A quoted name keeps its case.
+/// Inside it, `""` stands for one quote.
+fn canonical_schema(schema: &str) -> String {
+    match schema
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+    {
+        Some(quoted) => quoted.replace("\"\"", "\""),
+        None => schema.to_ascii_lowercase(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
@@ -222,6 +238,31 @@ mod tests {
         assert_eq!(state.generation(), 2);
     }
 
+    #[test]
+    fn an_unquoted_schema_is_folded_to_lowercase_as_postgresql_does() {
+        assert_eq!(canonical_schema("PUBLIC"), canonical_schema("public"));
+        assert_eq!(canonical_schema("Oidc_Mine"), "oidc_mine");
+    }
+
+    #[test]
+    fn a_quoted_schema_keeps_its_case() {
+        assert_eq!(canonical_schema("\"Public\""), "Public");
+        assert_ne!(canonical_schema("\"Public\""), canonical_schema("public"));
+        assert_eq!(canonical_schema("\"a\"\"B\""), "a\"B");
+        assert_eq!(canonical_schema("\"public\""), canonical_schema("PUBLIC"));
+    }
+
+    #[test]
+    fn announcements_of_two_spellings_of_one_schema_empty_the_caches() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+        let theirs = format!("{}/another-replica", canonical_schema("PUBLIC"));
+        let ours = format!("{}/this-replica", canonical_schema("public"));
+
+        react(&theirs, &ours, &state);
+
+        assert_eq!(state.generation(), 1);
+    }
+
     async fn replica(pool: &PgPool, schema: &str) -> Arc<TokenState> {
         let (state, feed) = TokenState::new(Duration::from_secs(60));
         let mut ready = state.subscribe();
@@ -259,6 +300,20 @@ mod tests {
 
         wait_past(&mut watching, seen).await;
         assert!(second.synced());
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_change_reaches_a_replica_whose_schema_is_spelled_in_another_case() {
+        let pool = pool().await;
+        let first = replica(&pool, "public").await;
+        let second = replica(&pool, "PUBLIC").await;
+        let mut watching = second.subscribe();
+        let seen = second.generation();
+
+        first.changed();
+
+        wait_past(&mut watching, seen).await;
     }
 
     #[tokio::test]
