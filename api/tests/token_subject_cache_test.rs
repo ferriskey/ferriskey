@@ -830,13 +830,15 @@ fn spec_rtp_19_warm_userinfo_runs_no_sql_besides_the_first_sight_revocation_chec
                 "warm userinfo: {} statements {statements:?}",
                 statements.len()
             );
-            if subject_reads(&statements).is_empty() {
-                assert!(statements.len() <= 1, "{statements:?}");
+            // Caches here expire CACHE_TTL_SECONDS after being filled.
+            // Every test of the binary shares the realm entry.
+            // A capture can catch it expiring: retry on any read.
+            if subject_reads(&statements).is_empty() && statements.len() <= 1 {
                 return;
             }
             assert!(
                 tokio::time::Instant::now() < deadline,
-                "userinfo kept reading the subject: {statements:?}"
+                "userinfo kept running SQL: {statements:?}"
             );
         }
     });
