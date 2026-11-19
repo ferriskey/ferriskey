@@ -1,4 +1,5 @@
 import type { Schemas } from '@/api/api.client'
+import type { BuilderNode } from '@/lib/builder-core'
 
 export type ThemeColors = Required<NonNullable<Schemas.ThemeColors>>
 export type ThemeFontStyle = Schemas.ThemeFontStyle
@@ -94,6 +95,55 @@ export function mergeWithDefaults(partial: Schemas.PortalThemeConfig | undefined
 export function withDarkPalette(tokens: Schemas.PortalThemeConfig): Schemas.PortalThemeConfig {
   if (!tokens.darkColors) return tokens
   return { ...tokens, colors: tokens.darkColors }
+}
+
+export const OWN_SURFACE_ATTR = 'data-fk-own-surface'
+const COLOR_VAR_PREFIX = '--fk-color-'
+const LIGHT_VAR_PREFIX = '--fk-light-color-'
+// The blocks whose style reads a `backgroundColor` prop.
+const SURFACE_BLOCKS = new Set(['container', 'flex', 'grid', 'div', 'card'])
+
+function picksBackground(props: Record<string, unknown>): boolean {
+  return typeof props.backgroundColor === 'string' && props.backgroundColor !== ''
+}
+
+function lightVarName(name: string): string {
+  return name.replace(COLOR_VAR_PREFIX, LIGHT_VAR_PREFIX)
+}
+
+/**
+ * True when the author picked a block's background colour.
+ * A breakpoint can pick it too.
+ *
+ * @example
+ * hasOwnSurface({ type: 'card', props: { backgroundColor: '#fff' }, … }) // true
+ */
+export function hasOwnSurface(node: BuilderNode): boolean {
+  if (!SURFACE_BLOCKS.has(node.type)) return false
+  const overrides = node.breakpoints ? Object.values(node.breakpoints) : []
+  return [node.props, ...overrides].some(picksBackground)
+}
+
+/**
+ * The light palette, for blocks with their own surface.
+ * `vars` hold its colours under `--fk-light-color-*` names.
+ * `css` maps them back onto those blocks.
+ *
+ * @example
+ * ownSurfaceTheme(lightTheme).vars // { '--fk-light-color-body-text': '#1e212a', … }
+ */
+export function ownSurfaceTheme(light: PortalThemeConfig): {
+  vars: Record<string, string>
+  css: string
+} {
+  const colors = Object.entries(themeToCssVars(light)).filter(([name]) =>
+    name.startsWith(COLOR_VAR_PREFIX),
+  )
+  const mapped = colors.map(([name]) => `${name}: var(${lightVarName(name)});`)
+  return {
+    vars: Object.fromEntries(colors.map(([name, value]) => [lightVarName(name), value])),
+    css: `[${OWN_SURFACE_ATTR}] { ${mapped.join(' ')} }`,
+  }
 }
 
 // Tuned to match the FerrisKey default admin design — modern cards want

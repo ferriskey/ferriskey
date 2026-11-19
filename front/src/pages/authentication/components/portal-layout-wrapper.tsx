@@ -17,6 +17,7 @@ import type { AccountChooserOptions } from '@/lib/builder-portal/components/acco
 import {
   darkPaletteCssVars,
   mergeWithDefaults,
+  ownSurfaceTheme,
   themeToCssVars,
   withDarkPalette,
 } from '@/lib/portal-theme/theme'
@@ -205,11 +206,15 @@ export function PortalLayoutWrapper({
   }, [tokens, cachedVars])
   const hasDarkPalette = activeData ? Boolean(activeData.design_tokens.darkColors) : false
   // A dark palette draws outlines in its text colour.
-  const darkOutlineVars = useMemo(
-    () =>
-      isDarkScheme && hasDarkPalette && tokens ? darkPaletteCssVars(mergeWithDefaults(tokens)) : {},
-    [isDarkScheme, hasDarkPalette, tokens],
-  )
+  // Blocks with their own surface keep the light palette.
+  const darkPalette = useMemo(() => {
+    if (!isDarkScheme || !hasDarkPalette || !activeData) return { vars: {}, css: '' }
+    const own = ownSurfaceTheme(mergeWithDefaults(activeData.design_tokens))
+    return {
+      vars: { ...darkPaletteCssVars(mergeWithDefaults(tokens)), ...own.vars },
+      css: own.css,
+    }
+  }, [isDarkScheme, hasDarkPalette, activeData, tokens])
   useEffect(() => {
     if (activeData?.design_tokens) {
       writeCachedCssVars(
@@ -348,7 +353,7 @@ export function PortalLayoutWrapper({
       <div
         style={{
           ...cssVars,
-          ...darkOutlineVars,
+          ...darkPalette.vars,
           minHeight: '100vh',
           background: 'var(--fk-color-page-bg)',
         }}
@@ -427,6 +432,7 @@ export function PortalLayoutWrapper({
     [data-fk-portal-spinner] {
       animation: fk-portal-spin 0.8s linear infinite;
     }
+    ${darkPalette.css}
   `
   const buttonInteractionStyle = (
     <style dangerouslySetInnerHTML={{ __html: buttonInteractionCss }} />
@@ -448,7 +454,7 @@ export function PortalLayoutWrapper({
    */
   const pageSurface: CSSProperties = {
     ...cssVars,
-    ...darkOutlineVars,
+    ...darkPalette.vars,
     minHeight: '100vh',
     background: 'var(--fk-color-page-bg)',
     display: 'flex',

@@ -4,11 +4,22 @@ import assert from 'node:assert/strict'
 import {
   darkPaletteCssVars,
   defaultTheme,
+  hasOwnSurface,
   mergeWithDefaults,
   outlineColor,
+  ownSurfaceTheme,
   themeToCssVars,
   withDarkPalette,
 } from './theme.ts'
+import type { BuilderNode } from '@/lib/builder-core'
+
+function block(
+  type: string,
+  props: Record<string, unknown>,
+  breakpoints: BuilderNode['breakpoints'] = {},
+): BuilderNode {
+  return { id: 'b', type, props, breakpoints, styles: {}, children: [] }
+}
 
 test('a theme without a dark palette keeps its colours', () => {
   const lightOnly = { colors: { bodyText: '#000000' } }
@@ -69,4 +80,25 @@ test('a theme without a dark palette seeds the editor without the key', () => {
   for (const stored of [{ colors: { bodyText: '#000000' } }, { darkColors: null }, {}]) {
     assert.equal('darkColors' in mergeWithDefaults(stored), false)
   }
+})
+
+test('a block with a hand-picked background has its own surface', () => {
+  assert.equal(hasOwnSurface(block('card', { backgroundColor: '#ffffff' })), true)
+  assert.equal(hasOwnSurface(block('container', {}, { md: { backgroundColor: '#fff' } })), true)
+})
+
+test('a block that follows the widget background has no own surface', () => {
+  assert.equal(hasOwnSurface(block('card', {})), false)
+  assert.equal(hasOwnSurface(block('card', { backgroundColor: '' })), false)
+  assert.equal(hasOwnSurface(block('text', { backgroundColor: '#ffffff' })), false)
+})
+
+test('a hand-picked surface keeps the light palette', () => {
+  const light = mergeWithDefaults({ colors: { bodyText: '#1e212a', widgetBackground: '#ffffff' } })
+  const own = ownSurfaceTheme(light)
+  assert.equal(own.vars['--fk-light-color-body-text'], '#1e212a')
+  assert.equal(own.vars['--fk-light-color-widget-bg'], '#ffffff')
+  assert.ok(own.css.startsWith('[data-fk-own-surface] {'))
+  assert.ok(own.css.includes('--fk-color-body-text: var(--fk-light-color-body-text);'))
+  assert.equal(own.css.includes('--fk-font'), false)
 })
