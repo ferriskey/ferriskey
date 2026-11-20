@@ -1,0 +1,322 @@
+# Ces écrans sont lus par les personnes qui se connectent, pas par des administrateurs.
+# Le vocabulaire reste simple et évite celui de la console : un visiteur ne sait pas
+# ce qu'est un realm, un client, un scope ou un identifiant.
+#
+# STATUS: traduit, en attente de relecture native. Voir le glossaire français dans GLOSSARY.md.
+
+actions:
+  back_to_login: Retour à la connexion
+  cancel: Annuler
+
+login:
+  # Affiché comme titre quand le realm n'a pas de nom d'affichage propre.
+  title: Connexion
+  identifier:
+    username: Nom d'utilisateur
+    email: E-mail
+    username_or_email: Nom d'utilisateur ou e-mail
+  password: Mot de passe
+  remember_me: Se souvenir de moi
+  forgot_password: Mot de passe oublié  ?
+  submit: Se connecter
+  # Séparateur entre le formulaire de mot de passe et les autres moyens de se connecter.
+  separator: ou
+  passkey: Se connecter avec une clé d'accès
+  magic_link: Se connecter avec un lien magique
+  no_account: Vous n'avez pas de compte  ? <signup>Inscrivez-vous</signup>
+  failed: Échec de l'authentification. Veuillez vérifier vos identifiants et réessayer.
+  failure:
+    title: Une erreur s'est produite lors de la connexion
+    description: Veuillez réessayer
+  rejected:
+    title: Erreur d'authentification
+    hint: Contactez votre administrateur si le problème persiste.
+
+account_chooser:
+  title: Choisir un compte
+  description: Continuez avec un compte que vous avez déjà utilisé sur cet appareil.
+  continue_to: pour continuer vers <app>{{name}}</app>
+  remembered_one: '{{count}} compte mémorisé sur cet appareil'
+  remembered_many: '{{count}} de comptes mémorisés sur cet appareil'
+  remembered_other: '{{count}} comptes mémorisés sur cet appareil'
+  loading: Chargement de vos comptes
+  last_used: 'Dernière utilisation {{when}}'
+  reauthentication: Confirmez votre mot de passe
+  signed_out: Déconnecté
+  continue_as: Continuer en tant que {{name}}
+  remove: Retirer de cet appareil
+  remove_named: Retirer {{name}} de cet appareil
+  use_another: Utiliser un autre compte
+  error:
+    select_failed: Ce compte ne peut plus être utilisé ici. Choisissez un autre compte ou connectez-vous à nouveau.
+    remove_failed: Nous n'avons pas pu retirer ce compte. Veuillez réessayer.
+
+providers:
+  separator: Ou continuer avec
+  continue_with: Continuer avec {{name}}
+  start_failed: Impossible de démarrer la connexion avec {{name}}. Veuillez réessayer.
+  start_failed_insecure: Impossible de démarrer la connexion avec {{name}}. Cette page doit être servie en HTTPS.
+
+register:
+  # Affiché comme titre quand le nom du realm est absent de l'URL.
+  title: Créer un compte
+  username: Nom d'utilisateur
+  email: E-mail
+  password: Mot de passe
+  confirm_password: Confirmer le mot de passe
+  firstname: Prénom
+  lastname: Nom
+  submit: Créer le compte
+  failed: Nous n'avons pas pu créer votre compte. Veuillez réessayer.
+
+magic_link:
+  form:
+    title: Se connecter par e-mail
+    description: Saisissez votre adresse e-mail et nous vous enverrons un lien pour vous connecter instantanément.
+    email_label: Adresse e-mail
+    submit: Envoyer le lien magique
+    submitting: Envoi en cours...
+  sent:
+    title: Consultez votre boîte de réception
+    description: Nous avons envoyé un lien magique à votre adresse e-mail. Cliquez sur le lien pour vous connecter, sans mot de passe.
+    hint: Le lien expire dans 15 minutes. Vérifiez vos courriers indésirables si vous ne le voyez pas.
+  verify:
+    checking: Vérification de votre lien magique...
+    invalid: Ce lien magique est invalide ou a expiré.
+    missing_params: Paramètres du lien magique manquants.
+    no_redirect: La vérification a réussi, mais aucune URL de redirection n'a été fournie.
+    failed: Ce lien magique n'a pas pu être vérifié.
+  toast:
+    send_failed: Échec de l'envoi du lien magique
+    sent: Lien magique envoyé. Consultez votre boîte de réception.
+
+forgot_password:
+  title: Mot de passe oublié  ?
+  description: Saisissez votre adresse e-mail et nous vous enverrons un lien pour réinitialiser votre mot de passe.
+  email_label: E-mail
+  submit: Envoyer le lien de réinitialisation
+  submitting: Envoi en cours...
+  sent: Si un compte existe avec cet e-mail, un lien de réinitialisation a été envoyé.
+
+reset_password:
+  title: Définir un nouveau mot de passe
+  password_label: Nouveau mot de passe
+  confirm_label: Confirmer le mot de passe
+  submit: Réinitialiser le mot de passe
+  submitting: Réinitialisation en cours...
+  checking: Vérification de votre lien de réinitialisation...
+  invalid: Ce lien de réinitialisation est invalide ou a expiré.
+  request_new: Demander un nouveau lien de réinitialisation
+  failed: Impossible de réinitialiser votre mot de passe.
+  changed_title: Mot de passe modifié
+  changed: Votre mot de passe a été modifié. Vous pouvez maintenant vous connecter depuis votre application avec ce nouveau mot de passe.
+
+update_password:
+  title: Mettre à jour votre mot de passe
+  description: Votre mot de passe est temporaire et doit être mis à jour avant de continuer.
+  password_label: Nouveau mot de passe
+  confirm_label: Confirmer le mot de passe
+  submit: Mettre à jour le mot de passe
+  submitting: Mise à jour en cours...
+  requirements_label: Exigences du mot de passe
+  # Lu par les lecteurs d'écran après chaque exigence, jamais affiché à l'écran.
+  requirement_met: (respectée)
+  requirement_unmet: (pas encore respectée)
+  failed: Échec de la mise à jour de votre mot de passe
+
+otp:
+  title: Code de vérification
+  description: Saisissez le code à 6 chiffres de votre application d'authentification.
+  description_for: Saisissez le code à 6 chiffres de votre application d'authentification pour <account>{{email}}</account>.
+  hint: Collez votre code ou saisissez-le chiffre par chiffre.
+  submit: Se connecter
+  submitting: Connexion en cours...
+  invalid: Code OTP invalide, veuillez réessayer.
+
+configure_otp:
+  title: Activer l'authentification à deux facteurs
+  description: Protégez votre compte avec une couche de sécurité supplémentaire grâce à une application d'authentification TOTP.
+  step_app:
+    title: Installer une application d'authentification
+    description: Utilisez Google Authenticator, Authy, Microsoft Authenticator, 1Password ou toute autre application TOTP sur votre appareil.
+  step_qr:
+    title: Scanner le code QR
+    manual: 'Vous ne pouvez pas scanner  ? Saisissez ce secret manuellement :'
+  step_verify:
+    title: Vérifier et nommer votre appareil
+    device_label: Nom de l'appareil (facultatif)
+    backup_hint: Conservez vos codes de secours en lieu sûr, vous en aurez besoin si vous perdez votre appareil.
+  submit: Activer l'authentification à deux facteurs
+  setup_failed: Erreur lors de la configuration de l'OTP
+  not_ready: La configuration de l'OTP n'est pas encore prête
+
+configure_passkey:
+  title: Enregistrer une clé d'accès
+  description: Configurez une clé d'accès pour vous connecter sans mot de passe. Votre navigateur vous proposera d'utiliser l'authentificateur intégré à votre appareil.
+  benefits:
+    secure:
+      title: Sûr et pratique
+      description: Les clés d'accès utilisent la biométrie ou le code PIN de votre appareil, sans mot de passe à retenir.
+    portable:
+      title: Fonctionne sur tous vos appareils
+      description: Synchronisée via le Trousseau iCloud, le Gestionnaire de mots de passe Google ou Windows Hello.
+  submit: Enregistrer la clé d'accès
+  submitting: Enregistrement…
+  success: Clé d'accès enregistrée
+  redirecting: Redirection…
+  already_exists: Une clé d'accès existe déjà pour ce compte. Redirection...
+  failed: Échec de l'enregistrement de la clé d'accès
+
+passkey:
+  unsupported: WebAuthn n'est pas pris en charge par ce navigateur
+  failed: Échec de l'authentification par clé d'accès
+  start_failed: Impossible de démarrer l'authentification par clé d'accès
+
+verify_email:
+  title: Vérifier votre e-mail
+  description: Un lien de vérification a été envoyé à votre adresse e-mail. Consultez votre boîte de réception et cliquez sur le lien pour vérifier votre compte.
+  spam_hint: Si vous ne voyez pas l'e-mail, vérifiez vos courriers indésirables.
+  resend: Renvoyer l'e-mail de vérification
+  resending: Envoi en cours...
+  # Le nombre ne s'accorde jamais : c'est un compte à rebours abrégé en secondes.
+  resend_in: Renvoyer dans {{seconds}} s
+  missing_context: 'Impossible de renvoyer l''e-mail : contexte d''authentification manquant'
+  sent: E-mail de vérification envoyé  ! Consultez votre boîte de réception.
+  resend_failed: Échec du renvoi de l'e-mail de vérification
+
+verify_email_state:
+  checking: Vérification de votre e-mail...
+  finishing: Finalisation...
+  expired:
+    title: Lien expiré
+    description: Ce lien de vérification a expiré. Veuillez vous inscrire à nouveau ou demander un nouveau lien.
+  failed:
+    title: Échec de la vérification
+    description: Le lien de vérification est invalide.
+
+check_email:
+  title: Consultez votre e-mail
+  description: Nous avons envoyé un lien de vérification à
+  description_to: Nous avons envoyé un lien de vérification à <recipient>{{email}}</recipient>
+  hint: Cliquez sur le lien dans l'e-mail pour vérifier votre compte. Le lien expire bientôt.
+
+email_verified:
+  title: E-mail vérifié
+  description: Votre adresse e-mail a été confirmée. Vous pouvez maintenant vous connecter à votre compte.
+  action: Continuer vers la connexion
+  return_to_app: Votre adresse e-mail a été confirmée. Vous pouvez fermer cette page et retourner à l'application pour vous connecter.
+
+device:
+  title: Vérification de l'appareil
+  description: Saisissez le code affiché sur votre appareil pour l'autoriser.
+  format_hint: Format <mono>XXXX-XXXX</mono>, lettres uniquement.
+  consent:
+    request: <app>{{name}}</app> demande à se connecter en votre nom.
+    grants: Il obtiendra
+  approve: Approuver
+  approving: Approbation…
+  deny: Refuser
+  denying: Refus…
+  approved:
+    title: Appareil approuvé
+    description: Vous pouvez maintenant retourner sur l'appareil qui a demandé l'accès. Il devrait se connecter automatiquement d'ici quelques secondes.
+  denied:
+    title: Accès refusé
+    description: Nous avons informé l'appareil que sa demande a été refusée. Vous pouvez fermer cette fenêtre en toute sécurité.
+  retry: Vérifier un autre code
+  failed: Impossible de vérifier ce code. Veuillez réessayer.
+
+consent:
+  title: Autoriser l'accès
+  request: <app>{{name}}</app> demande l'accès à votre compte.
+  client_host: Application servie depuis {{host}}
+  default_scopes_label: Toujours accordé
+  optional_scopes_label: Choisissez ce que vous partagez
+  allow: Autoriser
+  allowing: Autorisation…
+  deny: Refuser
+  denying: Refus…
+  token_missing: Jeton de consentement manquant. Veuillez relancer la connexion.
+  failed: Impossible d'envoyer votre décision. Veuillez réessayer.
+
+callback:
+  error_title: Impossible de terminer la connexion
+  missing_code: Code d'autorisation manquant. Veuillez réessayer.
+  invalid_state: État de connexion invalide. Veuillez essayer de vous connecter à nouveau.
+  failed: Impossible de terminer la connexion. Veuillez réessayer.
+
+session:
+  expired: Session expirée
+  # Le nombre ne s'accorde jamais : c'est un compte à rebours abrégé en secondes.
+  refreshing: Actualisation automatique dans {{seconds}} s...
+  restart: Relancez votre session pour continuer.
+  refresh: Actualiser la session
+  refresh_failed: Échec de l'actualisation de la session
+  refresh_failed_description: Veuillez réessayer.
+
+required_action:
+  loading: Chargement ...
+  none: Aucune action requise
+
+password:
+  rules:
+    min_length_one: Au moins {{count}} caractère
+    min_length_many: Au moins {{count}} de caractères
+    min_length_other: Au moins {{count}} caractères
+    uppercase: Au moins une lettre majuscule
+    lowercase: Au moins une lettre minuscule
+    number: Au moins un chiffre
+    special: Au moins un caractère spécial
+    special_detailed: 'Au moins un caractère spécial (!@#$%^&*…)'
+
+# Messages que les pages construites dans le thème du realm reçoivent de nos gestionnaires
+# de soumission. Les pages elles-mêmes sont rédigées par l'administrateur et ne sont pas
+# traduites ici.
+form:
+  login_fields_required: Saisissez votre nom d'utilisateur et votre mot de passe pour continuer.
+  login_failed: Échec de la connexion. Veuillez réessayer.
+  passwords_mismatch: Les mots de passe ne correspondent pas.
+  register_fields_required: L'e-mail et le mot de passe sont requis.
+  register_failed: Impossible de créer votre compte. Veuillez réessayer.
+  forgot_email_required: Saisissez votre e-mail pour recevoir un lien de réinitialisation.
+  reset_password_required: Choisissez un nouveau mot de passe.
+  reset_link_missing: Le lien de réinitialisation est manquant ou a expiré. Demandez-en un nouveau.
+  reset_succeeded: Mot de passe mis à jour. Connectez-vous avec votre nouveau mot de passe.
+  reset_failed: Impossible de réinitialiser le mot de passe.
+  verification_sent: E-mail de vérification envoyé. Consultez votre boîte de réception.
+  device_code_required: Saisissez le code à 8 caractères affiché sur votre appareil.
+  otp_code_required: Saisissez le code à 6 chiffres de votre application d'authentification.
+  otp_code_mismatch: Le code ne correspond pas. Essayez le dernier code affiché dans votre application.
+  consent_token_missing: Jeton de consentement manquant. Veuillez relancer la connexion.
+  consent_failed: Impossible d'envoyer votre décision. Veuillez réessayer.
+
+validation:
+  username_required: Le nom d'utilisateur est requis
+  password_required: Le mot de passe est requis
+  email_required: L'e-mail est requis
+  email_invalid: Adresse e-mail invalide
+  email_invalid_hint: Veuillez saisir une adresse e-mail valide
+  password_confirm_required: Veuillez confirmer votre mot de passe
+  password_confirm_new_required: Confirmez votre nouveau mot de passe
+  passwords_mismatch: Les mots de passe ne correspondent pas
+  password_must_match: Le mot de passe doit correspondre
+  otp_code_length: Le code doit comporter au moins 6 caractères
+  otp_pin_length: Le code PIN doit comporter au moins 6 caractères
+  device_name_required: Le nom de l'appareil doit comporter au moins 1 caractère
+  device_code_format: Format attendu XXXX-XXXX avec les caractères du code d'appareil.
+
+document_title:
+  login: Connexion
+  register: Créer un compte
+  totp: Code de vérification
+  forgot_password: Mot de passe oublié
+  reset_password: Réinitialiser le mot de passe
+  magic_link_verify: Connexion par lien magique
+  magic_link_request: Demander un lien magique
+  verify_email: Vérifier votre e-mail
+  email_verified: E-mail vérifié
+  totp_setup: Configurer l'authentification à deux facteurs
+  device_verify: Vérifier votre appareil
+  device_verified: Appareil vérifié
+  consent: Autoriser l'accès
+  account_chooser: Choisir un compte

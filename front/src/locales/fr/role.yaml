@@ -1,0 +1,260 @@
+# Catalogue français des rôles et du catalogue de permissions.
+#
+# STATUS : traduit, en attente de relecture native.
+role_scope:
+  realm: realm
+  client: client
+
+role:
+  # Identifiant affiché quand un rôle n'a pas de description. « role_id » est le nom du champ de l'API, à conserver tel quel.
+  identifier: 'role_id: {{id}}'
+  permission_count_one: '{{count}} permission'
+  permission_count_many: '{{count}} de permissions'
+  permission_count_other: '{{count}} permissions'
+
+validation:
+  name_required: Le nom du rôle est obligatoire
+  client_id_required: L'ID client est obligatoire pour les rôles de client
+
+form:
+  name:
+    label: Nom du rôle
+    description: Référencé tel quel dans les jetons émis pour ce realm.
+  description:
+    label: Description
+    description: Aide les administrateurs à comprendre la portée de ce rôle.
+  scope:
+    label: Portée
+    picker_label: Portée du rôle
+    create_description: 'Définie à la création et définitive : un rôle ne peut pas changer de portée ensuite.'
+    options:
+      realm:
+        label: Rôle de realm
+        description: Attribuable à n'importe quel compte du realm.
+      client:
+        label: Rôle de client
+        description: N'a de sens que pour le client auquel il est rattaché.
+    hint:
+      realm: Partagé dans tout le realm. Déplacer un rôle d'une portée à l'autre n'est pas pris en charge.
+      client: Rattaché à un client à la création. Déplacer un rôle d'une portée à l'autre n'est pas pris en charge.
+  client:
+    label: Client
+    description: Le client auquel ce rôle est rattaché.
+    placeholder: Sélectionner un client…
+    search_placeholder: Rechercher un client…
+    empty: Aucun client trouvé.
+
+list:
+  title: Rôles
+  description: Permissions et politiques applicables aux comptes de ce realm.
+  create: Nouveau rôle
+  count_one: '{{count}} rôle'
+  count_many: '{{count}} de rôles'
+  count_other: '{{count}} rôles'
+  columns:
+    name: Rôle
+    description: Description
+    scope: Portée
+    permissions: Permissions
+    created: Création
+    updated: Mise à jour
+  metrics:
+    total:
+      label: Total
+      hint: rôles
+    realm:
+      label: Rôles de realm
+      hint: '{{percent}}% du total'
+      empty_hint: aucun rôle de realm
+    client:
+      label: Rôles de client
+      hint: limités à un client
+    granting:
+      label: Avec permissions
+      hint: en accordent au moins une
+  alerts:
+    without_permissions:
+      title_one: '{{count}} rôle n''accorde rien'
+      title_many: '{{count}} de rôles n''accordent rien'
+      title_other: '{{count}} rôles n''accordent rien'
+      detail: '{{names}} — ne porte aucune permission.'
+      action: Examiner
+  filters:
+    realm: Realm
+    client: Client
+  search_placeholder: Rechercher par nom de rôle, description ou ID client…
+  filter_fields:
+    created: Création
+    require_mfa: MFA requise
+    client: Client
+    scope: Portée
+    has_permissions: Avec permissions
+  card:
+    flags:
+      grants: Accorde au moins une permission
+      client_scoped: Limité à un client
+  empty:
+    label: Aucun rôle
+    hint: Les rôles regroupent les permissions que vous accordez aux comptes et aux clients.
+
+create:
+  back: Rôles
+  title: Nouveau rôle
+  subtitle: Un rôle regroupe les permissions que vous accordez aux comptes et aux clients.
+  section:
+    title: Définition
+  save_bar:
+    title: Créer le rôle
+    description: Le rôle est créé avec les permissions sélectionnées ci-dessus.
+    submit: Créer le rôle
+
+detail:
+  back: Rôles
+  not_found:
+    title: Rôle introuvable
+    description: Il a peut-être été supprimé, ou il appartient à un autre realm.
+  meta:
+    created_label: Créé le
+    created: Créé le {{date}}
+    identifier_label: Identifiant
+  tabs:
+    settings: Paramètres
+    permissions: Permissions
+    users: Utilisateurs
+  save_bar:
+    title_one: '{{count}} modification non enregistrée'
+    title_many: '{{count}} de modifications non enregistrées'
+    title_other: '{{count}} modifications non enregistrées'
+    description: Vérifiez le rôle avant d'appliquer les modifications.
+    cancel: Annuler
+    submit: Enregistrer les modifications
+  settings:
+    title: Définition
+    danger:
+      label: Supprimer ce rôle
+      description: Une fois supprimé, toutes les attributions de ce rôle aux utilisateurs seront définitivement supprimées. Les jetons déjà émis restent valides jusqu'à leur expiration.
+      button: Supprimer le rôle
+      confirm_title: Supprimer le rôle
+      confirm_description: Cette action supprimera définitivement le rôle « {{name}} » et retirera toutes ses attributions aux utilisateurs.
+  users:
+    title: Comptes détenant ce rôle
+    description: La liste des détenteurs d'un rôle n'est pas encore exposée par l'API.
+
+permissions:
+  title: Permissions
+  description: Ce que ce rôle autorise sur l'API d'administration.
+  search_placeholder: Filtrer les permissions…
+  granted: '{{granted}}/{{total}} accordées'
+  clear_all: Tout effacer
+  no_match: Aucune permission ne correspond à « {{query}} ».
+  # Toujours au pluriel par conception : l'en-tête de groupe affiche un ratio brut, jamais une ligne au singulier.
+  group_enabled: '{{enabled}} permissions activées sur {{total}}'
+  select_all: toutes
+  select_none: aucune
+  state:
+    enabled: Activée
+    disabled: Désactivée
+  groups:
+    user_management: Gestion des utilisateurs
+    client_management: Gestion des clients
+    role_authorization: Rôles et autorisation
+    realm_management: Gestion des realms
+    identity_providers: Fournisseurs d'identité
+    events_audit: Événements et audit
+    groups: Groupes
+    client_scopes: Client scopes
+    webhooks: Webhooks
+    email_templates: Modèles d'e-mail
+    organizations: Organisations
+  # Indexé par le nom de la permission accordée par l'API. Traduisez le libellé et la description, jamais la clé.
+  entries:
+    manage_users:
+      label: Gérer les utilisateurs
+      description: Créer, modifier et supprimer des comptes, et réinitialiser leurs identifiants.
+    view_users:
+      label: Consulter les utilisateurs
+      description: Lire les comptes et leurs attributs.
+    query_users:
+      label: Rechercher des utilisateurs
+      description: Lister et rechercher parmi les comptes.
+    create_client:
+      label: Créer un client
+      description: Enregistrer un nouveau client dans le realm.
+    manage_clients:
+      label: Gérer les clients
+      description: Modifier et supprimer les clients existants.
+    view_clients:
+      label: Consulter les clients
+      description: Lire la configuration des clients.
+    query_clients:
+      label: Rechercher des clients
+      description: Lister et rechercher parmi les clients.
+    manage_roles:
+      label: Gérer les rôles
+      description: Créer, modifier et supprimer des rôles et leurs permissions.
+    view_roles:
+      label: Consulter les rôles
+      description: Lire les rôles et ce qu'ils accordent.
+    manage_authorization:
+      label: Gérer l'autorisation
+      description: Modifier les politiques d'autorisation du realm.
+    view_authorization:
+      label: Consulter l'autorisation
+      description: Lire les politiques d'autorisation du realm.
+    evaluate_authorization:
+      label: Évaluer l'autorisation
+      description: Demander des décisions d'accès au realm, comme le fait une application qui les applique.
+    manage_realm:
+      label: Gérer le realm
+      description: Modifier les paramètres du realm, les jetons et la politique de connexion.
+    view_realm:
+      label: Consulter le realm
+      description: Lire les paramètres du realm.
+    query_realms:
+      label: Rechercher des realms
+      description: Lister les realms auxquels le compte peut accéder.
+    manage_identity_providers:
+      label: Gérer les fournisseurs d'identité
+      description: Déclarer, modifier et supprimer des fournisseurs fédérés.
+    view_identity_providers:
+      label: Consulter les fournisseurs d'identité
+      description: Lire la configuration des fournisseurs fédérés.
+    manage_events:
+      label: Gérer les événements
+      description: Configurer la capture et la conservation des événements.
+    view_events:
+      label: Consulter les événements
+      description: Lire l'historique des événements de sécurité.
+    query_groups:
+      label: Rechercher des groupes
+      description: Lister et rechercher parmi les groupes.
+    manage_client_scopes:
+      label: Gérer les client scopes
+      description: Créer, modifier et supprimer des scopes et leurs mappers de protocole.
+    view_client_scopes:
+      label: Consulter les client scopes
+      description: Lire les scopes et les claims qu'ils ajoutent à un jeton.
+    query_client_scopes:
+      label: Rechercher des client scopes
+      description: Lister et rechercher parmi les scopes.
+    manage_webhooks:
+      label: Gérer les webhooks
+      description: Déclarer des points de terminaison et choisir les événements qu'ils reçoivent.
+    view_webhooks:
+      label: Consulter les webhooks
+      description: Lire la configuration des points de terminaison, secrets exclus.
+    query_webhooks:
+      label: Rechercher des webhooks
+      description: Lister et rechercher parmi les points de terminaison.
+    manage_email_templates:
+      label: Gérer les modèles d'e-mail
+      description: Modifier les e-mails envoyés par le realm et choisir lequel est utilisé.
+    view_email_templates:
+      label: Consulter les modèles d'e-mail
+      description: Lire les e-mails envoyés par le realm.
+    manage_organizations:
+      label: Gérer les organisations
+      description: Créer, modifier et supprimer des organisations, et gérer leurs membres.
+    view_organizations:
+      label: Consulter les organisations
+      description: Lire les organisations et leurs membres.

@@ -68,6 +68,27 @@ fn text(properties: &Map<String, Value>, key: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+fn forward(
+    attributes: &mut Map<String, Value>,
+    properties: &Map<String, Value>,
+    reserved: &[&str],
+) {
+    for (key, value) in properties {
+        if !reserved.contains(&key.as_str()) && !attributes.contains_key(key) {
+            attributes.insert(key.clone(), value.clone());
+        }
+    }
+}
+
+const USER_KEYS: [&str; 6] = [
+    "username",
+    "email",
+    "email_verified",
+    "enabled",
+    "roles",
+    "organisation",
+];
+
 fn agent_user(id: String, properties: Map<String, Value>) -> TenantEntity {
     let roles = strings(&properties, "roles");
     let groups = strings(&properties, "groups");
@@ -108,6 +129,8 @@ fn agent_user(id: String, properties: Map<String, Value>) -> TenantEntity {
         );
     }
 
+    forward(&mut attributes, &properties, &USER_KEYS);
+
     let mut parents: Vec<EntityRef> = groups
         .into_iter()
         .map(|group| EntityRef::new(ferriskey("Group"), group))
@@ -131,6 +154,7 @@ fn agent_user(id: String, properties: Map<String, Value>) -> TenantEntity {
 fn agent_client(id: String, properties: &Map<String, Value>) -> TenantEntity {
     let mut attributes = Map::new();
     attributes.insert("client_id".to_string(), Value::String(id.clone()));
+    forward(&mut attributes, properties, &["client_id"]);
     TenantEntity {
         entity: EntityRef::new(ferriskey("Agent"), id),
         properties: attributes,
@@ -192,6 +216,13 @@ fn agent_resource(kind: &str, id: String, properties: &Map<String, Value>) -> Te
             vec![EntityRef::new(ferriskey("McpServer"), server)]
         }
     };
+    let built_in: &[&str] = match kind {
+        "tool" => &["server", "tool", "annotations"],
+        "resource" => &["server", "uri"],
+        "prompt" => &["server", "name"],
+        _ => &["name"],
+    };
+    forward(&mut attributes, properties, built_in);
     let ty = match kind {
         "tool" => "Tool",
         "resource" => "Resource",
@@ -630,6 +661,58 @@ mod tests {
             assert_eq!(request.resource.entity.ty.as_str(), "FerrisKey::Prompt");
             assert_eq!(request.resource.properties["name"], json!("summarise"));
         }
+    }
+
+    #[test]
+    fn every_other_property_is_forwarded_without_overriding_the_built_in_ones() {
+        let request = parse(json!({
+            "subject": {
+                "type": "user",
+                "id": "u-1",
+                "properties": {
+                    "on_call": true,
+                    "on_call_schedules": ["primary"],
+                    "email": 7,
+                    "groups": ["support"],
+                },
+            },
+            "action": {"name": "call_tool"},
+            "resource": {
+                "type": "tool",
+                "id": "billing/refund",
+                "properties": {"access": "write", "destructive": false},
+            },
+            "context": {"target": {"service": "billing"}, "time": {"minute": 5}},
+        }))
+        .expect("valid");
+
+        let Subject::Asserted(user) = request.subject else {
+            panic!("expected an asserted subject");
+        };
+        assert_eq!(user.properties["on_call"], json!(true));
+        assert_eq!(user.properties["on_call_schedules"], json!(["primary"]));
+        assert_eq!(user.properties["username"], json!("u-1"));
+        assert!(!user.properties.contains_key("email"));
+        assert_eq!(request.resource.properties["access"], json!("write"));
+        assert_eq!(request.resource.properties["destructive"], json!(false));
+        assert_eq!(request.resource.properties["server"], json!("billing"));
+        assert_eq!(request.context["target"], json!({"service": "billing"}));
+        assert_eq!(request.context["time"], json!({"minute": 5}));
+    }
+
+    #[test]
+    fn an_agent_subject_forwards_its_properties() {
+        let request = parse(json!({
+            "subject": {"type": "agent", "id": "claude", "properties": {"tier": "gold"}},
+            "action": {"name": "call_tool"},
+            "resource": {"type": "tool", "id": "files/read"},
+        }))
+        .expect("valid");
+        let Subject::Asserted(agent) = request.subject else {
+            panic!("expected an asserted subject");
+        };
+        assert_eq!(agent.properties["tier"], json!("gold"));
+        assert_eq!(agent.properties["client_id"], json!("claude"));
     }
 
     #[test]

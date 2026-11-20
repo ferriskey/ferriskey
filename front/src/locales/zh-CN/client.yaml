@@ -244,6 +244,10 @@ settings:
       description_public: 拒绝不携带 S256 code challenge 的授权请求（RFC 7636）。开启后，plain 方法将被拒绝。强烈建议开启：该客户端无法安全地保管密钥。
       required: 必需
       optional: 可选
+    par:
+      # PAR is the RFC 9126 endpoint name, kept as-is.
+      label: 要求推送授权请求
+      description: 拒绝未先推送到 PAR 端点的授权请求（RFC 9126）。这样授权参数会发送到 PAR 端点，而不是出现在浏览器 URL 中。
   access:
     title: 访问
     description: 该客户端可被重定向到的地址，以及它可以发起调用的来源。
@@ -315,6 +319,7 @@ credentials:
   title: 客户端凭据
   description: 该客户端用于证明自身身份的内容。
   copy: 复制
+  copy_failed: 无法复制该值。请检查此站点的剪贴板权限。
   client_id:
     label: 客户端 ID
     description: 用于对该客户端进行认证的唯一标识符。
@@ -328,7 +333,56 @@ credentials:
     # manage-clients is a permission name — never translated.
     forbidden: 显示该密钥需要 manage-clients 权限。请向域管理员申请权限。
     failed: 无法显示该密钥。请重试。
-    rotation_hint: 管理 API 尚未提供轮换密钥的功能。
+    rotation_hint: 轮换会替换该密钥。请选择当前密钥继续有效的时长，以便所有部署完成切换。再次轮换会立即终止之前保留的旧密钥。
+  authentication:
+    title: 客户端认证
+    description: 该客户端在令牌、内省和撤销端点证明自身身份的方式。
+    method:
+      label: 方式
+      options:
+        client_secret_basic: 客户端密钥（HTTP Basic）
+        client_secret_post: 客户端密钥（表单正文）
+        client_secret_jwt: 使用客户端密钥签名的 JWT
+        private_key_jwt: 使用私钥签名的 JWT
+      hint:
+        client_secret_basic: 客户端发送其密钥。HTTP Basic 与表单正文均被接受。
+        client_secret_post: 客户端发送其密钥。HTTP Basic 与表单正文均被接受。
+        client_secret_jwt: 客户端使用其密钥对短期 JWT 签名（HS256、HS384 或 HS512），密钥本身不会被传输。
+        private_key_jwt: 客户端使用其私钥对短期 JWT 签名。FerrisKey 只保存公钥。
+    keys:
+      label: 公钥
+      description: JWKS URL 会被获取并缓存，当断言引用未知密钥时会重新获取。内联密钥集只能包含公钥。
+      uri: JWKS URL
+      inline: 内联 JWKS
+      uri_required: 请输入客户端发布其密钥的 URL。
+      invalid_json: '密钥集必须是 JSON 对象，例如 { "keys": [ … ] }。'
+  rotate:
+    action: 轮换密钥
+    title: 轮换客户端密钥？
+    description: 将生成新的密钥。仍在使用当前密钥的应用在您选择的宽限期内可继续使用，之后将失效。
+    grace:
+      label: 当前密钥继续有效的时长
+      none: 不保留，立即替换
+      one_hour: 1 小时
+      one_day: 24 小时
+      one_week: 7 天
+      thirty_days: 30 天
+    replaces_previous: 仍在宽限期内的旧密钥将立即失效，不会等到其过期时间。
+    confirm: 轮换
+    cancel: 取消
+    toast:
+      rotated: 客户端密钥已轮换。
+  previous:
+    label: 旧密钥
+    description: 在过期前仍然有效，也可以提前撤销。
+    expires: 于 {{date}} 过期
+    revoke:
+      action: 立即撤销
+      title: 撤销旧密钥？
+      description: 仍在使用它的应用将立即被拒绝。
+      confirm: 撤销
+    toast:
+      revoked: 旧客户端密钥已撤销。
 
 roles:
   title: 客户端角色

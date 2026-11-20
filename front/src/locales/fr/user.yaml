@@ -1,0 +1,359 @@
+# Catalogue français des utilisateurs.
+#
+# STATUS : traduit, en attente de relecture native.
+list:
+  title: Utilisateurs
+  description: Comptes de ce realm, leur type et leur état d'authentification.
+  create: Nouvel utilisateur
+  # Nom de repli affiché à la place du nom d'une personne quand le compte appartient à un client.
+  service_account_name: Compte de service
+  columns:
+    user: Utilisateur
+    email: E-mail
+    type: Type
+    status: Statut
+    firstname: Prénom
+    lastname: Nom
+    created: Création
+    updated: Mise à jour
+  no_email: aucun e-mail
+  type:
+    service: compte de service
+    user: compte utilisateur
+  status:
+    enabled: Activé
+    disabled: Désactivé
+  card:
+    badge:
+      enabled: activé
+      disabled: désactivé
+    flags:
+      enabled: Compte activé
+      email_verified: E-mail vérifié
+      no_required_action: Aucune action requise à la prochaine connexion
+  metrics:
+    total:
+      label: Total
+      hint: utilisateurs
+    enabled:
+      label: Utilisateurs activés
+      hint: '{{percent}}% actifs'
+      empty_hint: Aucun utilisateur activé
+    disabled:
+      label: Utilisateurs désactivés
+      hint: ne peuvent pas s'authentifier
+    verified:
+      label: Utilisateurs vérifiés
+      hint: e-mail vérifié
+  alerts:
+    unverified_email:
+      title_one: '{{count}} compte a un e-mail non vérifié'
+      title_many: '{{count}} de comptes ont un e-mail non vérifié'
+      title_other: '{{count}} comptes ont un e-mail non vérifié'
+      detail: '{{names}} — la récupération du mot de passe ne les atteindra pas.'
+      action: Examiner
+  search_placeholder: Rechercher par nom d'utilisateur, e-mail, prénom ou nom…
+  filter_fields:
+    created: Création
+    enabled: Activé
+    email_verified: E-mail vérifié
+    service_account: Compte de service
+    role: Rôle
+  aggregates:
+    count_one: '{{count}} utilisateur'
+    count_many: '{{count}} d''utilisateurs'
+    count_other: '{{count}} utilisateurs'
+    # Total brut dans le pied de tableau, il ne s'accorde jamais.
+    enabled: '{{total}} activés'
+  empty:
+    label: Aucun utilisateur
+    hint: Un compte s'authentifie auprès de ce realm ; un compte de service appartient à un client.
+
+create:
+  back: Utilisateurs
+  title: Nouvel utilisateur
+  description: Le compte est créé sans aucun identifiant — définissez ensuite un mot de passe depuis son onglet Identifiants.
+  identity:
+    title: Identité
+    username:
+      label: Nom d'utilisateur
+      description: Identifiant de connexion, unique dans le realm. Il ne peut pas être modifié par la suite.
+    name:
+      label: Prénom et nom
+      description: Facultatif — affiché dans la console et dans les jetons émis pour ce compte.
+      firstname_placeholder: Prénom
+      lastname_placeholder: Nom
+    email:
+      label: E-mail
+      description: Utilisé pour la vérification et la récupération du mot de passe. Laissez vide si le compte ne reçoit jamais de courrier.
+    email_verified:
+      label: E-mail vérifié
+      description: Marque l'adresse comme déjà vérifiée, aucune vérification n'est donc demandée à la première connexion.
+      switch_on: Vérifié
+      switch_off: Non vérifié
+  save_bar:
+    title: Créer l'utilisateur
+    description: Le compte est créé activé, sans aucun identifiant associé.
+    submit: Créer l'utilisateur
+  toast:
+    created: L'utilisateur a été créé avec succès
+
+detail:
+  back: Utilisateurs
+  not_found:
+    title: Utilisateur introuvable
+    description: Il a peut-être été supprimé, ou il appartient à un autre realm.
+  pills:
+    enabled: activé
+    disabled: désactivé
+    email_verified: e-mail vérifié
+    email_unverified: e-mail non vérifié
+    service_account: compte de service
+  meta:
+    identity_label: Identité
+    no_name: aucun nom enregistré
+    created_label: Créé le
+    created: Créé le {{date}}
+    identifier_label: Identifiant
+  tabs:
+    overview: Vue d'ensemble
+    credentials: Identifiants
+    role_mapping: Attribution des rôles
+    organizations: Organisations
+    attributes: Attributs
+  save_bar:
+    title_one: '{{count}} modification non enregistrée'
+    title_many: '{{count}} de modifications non enregistrées'
+    title_other: '{{count}} modifications non enregistrées'
+    description: Vérifiez le compte avant d'appliquer les modifications.
+    cancel: Annuler
+    submit: Enregistrer les modifications
+  toast:
+    updated: L'utilisateur a été mis à jour
+    delete_failed: L'utilisateur n'a pas pu être supprimé
+
+  overview:
+    identity:
+      title: Identité
+      username:
+        label: Nom d'utilisateur
+        description: 'Identifiant de connexion, figé à la création : le point de terminaison de mise à jour n''accepte pas de nouveau nom d''utilisateur.'
+      name:
+        label: Prénom et nom
+        description: Facultatif — un compte de service n'en a pas. Affiché dans la console et dans les jetons émis.
+        firstname_placeholder: Prénom
+        lastname_placeholder: Nom
+      email:
+        label: E-mail
+        description: Utilisé pour la vérification et la récupération du mot de passe.
+      enabled:
+        label: Utilisateur activé
+        description: Un compte désactivé ne peut plus obtenir de jeton.
+      email_verified:
+        label: E-mail vérifié
+        description: Marque l'adresse comme vérifiée sans passer par l'e-mail de vérification.
+        switch_on: Vérifié
+        switch_off: Non vérifié
+    required_actions:
+      title: Actions requises
+      description_one: '{{count}} action à effectuer à la prochaine connexion.'
+      description_many: '{{count}} d''actions à effectuer à la prochaine connexion.'
+      description_other: '{{count}} actions à effectuer à la prochaine connexion.'
+      empty_description: 'Aucune action imposée : l''utilisateur se connecte directement.'
+      options:
+        verify_email:
+          label: Vérifier l'e-mail
+          hint: Un lien de vérification est envoyé à la prochaine connexion.
+        update_password:
+          label: Mettre à jour le mot de passe
+          hint: Le mot de passe actuel doit être remplacé avant tout accès.
+        configure_otp:
+          label: Configurer un OTP
+          hint: L'enrôlement TOTP est imposé avant tout accès.
+        configure_passkey:
+          label: Enregistrer une clé d'accès
+          hint: Une clé WebAuthn est demandée à la prochaine connexion.
+    danger:
+      label: Supprimer cet utilisateur
+      description: Une fois supprimé, toutes les sessions, tous les identifiants et toutes les attributions de rôles associés seront définitivement supprimés.
+      button: Supprimer l'utilisateur
+      confirm_title: Supprimer l'utilisateur
+      confirm_description: Cette action supprimera définitivement l'utilisateur « {{username}} » et toutes les données associées.
+
+  credentials:
+    metrics:
+      total:
+        label: Total des identifiants
+        hint: enregistrés
+      passwords:
+        label: Mots de passe
+        hint: '{{percent}}% du total'
+        empty_hint: Aucun identifiant de type mot de passe
+      otp:
+        label: TOTP
+        hint: application d'authentification
+      other:
+        label: Autres
+        hint: codes de récupération et plus
+    types:
+      password: Mot de passe
+      otp: Mot de passe à usage unique
+      recovery_code: Codes de récupération
+    list:
+      title: Méthodes d'authentification
+      description: Identifiants enregistrés pour ce compte.
+      search_placeholder: Filtrer les identifiants…
+      added: Ajouté le {{date}}
+      delete: Supprimer l'identifiant {{type}}
+      no_match: Aucun identifiant ne correspond à « {{query}} ».
+      empty: Aucun identifiant enregistré — ce compte ne peut pas s'authentifier.
+    delete:
+      title: Supprimer l'identifiant ?
+      description: Voulez-vous vraiment supprimer cet identifiant « {{type}} » ?
+    warning: 'La suppression d''un identifiant est immédiate et irréversible : l''utilisateur perd cette méthode d''authentification sans en être averti.'
+    password:
+      title_reset: Réinitialiser le mot de passe
+      title_set: Définir un mot de passe
+      description_reset: Le mot de passe actuel est remplacé immédiatement ; les sessions ouvertes restent valides.
+      description_set: 'Ce compte n''a pas de mot de passe : il ne peut s''authentifier que par ses autres méthodes.'
+      validity:
+        label: Validité
+        description: Détermine si le mot de passe saisi ci-dessous doit être changé dès sa première utilisation.
+        group_label: Validité du mot de passe
+        temporary:
+          label: Temporaire
+          description: L'utilisateur doit le changer à la prochaine connexion.
+        permanent:
+          label: Permanent
+          description: Il reste valide jusqu'à ce que l'utilisateur le change.
+      new:
+        label: Nouveau mot de passe
+        description: 'Le mot de passe enregistré n''est jamais affiché : il ne peut qu''être remplacé.'
+      confirm:
+        label: Confirmer le mot de passe
+        description: Les deux saisies doivent correspondre avant que le mot de passe puisse être appliqué.
+      submit_replace: Remplacer le mot de passe
+      submit_set: Définir le mot de passe
+      cancel: Annuler
+    toast:
+      deleted: L'identifiant a été supprimé
+      missing_context: L'ID de l'utilisateur ou le nom du realm est manquant
+      password_set: Le mot de passe a été défini avec succès
+      password_failed: Échec de la définition du mot de passe
+
+  role_mapping:
+    metrics:
+      total:
+        label: Rôles attribués
+        hint: sur ce compte
+      realm:
+        label: Rôles de realm
+        hint: '{{percent}}% du total'
+        empty_hint: Aucun rôle de realm
+      client:
+        label: Rôles de client
+        hint: limités à un client
+      granting:
+        label: Avec permissions
+        hint: en accordent au moins une
+    role:
+      client: client
+      realm: realm
+      # « client » désigne le client propriétaire du rôle, ce n'est pas l'ID du client.
+      client_ref: 'client: {{clientId}}'
+      # « role_id » est le nom du champ de l'API, à conserver tel quel.
+      identifier: 'role_id: {{id}}'
+      permission_count_one: '{{count}} permission'
+      permission_count_many: '{{count}} de permissions'
+      permission_count_other: '{{count}} permissions'
+    list:
+      title: Rôles attribués
+      description: Tout ce que ce compte est autorisé à faire provient de cette liste.
+      search_placeholder: Filtrer les rôles…
+      error: Les rôles de ce compte n'ont pas pu être chargés.
+      unassign: Retirer {{name}}
+      no_match: Aucun rôle ne correspond à « {{query}} ».
+      empty: Aucun rôle attribué — ce compte ne peut accéder à aucune ressource protégée.
+    assign:
+      title: Attribuer un rôle
+      description: Rôles du realm et de ses clients que ce compte ne possède pas encore.
+      add: Choisir un rôle
+      search_placeholder: Rechercher un rôle…
+      empty_hint: Aucun rôle sélectionné pour le moment.
+      exhausted_hint: Ce compte possède déjà tous les rôles du realm.
+      # Libellé du bouton désactivé, avant tout choix — il ne porte aucun nombre.
+      submit_empty: Attribuer le rôle
+      submit_one: 'Attribuer {{count}} rôle'
+      submit_many: 'Attribuer {{count}} de rôles'
+      submit_other: 'Attribuer {{count}} rôles'
+    toast:
+      missing_context: Utilisateur ou realm introuvable
+      assigned_one: Rôle attribué avec succès
+      assigned_many: Rôles attribués avec succès
+      assigned_other: Rôles attribués avec succès
+      assign_failed_one: '{{count}} rôle n''a pas pu être attribué et reste sélectionné'
+      assign_failed_many: '{{count}} de rôles n''ont pas pu être attribués et restent sélectionnés'
+      assign_failed_other: '{{count}} rôles n''ont pas pu être attribués et restent sélectionnés'
+      unassigned_title: Rôle retiré avec succès
+      unassigned_description: Le rôle a bien été retiré de l'utilisateur.
+
+  organizations:
+    list:
+      title: Organisations
+      description: Organisations du realm auxquelles ce compte appartient.
+      search_placeholder: Filtrer les organisations…
+      error: Les organisations de ce compte n'ont pas pu être chargées.
+      disabled: organisation désactivée
+      meta: Membre depuis le {{date}} · {{detail}}
+      # « org_id » est le nom du champ de l'API, à conserver tel quel.
+      identifier: 'org_id: {{id}}'
+      remove: Retirer de {{name}}
+      no_match: Aucune organisation ne correspond à « {{query}} ».
+      empty: Ce compte n'appartient à aucune organisation.
+    assign:
+      title: Ajouter à une organisation
+      description: Organisations du realm que ce compte n'a pas encore rejointes.
+      add: Choisir une organisation
+      search_placeholder: Rechercher une organisation…
+      empty_hint: Aucune organisation sélectionnée pour le moment.
+      exhausted_hint: Ce compte appartient déjà à toutes les organisations du realm.
+      # Libellé du bouton désactivé, avant tout choix — il ne porte aucun nombre.
+      submit_empty: Ajouter à l'organisation
+      submit_one: 'Ajouter à {{count}} organisation'
+      submit_many: 'Ajouter à {{count}} d''organisations'
+      submit_other: 'Ajouter à {{count}} organisations'
+    toast:
+      missing_context: Utilisateur ou realm introuvable
+      assigned_one: Organisation attribuée avec succès
+      assigned_many: Organisations attribuées avec succès
+      assigned_other: Organisations attribuées avec succès
+      assign_failed_one: '{{count}} organisation n''a pas pu être ajoutée et reste sélectionnée'
+      assign_failed_many: '{{count}} d''organisations n''ont pas pu être ajoutées et restent sélectionnées'
+      assign_failed_other: '{{count}} organisations n''ont pas pu être ajoutées et restent sélectionnées'
+
+  attributes:
+    list:
+      title: Attributs personnalisés
+      description_one: '{{count}} attribut sur ce compte.'
+      description_many: '{{count}} d''attributs sur ce compte.'
+      description_other: '{{count}} attributs sur ce compte.'
+      empty_description: Métadonnées clé-valeur portées par ce compte.
+      empty: Aucun attribut défini pour cet utilisateur.
+      save: Enregistrer {{key}}
+      cancel: Annuler la modification de {{key}}
+      edit: Modifier {{key}}
+      delete: Supprimer {{key}}
+    add:
+      title: Ajouter un attribut
+      description: Les attributs parviennent aux jetons via les mappers d'un client scope.
+      key_placeholder: clé
+      value_placeholder: valeur
+      duplicate: Cette clé existe déjà — l'ajouter remplace sa valeur.
+      submit: Ajouter
+
+validation:
+  username_required: Le nom d'utilisateur est obligatoire
+  email_invalid: Adresse e-mail invalide
+  passwords_must_match: Les mots de passe doivent correspondre
+  role_required: Au moins un rôle doit être sélectionné
+  organization_required: Au moins une organisation doit être sélectionnée

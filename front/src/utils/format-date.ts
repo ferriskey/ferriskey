@@ -3,6 +3,7 @@ import i18next, { getActiveLocale, translate, type SupportedLocale } from '@/lib
 const INTL_LOCALES: Record<SupportedLocale, string> = {
   en: 'en-GB',
   'zh-CN': 'zh-CN',
+  fr: 'fr-FR',
 }
 
 const dateOnlyOptions: Intl.DateTimeFormatOptions = {

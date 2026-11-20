@@ -681,6 +681,7 @@ pub(crate) mod tests {
             enabled: true,
             client_id: "chatwoot".to_string(),
             secret: None,
+            previous_secret: None,
             realm_id,
             protocol: AuthProtocol::Saml,
             public_client: true,
@@ -689,6 +690,7 @@ pub(crate) mod tests {
             oauth_device_code_grant_enabled: false,
             token_exchange_enabled: false,
             require_pkce: false,
+            require_pushed_authorization_requests: false,
             client_type: ClientType::Public,
             name: "Chatwoot".to_string(),
             redirect_uris: None,
@@ -705,6 +707,10 @@ pub(crate) mod tests {
             backchannel_logout_session_required: true,
             consent_required: false,
             registration_source: crate::domain::client::entities::ClientRegistrationSource::Admin,
+            token_endpoint_auth_method:
+                crate::domain::client::entities::auth_method::TokenEndpointAuthMethod::None,
+            jwks: None,
+            jwks_uri: None,
         }
     }
 

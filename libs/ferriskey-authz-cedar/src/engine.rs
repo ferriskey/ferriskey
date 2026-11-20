@@ -19,7 +19,8 @@ use ferriskey_domain::common::app_errors::{CoreError, PolicyIssue};
 use serde_json::{Map, Value, json};
 use uuid::Uuid;
 
-use crate::compiler::{CedarPolicyCompiler, build_policy_set, compile_schema};
+use crate::compiler::{CedarPolicyCompiler, build_policy_set, compile_merged};
+use crate::extension::{Shapes, sanitize_object};
 
 const USER: &str = "FerrisKey::User";
 const CLIENT: &str = "FerrisKey::Client";
@@ -30,6 +31,7 @@ const ORGANIZATION: &str = "FerrisKey::Organization";
 #[derive(Debug)]
 pub struct CompiledRules {
     schema: Option<Schema>,
+    shapes: Option<Shapes>,
     policies: PolicySet,
     namespace: String,
 }
@@ -153,13 +155,31 @@ fn organization_entity(organization: &OrganizationFacts) -> Result<Entity, CoreE
     )
 }
 
-fn tenant_entity(entity: &TenantEntity, schema: Option<&Schema>) -> Result<Entity, CoreError> {
+fn tenant_entity(
+    entity: &TenantEntity,
+    schema: Option<&Schema>,
+    shapes: Option<&Shapes>,
+) -> Result<Entity, CoreError> {
+    let attrs = if is_builtin(entity.entity.ty.as_str()) {
+        let forwarded = sanitize_object(entity.properties.clone());
+        match shapes {
+            Some(shapes) => shapes.prune_entity(entity.entity.ty.as_str(), forwarded),
+            None => forwarded,
+        }
+    } else {
+        entity.properties.clone()
+    };
     let value = json!({
         "uid": reference(&entity.entity),
-        "attrs": entity.properties,
+        "attrs": attrs,
         "parents": entity.parents.iter().map(reference).collect::<Vec<_>>(),
     });
     Entity::from_json_value(value, schema).map_err(invalid)
+}
+
+fn is_builtin(ty: &str) -> bool {
+    ty.strip_prefix(FERRISKEY_NAMESPACE)
+        .is_some_and(|rest| rest.starts_with("::"))
 }
 
 fn slice_entities(slice: &PrincipalSlice) -> Result<(EntityUid, Vec<Entity>), CoreError> {
@@ -201,7 +221,10 @@ impl TenantDecisionEngine for CedarPolicyCompiler {
     type Compiled = CompiledRules;
 
     fn compile(&self, rules: &RuleSet) -> Result<Self::Compiled, Vec<PolicyIssue>> {
-        let schema = rules.schema.as_ref().map(compile_schema).transpose()?;
+        let (schema, shapes) = match rules.schema.as_ref().map(compile_merged).transpose()? {
+            Some((schema, shapes)) => (Some(schema), Some(shapes)),
+            None => (None, None),
+        };
         let (policies, _origins) = build_policy_set(rules.enabled_policies(), &rules.templates)?;
         let namespace = rules
             .schema
@@ -210,6 +233,7 @@ impl TenantDecisionEngine for CedarPolicyCompiler {
             .to_string();
         Ok(CompiledRules {
             schema,
+            shapes,
             policies,
             namespace,
         })
@@ -225,9 +249,10 @@ impl TenantDecisionEngine for CedarPolicyCompiler {
 
         let (principal, entities) = match &request.subject {
             Subject::FerrisKey(_) => slice_entities(slice.ok_or(CoreError::InternalServerError)?)?,
-            Subject::Tenant(subject) | Subject::Asserted(subject) => {
-                (uid(&subject.entity)?, vec![tenant_entity(subject, schema)?])
-            }
+            Subject::Tenant(subject) | Subject::Asserted(subject) => (
+                uid(&subject.entity)?,
+                vec![tenant_entity(subject, schema, compiled.shapes.as_ref())?],
+            ),
         };
         authorize(
             compiled,
@@ -257,10 +282,11 @@ pub(crate) fn simulate(
         .compile(&rules)
         .map_err(CoreError::InvalidAuthorizationPolicy)?;
     let known = compiled.schema.as_ref();
+    let shapes = compiled.shapes.as_ref();
 
-    let mut entities = vec![tenant_entity(&request.principal, known)?];
+    let mut entities = vec![tenant_entity(&request.principal, known, shapes)?];
     for entity in &request.entities {
-        entities.push(tenant_entity(entity, known)?);
+        entities.push(tenant_entity(entity, known, shapes)?);
     }
     authorize(
         &compiled,
@@ -281,7 +307,7 @@ fn authorize(
     context: &Map<String, Value>,
 ) -> Result<Decision, CoreError> {
     let schema = compiled.schema.as_ref();
-    entities.push(tenant_entity(resource, schema)?);
+    entities.push(tenant_entity(resource, schema, compiled.shapes.as_ref())?);
 
     let entities = Entities::from_entities(dedupe(entities), schema).map_err(invalid)?;
 
@@ -291,6 +317,7 @@ fn authorize(
     } else {
         compiled.namespace.as_str()
     };
+    let name = action;
     let action = EntityUid::from_type_name_and_id(
         EntityTypeName::from_str(&format!("{namespace}::Action"))
             .map_err(|_| CoreError::InternalServerError)?,
@@ -298,7 +325,10 @@ fn authorize(
     );
     let mut context = context.clone();
     if agent_action {
-        context.remove("arguments");
+        context = sanitize_object(context);
+        if let Some(shapes) = compiled.shapes.as_ref() {
+            context = shapes.prune_context(name, context);
+        }
     }
     let context = Context::from_json_value(Value::Object(context), schema.map(|s| (s, &action)))
         .map_err(invalid)?;

@@ -108,6 +108,8 @@ mod tests {
         SecurityEventType::ClientDeleted,
         SecurityEventType::ClientSecretRotated,
         SecurityEventType::ClientSecretViewed,
+        SecurityEventType::ClientSecretRevoked,
+        SecurityEventType::ClientSecretExpired,
         SecurityEventType::RealmConfigChanged,
         SecurityEventType::EmailNotSent,
         SecurityEventType::EmailSent,
@@ -175,6 +177,8 @@ mod tests {
                 | SecurityEventType::ClientDeleted
                 | SecurityEventType::ClientSecretRotated
                 | SecurityEventType::ClientSecretViewed
+                | SecurityEventType::ClientSecretRevoked
+                | SecurityEventType::ClientSecretExpired
                 | SecurityEventType::RealmConfigChanged
                 | SecurityEventType::EmailNotSent
                 | SecurityEventType::EmailSent

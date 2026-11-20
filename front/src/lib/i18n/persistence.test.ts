@@ -31,7 +31,7 @@ test('a chosen locale survives a reload through the storage mirror', () => {
 })
 
 test('an unsupported stored value resolves to nothing rather than being trusted', () => {
-  stubLocalStorage({ [LOCALE_STORAGE_KEY]: 'fr-FR' })
+  stubLocalStorage({ [LOCALE_STORAGE_KEY]: 'de-DE' })
 
   assert.equal(readStoredLocale(), null)
 })

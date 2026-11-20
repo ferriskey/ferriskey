@@ -1,7 +1,10 @@
 use std::net::{IpAddr, Ipv4Addr};
 
 use super::auth::root_scoped_base_url;
-use crate::basic_auth::try_parse_basic_client_credentials;
+use super::authorization_server_metadata::realm_issuer;
+use crate::client_credentials::{
+    ClientAuthParams, TOKEN_ENDPOINT_PATH, assertion_audiences, presented_client,
+};
 use crate::validators::TokenRequestValidator;
 use axum::{
     Form,
@@ -15,6 +18,7 @@ use ferriskey_api_core::api_entities::api_error::OAuth2ErrorResponse;
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_api_core::request_context::RequestContext;
 use ferriskey_api_core::url::FullUrl;
+use ferriskey_core::domain::authentication::client_authentication::ClientCredential;
 use ferriskey_core::domain::authentication::device_flow::error::DeviceFlowError;
 use ferriskey_core::domain::authentication::entities::{GrantType, JwtToken};
 use ferriskey_core::domain::authentication::token_exchange::{
@@ -61,7 +65,22 @@ fn overloaded() -> ApiError {
     }
 }
 
-fn throttled() -> ApiError {
+pub(super) fn reserve_client_auth<'a>(
+    state: &'a AppState,
+    ip_address: Option<&str>,
+    realm_name: &str,
+    client_id: &str,
+) -> Result<ClientAuthAttempt<'a>, ApiError> {
+    let throttle_ip = ip_address
+        .and_then(|ip| ip.parse::<IpAddr>().ok())
+        .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+    state
+        .client_auth_throttle
+        .reserve(ThrottleKey::new(throttle_ip, realm_name, client_id))
+        .ok_or_else(throttled)
+}
+
+pub(super) fn throttled() -> ApiError {
     ApiError::OAuthTooManyRequests {
         error: "temporarily_unavailable".into(),
         error_description: "Too many failed client authentications from this address; retry later."
@@ -110,7 +129,7 @@ pub async fn exchange_token(
     response
 }
 
-async fn record_failure(
+pub(super) async fn record_failure(
     state: &AppState,
     attempt: ClientAuthAttempt<'_>,
     realm_name: &str,
@@ -221,23 +240,26 @@ async fn token_response(
         None
     };
 
-    let (client_id, client_secret) = match try_parse_basic_client_credentials(&headers) {
-        Some((id, sec)) => (id, Some(sec)),
-        None => (
-            payload.client_id.clone().unwrap_or_default(),
-            payload.client_secret.clone(),
-        ),
-    };
+    let issuer = realm_issuer(&base_url, &state.args.server.root_path, &realm_name);
+    let presented = presented_client(
+        &headers,
+        ClientAuthParams {
+            client_id: payload.client_id.as_deref(),
+            client_secret: payload.client_secret.as_deref(),
+            client_assertion_type: payload.client_assertion_type.as_deref(),
+            client_assertion: payload.client_assertion.as_deref(),
+        },
+        || assertion_audiences(&issuer, TOKEN_ENDPOINT_PATH),
+    )?;
+    let client_id = presented.client_id;
+    let client_credential = presented.credential;
 
-    let throttle_ip = context
-        .ip_address
-        .as_deref()
-        .and_then(|ip| ip.parse::<IpAddr>().ok())
-        .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
-    let attempt = state
-        .client_auth_throttle
-        .reserve(ThrottleKey::new(throttle_ip, &realm_name, &client_id))
-        .ok_or_else(throttled)?;
+    let attempt = reserve_client_auth(
+        &state,
+        context.ip_address.as_deref(),
+        &realm_name,
+        &client_id,
+    )?;
 
     // RFC 8693 has its own service and error codes; it never goes through
     // `exchange_token`, which would also open a second Compass flow.
@@ -246,7 +268,7 @@ async fn token_response(
             &state,
             realm_name.clone(),
             client_id.clone(),
-            client_secret,
+            client_credential,
             payload,
             context.ip_address,
             context.user_agent,
@@ -270,7 +292,7 @@ async fn token_response(
     }
 
     let grant_type = payload.grant_type.clone();
-    let has_client_secret = client_secret.is_some();
+    let has_client_credential = client_credential.is_present();
     let has_username = payload.username.is_some();
     let has_password = payload.password.is_some();
     let has_code = payload.code.is_some();
@@ -281,7 +303,7 @@ async fn token_response(
     let exchange_input = ExchangeTokenInput {
         realm_name: realm_name.clone(),
         client_id: client_id.clone(),
-        client_secret,
+        client_credential,
         code: payload.code,
         username: payload.username,
         password: payload.password,
@@ -323,7 +345,7 @@ async fn token_response(
                 warn!(
                     client_id = %client_id,
                     grant_type = ?grant_type,
-                    has_client_secret,
+                    has_client_credential,
                     has_username,
                     has_password,
                     has_code,
@@ -347,7 +369,7 @@ async fn exchange_subject_token(
     state: &AppState,
     realm_name: String,
     client_id: String,
-    client_secret: Option<String>,
+    client_credential: ClientCredential,
     payload: TokenRequestValidator,
     ip_address: Option<String>,
     user_agent: Option<String>,
@@ -373,7 +395,7 @@ async fn exchange_subject_token(
 
     let output = state
         .service
-        .exchange_subject_token(realm_name, client_id.clone(), client_secret, input)
+        .exchange_subject_token(realm_name, client_id.clone(), client_credential, input)
         .await
         .inspect_err(|error| {
             warn!(client_id = %client_id, error = ?error, "Subject token exchange failed");

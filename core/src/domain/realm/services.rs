@@ -451,6 +451,7 @@ where
                 consent_required: false,
                 registration_source:
                     crate::domain::client::entities::ClientRegistrationSource::Admin,
+                auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
             })
             .await?;
 
@@ -473,6 +474,7 @@ where
                 consent_required: false,
                 registration_source:
                     crate::domain::client::entities::ClientRegistrationSource::Admin,
+                auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
             })
             .await?;
 
@@ -504,6 +506,7 @@ where
                 consent_required: false,
                 registration_source:
                     crate::domain::client::entities::ClientRegistrationSource::Admin,
+                auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
             })
             .await?;
 
@@ -593,6 +596,7 @@ where
                 consent_required: false,
                 registration_source:
                     crate::domain::client::entities::ClientRegistrationSource::Admin,
+                auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
             })
             .await?;
 
@@ -883,6 +887,7 @@ where
                 input.allowed_resources,
                 input.account_chooser_enabled,
                 input.account_chooser_show_email,
+                input.require_pushed_authorization_requests,
             )
             .await?;
 
@@ -958,6 +963,7 @@ where
         Ok(AuthorizationServerSettings {
             cimd_enabled: settings.cimd_enabled,
             dcr_enabled: settings.dcr_enabled,
+            require_pushed_authorization_requests: settings.require_pushed_authorization_requests,
             scopes_supported,
         })
     }

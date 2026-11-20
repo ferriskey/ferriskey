@@ -297,12 +297,15 @@ pub struct AuthInput {
     pub issuer: Option<String>,
     pub resource: Option<String>,
     pub max_age: Option<i64>,
+    /// Whether the parameters come from a pushed authorization request
+    /// (RFC 9126) rather than from the query string.
+    pub pushed: bool,
 }
 
 pub struct ExchangeTokenInput {
     pub realm_name: String,
     pub client_id: String,
-    pub client_secret: Option<String>,
+    pub client_credential: crate::authentication::client_credential::ClientCredential,
     pub code: Option<String>,
     pub username: Option<String>,
     pub password: Option<String>,

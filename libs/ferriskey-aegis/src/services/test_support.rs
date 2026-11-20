@@ -89,6 +89,7 @@ pub(crate) fn make_client(id: Uuid, realm_id: RealmId) -> Client {
         enabled: true,
         client_id: "app".to_string(),
         secret: None,
+        previous_secret: None,
         realm_id,
         protocol: AuthProtocol::OpenIdConnect,
         public_client: false,
@@ -97,6 +98,7 @@ pub(crate) fn make_client(id: Uuid, realm_id: RealmId) -> Client {
         oauth_device_code_grant_enabled: false,
         token_exchange_enabled: false,
         require_pkce: false,
+        require_pushed_authorization_requests: false,
         client_type: ClientType::Confidential,
         name: "app".to_string(),
         redirect_uris: None,
@@ -113,6 +115,10 @@ pub(crate) fn make_client(id: Uuid, realm_id: RealmId) -> Client {
         backchannel_logout_session_required: true,
         consent_required: false,
         registration_source: ferriskey_domain::client::entities::ClientRegistrationSource::Admin,
+        token_endpoint_auth_method:
+            ferriskey_domain::client::entities::auth_method::TokenEndpointAuthMethod::ClientSecretBasic,
+        jwks: None,
+        jwks_uri: None,
     }
 }
 

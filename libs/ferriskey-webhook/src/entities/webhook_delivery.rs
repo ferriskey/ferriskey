@@ -88,6 +88,8 @@ pub enum DeliveryErrorCode {
     ClientBuildFailed,
     HeaderEncodingFailed,
     Transport,
+    /// The webhook's signing secret could not be opened, so nothing was sent.
+    SecretUnavailable,
     HttpStatus(u16),
 }
 
@@ -103,6 +105,7 @@ impl DeliveryErrorCode {
             Self::ClientBuildFailed => "client_build_failed".to_string(),
             Self::HeaderEncodingFailed => "header_encoding_failed".to_string(),
             Self::Transport => "transport_error".to_string(),
+            Self::SecretUnavailable => "secret_unavailable".to_string(),
             Self::HttpStatus(status) => format!("http_{status}"),
         }
     }
@@ -118,6 +121,7 @@ impl DeliveryErrorCode {
             "client_build_failed" => Some(Self::ClientBuildFailed),
             "header_encoding_failed" => Some(Self::HeaderEncodingFailed),
             "transport_error" => Some(Self::Transport),
+            "secret_unavailable" => Some(Self::SecretUnavailable),
             other => other
                 .strip_prefix("http_")
                 .and_then(|status| status.parse().ok())
@@ -135,7 +139,8 @@ impl DeliveryErrorCode {
             Self::DnsResolutionFailed
             | Self::ClientBuildFailed
             | Self::HeaderEncodingFailed
-            | Self::Transport => true,
+            | Self::Transport
+            | Self::SecretUnavailable => true,
             Self::HttpStatus(status) => {
                 (500..600).contains(&status) || status == 429 || status == 408
             }
@@ -363,6 +368,10 @@ mod tests {
             "header_encoding_failed"
         );
         assert_eq!(DeliveryErrorCode::Transport.as_code(), "transport_error");
+        assert_eq!(
+            DeliveryErrorCode::SecretUnavailable.as_code(),
+            "secret_unavailable"
+        );
         assert_eq!(DeliveryErrorCode::HttpStatus(503).as_code(), "http_503");
     }
 
@@ -378,6 +387,7 @@ mod tests {
             DeliveryErrorCode::ClientBuildFailed,
             DeliveryErrorCode::HeaderEncodingFailed,
             DeliveryErrorCode::Transport,
+            DeliveryErrorCode::SecretUnavailable,
             DeliveryErrorCode::HttpStatus(500),
             DeliveryErrorCode::HttpStatus(429),
         ];
@@ -402,6 +412,7 @@ mod tests {
             DeliveryErrorCode::DnsResolutionFailed,
             DeliveryErrorCode::ClientBuildFailed,
             DeliveryErrorCode::HeaderEncodingFailed,
+            DeliveryErrorCode::SecretUnavailable,
         ] {
             assert!(code.is_retryable(), "{code:?} should be retryable");
         }

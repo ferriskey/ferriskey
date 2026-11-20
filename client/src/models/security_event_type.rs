@@ -55,6 +55,10 @@ pub enum SecurityEventType {
     ClientSecretRotated,
     #[serde(rename = "client_secret_viewed")]
     ClientSecretViewed,
+    #[serde(rename = "client_secret_revoked")]
+    ClientSecretRevoked,
+    #[serde(rename = "client_secret_expired")]
+    ClientSecretExpired,
     #[serde(rename = "realm_config_changed")]
     RealmConfigChanged,
     #[serde(rename = "email_not_sent")]
@@ -107,6 +111,8 @@ impl std::fmt::Display for SecurityEventType {
             Self::ClientDeleted => write!(f, "client_deleted"),
             Self::ClientSecretRotated => write!(f, "client_secret_rotated"),
             Self::ClientSecretViewed => write!(f, "client_secret_viewed"),
+            Self::ClientSecretRevoked => write!(f, "client_secret_revoked"),
+            Self::ClientSecretExpired => write!(f, "client_secret_expired"),
             Self::RealmConfigChanged => write!(f, "realm_config_changed"),
             Self::EmailNotSent => write!(f, "email_not_sent"),
             Self::EmailSent => write!(f, "email_sent"),

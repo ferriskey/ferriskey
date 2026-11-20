@@ -155,6 +155,7 @@ where
             oauth_device_code_grant_enabled: None,
             token_exchange_enabled: None,
             require_pkce: None,
+            require_pushed_authorization_requests: None,
             access_token_lifetime: None,
             refresh_token_lifetime: None,
             id_token_lifetime: None,
@@ -165,6 +166,9 @@ where
             backchannel_logout_uri: None,
             backchannel_logout_session_required: None,
             consent_required: None,
+            token_endpoint_auth_method: None,
+            jwks: None,
+            jwks_uri: None,
         };
 
         self.client_repository

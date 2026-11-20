@@ -289,6 +289,7 @@ impl RealmRepository for PostgresRealmRepository {
         allowed_resources: Option<Vec<String>>,
         account_chooser_enabled: Option<bool>,
         account_chooser_show_email: Option<bool>,
+        require_pushed_authorization_requests: Option<bool>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -447,6 +448,10 @@ impl RealmRepository for PostgresRealmRepository {
         let retained_resources = allowed_resources.clone();
         if let Some(allowed_resources) = allowed_resources {
             realm_setting.allowed_resources = Set(allowed_resources);
+        }
+
+        if let Some(required) = require_pushed_authorization_requests {
+            realm_setting.require_pushed_authorization_requests = Set(required);
         }
 
         let txn = self

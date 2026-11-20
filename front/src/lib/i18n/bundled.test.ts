@@ -31,3 +31,7 @@ test('the fallback locale covers every namespace the target locale declares', ()
     'a namespace translated but absent from the fallback would render humanized keys'
   )
 })
+
+test('french ships exactly the namespaces english does', () => {
+  assert.deepEqual(namespacesFor('fr'), namespacesFor('en'))
+})

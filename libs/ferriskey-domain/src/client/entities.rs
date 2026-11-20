@@ -8,11 +8,13 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::authentication::entities::AuthProtocol;
+use crate::client::entities::auth_method::{ClientJwks, ClientKeySource, TokenEndpointAuthMethod};
 use crate::client::entities::saml::InvalidSamlConfig;
 use crate::common::pagination::DateRange;
 use crate::realm::scope::RealmOwned;
 use crate::{generate_random_string, generate_timestamp, realm::RealmId};
 
+pub mod auth_method;
 pub mod redirect_uri;
 pub mod saml;
 pub mod token_exchange_policy;
@@ -134,12 +136,27 @@ impl From<ClientRegistrationSource> for String {
     }
 }
 
+/// The secret a client had before its last rotation, kept alive until
+/// `expires_at` so every deployment of the client can switch over.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
+pub struct PreviousClientSecret {
+    pub secret: Masked<String>,
+    pub expires_at: DateTime<Utc>,
+}
+
+impl PreviousClientSecret {
+    pub fn is_valid_at(&self, now: DateTime<Utc>) -> bool {
+        now < self.expires_at
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
 pub struct Client {
     pub id: Uuid,
     pub enabled: bool,
     pub client_id: String,
     pub secret: Option<Masked<String>>,
+    pub previous_secret: Option<PreviousClientSecret>,
     pub realm_id: RealmId,
     pub protocol: AuthProtocol,
     pub public_client: bool,
@@ -150,6 +167,9 @@ pub struct Client {
     /// this disabled; only browserless devices (CLI, IoT, TVs) need it.
     pub oauth_device_code_grant_enabled: bool,
     pub require_pkce: bool,
+    /// Whether `/auth` only accepts requests pushed first to the PAR endpoint
+    /// (RFC 9126 §6).
+    pub require_pushed_authorization_requests: bool,
     pub token_exchange_enabled: bool,
     /// Where FerrisKey POSTs a logout token when a session this client took
     /// part in ends (OIDC Back-Channel Logout 1.0). `None` opts out.
@@ -171,6 +191,12 @@ pub struct Client {
     pub updated_at: DateTime<Utc>,
     pub consent_required: bool,
     pub registration_source: ClientRegistrationSource,
+    /// `None` exactly when `public_client` is true.
+    pub token_endpoint_auth_method: TokenEndpointAuthMethod,
+    /// Inline public keys of a `private_key_jwt` client (RFC 7591 §2).
+    pub jwks: Option<ClientJwks>,
+    /// Where the public keys of a `private_key_jwt` client are published.
+    pub jwks_uri: Option<String>,
 }
 
 pub struct ClientConfig {
@@ -204,6 +230,14 @@ impl Client {
         self.secret.as_ref().map(|secret| secret.expose().as_str())
     }
 
+    pub fn key_source(&self) -> Option<ClientKeySource<'_>> {
+        match (&self.jwks, &self.jwks_uri) {
+            (Some(jwks), _) => Some(ClientKeySource::Inline(jwks)),
+            (None, Some(uri)) => Some(ClientKeySource::Uri(uri)),
+            (None, None) => None,
+        }
+    }
+
     pub fn consent_is_required(&self) -> bool {
         self.consent_required || self.registration_source != ClientRegistrationSource::Admin
     }
@@ -215,6 +249,7 @@ impl Client {
             enabled: config.enabled,
             client_id: config.client_id,
             secret: config.secret.map(Masked::new),
+            previous_secret: None,
             realm_id: config.realm_id,
             protocol: config.protocol,
             public_client: config.public_client,
@@ -224,6 +259,7 @@ impl Client {
                 .oauth_device_code_grant_enabled
                 .unwrap_or_default(),
             require_pkce: false,
+            require_pushed_authorization_requests: false,
             token_exchange_enabled: config.token_exchange_enabled.unwrap_or_default(),
             backchannel_logout_uri: None,
             backchannel_logout_session_required: true,
@@ -241,6 +277,9 @@ impl Client {
             updated_at: now,
             consent_required: false,
             registration_source: ClientRegistrationSource::Admin,
+            token_endpoint_auth_method: TokenEndpointAuthMethod::default_for(config.public_client),
+            jwks: None,
+            jwks_uri: None,
         }
     }
 
@@ -252,6 +291,7 @@ impl Client {
             enabled: true,
             client_id: client_id.clone(),
             secret: Some(Masked::new(generate_random_string())),
+            previous_secret: None,
             realm_id,
             protocol: AuthProtocol::OpenIdConnect,
             public_client: false,
@@ -259,6 +299,7 @@ impl Client {
             direct_access_grants_enabled: false,
             oauth_device_code_grant_enabled: false,
             require_pkce: false,
+            require_pushed_authorization_requests: false,
             token_exchange_enabled: false,
             backchannel_logout_uri: None,
             backchannel_logout_session_required: true,
@@ -276,6 +317,9 @@ impl Client {
             updated_at: now,
             consent_required: false,
             registration_source: ClientRegistrationSource::Admin,
+            token_endpoint_auth_method: TokenEndpointAuthMethod::ClientSecretBasic,
+            jwks: None,
+            jwks_uri: None,
         }
     }
 }

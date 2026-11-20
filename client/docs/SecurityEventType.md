@@ -23,6 +23,8 @@
 | ClientDeleted | client_deleted |
 | ClientSecretRotated | client_secret_rotated |
 | ClientSecretViewed | client_secret_viewed |
+| ClientSecretRevoked | client_secret_revoked |
+| ClientSecretExpired | client_secret_expired |
 | RealmConfigChanged | realm_config_changed |
 | EmailNotSent | email_not_sent |
 | EmailSent | email_sent |

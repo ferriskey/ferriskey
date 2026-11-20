@@ -130,7 +130,7 @@ export type RequiredAction = ("configure_otp" | "verify_email" | "update_passwor
 export type AuthenticationStatus = ("Success" | "RequiresActions" | "RequiresOtpChallenge" | "Failed")
 export type AuthenticateResponse = { email?: (string | null), message?: (string | null), required_actions?: (Array<RequiredAction> | null), status: AuthenticationStatus, url?: (string | null) }
 export type AuthenticationAttemptResponse = { login_url: string }
-export type AuthorizationServerMetadata = { authorization_endpoint: string, authorization_response_iss_parameter_supported: boolean, client_id_metadata_document_supported?: (boolean | null), code_challenge_methods_supported: Array<string>, grant_types_supported: Array<string>, introspection_endpoint: string, issuer: string, jwks_uri: string, registration_endpoint?: (string | null), response_types_supported: Array<string>, revocation_endpoint: string, scopes_supported: Array<string>, token_endpoint: string, token_endpoint_auth_methods_supported: Array<string> }
+export type AuthorizationServerMetadata = { authorization_endpoint: string, authorization_response_iss_parameter_supported: boolean, client_id_metadata_document_supported?: (boolean | null), code_challenge_methods_supported: Array<string>, grant_types_supported: Array<string>, introspection_endpoint: string, issuer: string, jwks_uri: string, pushed_authorization_request_endpoint: string, registration_endpoint?: (string | null), require_pushed_authorization_requests: boolean, response_types_supported: Array<string>, revocation_endpoint: string, scopes_supported: Array<string>, token_endpoint: string, token_endpoint_auth_methods_supported: Array<string>, token_endpoint_auth_signing_alg_values_supported: Array<string> }
 export type AuthzStateBody = { enabled: boolean, version: number }
 export type AuthzenAction = { name: string, properties?: (Record<string, unknown> | null) }
 export type AuthzenConfiguration = { access_evaluation_endpoint: string, access_evaluations_endpoint: string, policy_decision_point: string }
@@ -156,6 +156,8 @@ export type MaintenanceSessionStrategy = ("terminate" | "expire")
 export type RedirectUri = { client_id: string, created_at: string, enabled: boolean, id: string, updated_at: string, value: string }
 export type ClientRegistrationSource = ("admin" | "dynamic" | "metadata_document")
 export type Masked_String = string
+export type ClientJwks = Record<string, unknown>
+export type TokenEndpointAuthMethod = ("none" | "client_secret_basic" | "client_secret_post" | "client_secret_jwt" | "private_key_jwt")
 export type Client = {
   access_token_lifetime?: (number | null);
   /**
@@ -176,6 +178,8 @@ export type Client = {
   enabled: boolean;
   id: string;
   id_token_lifetime?: (number | null);
+  jwks?: (ClientJwks | null);
+  jwks_uri?: (string | null);
   maintenance_enabled: boolean;
   maintenance_reason?: (string | null);
   maintenance_session_strategy: MaintenanceSessionStrategy;
@@ -186,6 +190,7 @@ export type Client = {
    * this disabled; only browserless devices (CLI, IoT, TVs) need it.
    */
   oauth_device_code_grant_enabled: boolean;
+  previous_secret?: (PreviousClientSecret | null);
   protocol: AuthProtocol;
   public_client: boolean;
   realm_id: RealmId;
@@ -193,14 +198,16 @@ export type Client = {
   refresh_token_lifetime?: (number | null);
   registration_source: ClientRegistrationSource;
   require_pkce: boolean;
+  require_pushed_authorization_requests: boolean;
   secret?: (Masked_String | null);
   service_account_enabled: boolean;
   temporary_token_lifetime?: (number | null);
+  token_endpoint_auth_method: TokenEndpointAuthMethod;
   token_exchange_enabled: boolean;
   updated_at: string;
 }
-export type ClientRegistrationRequest = Partial<{ client_name: (string | null), grant_types: (Array<string> | null), redirect_uris: Array<string>, response_types: (Array<string> | null), scope: (string | null), token_endpoint_auth_method: (string | null) }>
-export type ClientRegistrationResponse = { client_id: string, client_id_issued_at: number, client_name: string, client_secret?: (string | null), client_secret_expires_at?: (number | null), grant_types: Array<string>, redirect_uris: Array<string>, response_types: Array<string>, scope: string, token_endpoint_auth_method: string }
+export type ClientRegistrationRequest = Partial<{ client_name: (string | null), grant_types: (Array<string> | null), jwks: (ClientJwks | null), jwks_uri: (string | null), redirect_uris: Array<string>, response_types: (Array<string> | null), scope: (string | null), token_endpoint_auth_method: (string | null) }>
+export type ClientRegistrationResponse = { client_id: string, client_id_issued_at: number, client_name: string, client_secret?: (string | null), client_secret_expires_at?: (number | null), grant_types: Array<string>, jwks?: (ClientJwks | null), jwks_uri?: (string | null), redirect_uris: Array<string>, response_types: Array<string>, scope: string, token_endpoint_auth_method: string }
 export type NameIdFormat = ("urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" | "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent" | "urn:oasis:names:tc:SAML:2.0:nameid-format:transient" | "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified")
 export type SpEntityId = string
 export type ClientSamlConfig = { acs_url: AcsUrl, client_id: string, created_at: string, name_id_format: NameIdFormat, realm_id: RealmId, sign_assertions: boolean, sign_documents: boolean, sp_entity_id: SpEntityId, updated_at: string, want_authn_requests_signed: boolean }
@@ -209,7 +216,12 @@ export type ScopeType = ("NONE" | "OPTIONAL" | "DEFAULT")
 export type ProtocolMapper = { client_scope_id: string, config: unknown, created_at: string, id: string, mapper_type: string, name: string }
 export type ClientScope = { attributes?: (Array<ClientScopeAttribute> | null), created_at: string, default_scope_type: ScopeType, description?: (string | null), dynamic_registration_allowed: boolean, id: string, name: string, protocol: string, protocol_mappers?: (Array<ProtocolMapper> | null), realm_id: RealmId, updated_at: string }
 export type ClientScopeMapping = { client_id: string, default_scope_type: ScopeType, scope_id: string }
-export type ClientSecretResponse = Partial<{ client_secret: (string | null) }>
+export type PreviousClientSecret = { expires_at: string, secret: Masked_String }
+export type PreviousClientSecretResponse = { client_secret: string, expires_at: string }
+export type ClientSecretResponse = Partial<{ client_secret: (string | null), previous_secret: (PreviousClientSecretResponse | null) }>
+export type RevokePreviousClientSecretResponse = { message: string }
+export type RotateClientSecretRequest = Partial<{ grace_period_secs: (number | null) }>
+export type RotateClientSecretResponse = { client_secret: string, previous_secret_expires_at?: (string | null) }
 export type CodeChallengeMethod = ("S256" | "PLAIN")
 export type FlowId = string
 export type FlowStatus = ("pending" | "success" | "failure" | "expired")
@@ -233,7 +245,7 @@ export type ConfirmOwnOtpEnrollmentValidator = { code?: string, elevation_id: st
 export type ConfirmOwnPasskeyRegistrationValidator = { credential: Record<string, unknown>, elevation_id: string }
 export type ConfirmPasskeyResponse = { message: string }
 export type CreateClientScopeValidator = Partial<{ description: (string | null), dynamic_registration_allowed: boolean, is_default: boolean, name: string, protocol: string }>
-export type CreateClientValidator = { client_id?: string, client_type: ClientType, consent_required?: boolean, direct_access_grants_enabled?: boolean, enabled?: boolean, name?: string, oauth_device_code_grant_enabled?: boolean, protocol?: AuthProtocol, public_client?: boolean, require_pkce?: boolean, service_account_enabled?: boolean, token_exchange_enabled?: boolean }
+export type CreateClientValidator = { client_id?: string, client_type: ClientType, consent_required?: boolean, direct_access_grants_enabled?: boolean, enabled?: boolean, jwks?: (ClientJwks | null), jwks_uri?: (string | null), name?: string, oauth_device_code_grant_enabled?: boolean, protocol?: AuthProtocol, public_client?: boolean, require_pkce?: boolean, service_account_enabled?: boolean, token_endpoint_auth_method?: (TokenEndpointAuthMethod | null), token_exchange_enabled?: boolean }
 export type EmailType = ("reset_password" | "magic_link" | "email_verification")
 export type EmailTemplate = { created_at: string, email_type: EmailType, id: string, mjml: string, name: string, realm_id: string, structure: unknown, updated_at: string }
 export type CreateEmailTemplateResponse = { data: EmailTemplate }
@@ -305,6 +317,7 @@ export type RealmSetting = {
   refresh_token_lifetime: number;
   remember_me_enabled: boolean;
   require_mfa: boolean;
+  require_pushed_authorization_requests: boolean;
   reset_password_template_id?: (string | null);
   seawatch_pii_mode: string;
   supported_locales: Array<string>;
@@ -493,13 +506,16 @@ export type GetOpenIdConfigurationResponse = {
   issuer: string;
   jwks_uri: string;
   prompt_values_supported: Array<string>;
+  pushed_authorization_request_endpoint: string;
   registration_endpoint?: (string | null);
+  require_pushed_authorization_requests: boolean;
   response_types_supported: Array<string>;
   revocation_endpoint: string;
   scopes_supported: Array<string>;
   subject_types_supported: Array<string>;
   token_endpoint: string;
   token_endpoint_auth_methods_supported: Array<string>;
+  token_endpoint_auth_signing_alg_values_supported: Array<string>;
   userinfo_endpoint: string;
 }
 export type GetPortalLayoutResponse = { data: PortalLayout }
@@ -697,6 +713,8 @@ export type Paginated_Client = {
     enabled: boolean;
     id: string;
     id_token_lifetime?: (number | null);
+    jwks?: (ClientJwks | null);
+    jwks_uri?: (string | null);
     maintenance_enabled: boolean;
     maintenance_reason?: (string | null);
     maintenance_session_strategy: MaintenanceSessionStrategy;
@@ -707,6 +725,7 @@ export type Paginated_Client = {
      * this disabled; only browserless devices (CLI, IoT, TVs) need it.
      */
     oauth_device_code_grant_enabled: boolean;
+    previous_secret?: (PreviousClientSecret | null);
     protocol: AuthProtocol;
     public_client: boolean;
     realm_id: RealmId;
@@ -714,9 +733,11 @@ export type Paginated_Client = {
     refresh_token_lifetime?: (number | null);
     registration_source: ClientRegistrationSource;
     require_pkce: boolean;
+    require_pushed_authorization_requests: boolean;
     secret?: (Masked_String | null);
     service_account_enabled: boolean;
     temporary_token_lifetime?: (number | null);
+    token_endpoint_auth_method: TokenEndpointAuthMethod;
     token_exchange_enabled: boolean;
     updated_at: string;
   }>;
@@ -753,7 +774,7 @@ export type Paginated_Realm = {
   metadata: PageMetadata;
 }
 export type Paginated_Role = { data: Array<{ client?: (Client | null), client_id?: (string | null), created_at: string, description?: (string | null), id: string, name: string, permissions: Array<string>, realm_id: RealmId, require_mfa: boolean, updated_at: string }>, metadata: PageMetadata }
-export type SecurityEventType = ("login_success" | "login_failure" | "password_reset" | "password_reset_requested" | "password_reset_completed" | "password_imported" | "user_created" | "user_email_verified" | "user_deleted" | "role_assigned" | "role_unassigned" | "role_created" | "role_removed" | "role_updated" | "role_permission_updated" | "client_created" | "client_deleted" | "client_secret_rotated" | "client_secret_viewed" | "realm_config_changed" | "email_not_sent" | "email_sent" | "client_maintenance_enabled" | "client_maintenance_disabled" | "session_created" | "session_revoked" | "identity_provider_link_removed" | "webhook_delivery_exhausted" | "token_exchanged" | "account_selected" | "account_selection_denied" | "device_session_created" | "signing_key_rotated" | "signing_key_revoked" | "unknown")
+export type SecurityEventType = ("login_success" | "login_failure" | "password_reset" | "password_reset_requested" | "password_reset_completed" | "password_imported" | "user_created" | "user_email_verified" | "user_deleted" | "role_assigned" | "role_unassigned" | "role_created" | "role_removed" | "role_updated" | "role_permission_updated" | "client_created" | "client_deleted" | "client_secret_rotated" | "client_secret_viewed" | "client_secret_revoked" | "client_secret_expired" | "realm_config_changed" | "email_not_sent" | "email_sent" | "client_maintenance_enabled" | "client_maintenance_disabled" | "session_created" | "session_revoked" | "identity_provider_link_removed" | "webhook_delivery_exhausted" | "token_exchanged" | "account_selected" | "account_selection_denied" | "device_session_created" | "signing_key_rotated" | "signing_key_revoked" | "unknown")
 export type SecurityEventId = string
 export type Paginated_SecurityEvent = {
   data: Array<{
@@ -992,11 +1013,15 @@ export type UpdateClientValidator = Partial<{
   direct_access_grants_enabled: (boolean | null);
   enabled: (boolean | null);
   id_token_lifetime: (number | null);
+  jwks: (ClientJwks | null);
+  jwks_uri: (string | null);
   name: (string | null);
   oauth_device_code_grant_enabled: (boolean | null);
   refresh_token_lifetime: (number | null);
   require_pkce: (boolean | null);
+  require_pushed_authorization_requests: (boolean | null);
   temporary_token_lifetime: (number | null);
+  token_endpoint_auth_method: (TokenEndpointAuthMethod | null);
   token_exchange_enabled: (boolean | null);
 }>
 export type UpdateEmailTemplateResponse = { data: EmailTemplate }
@@ -1027,7 +1052,7 @@ export type UpdateProviderRequest = Partial<{ config: unknown, enabled: (boolean
 export type UpdateProviderResponse = { data: ProviderResponse }
 export type UpdateRealmResponse = { data: Realm }
 export type UpdateRealmSettingResponse = { data: Realm }
-export type UpdateRealmSettingValidator = Partial<{ access_token_lifetime: (number | null), account_chooser_enabled: (boolean | null), account_chooser_show_email: (boolean | null), allowed_resources: (Array<string> | null), cimd_allowed_hosts: (Array<string> | null), cimd_enabled: (boolean | null), compass_enabled: (boolean | null), dcr_enabled: (boolean | null), default_locale: (string | null), default_signing_algorithm: (string | null), edit_username_enabled: (boolean | null), email_verification_enabled: (boolean | null), email_verification_template_id: (string | null), email_verification_ttl_hours: (number | null), forgot_password_enabled: (boolean | null), id_token_lifetime: (number | null), lockout_duration_seconds: (number | null), lockout_threshold: (number | null), login_aliases: (Array<string> | null), magic_link_enabled: (boolean | null), magic_link_template_id: (string | null), magic_link_ttl: (number | null), passkey_enabled: (boolean | null), refresh_token_lifetime: (number | null), remember_me_enabled: (boolean | null), require_mfa: (boolean | null), reset_password_template_id: (string | null), seawatch_pii_mode: (string | null), seawatch_pseudo_key: (string | null), supported_locales: (Array<string> | null), temporary_token_lifetime: (number | null), user_registration_enabled: (boolean | null), webhook_retry_base_delay_ms: (number | null), webhook_retry_max_attempts: (number | null), webhook_retry_max_delay_ms: (number | null), webhook_retry_max_total_delay_ms: (number | null) }>
+export type UpdateRealmSettingValidator = Partial<{ access_token_lifetime: (number | null), account_chooser_enabled: (boolean | null), account_chooser_show_email: (boolean | null), allowed_resources: (Array<string> | null), cimd_allowed_hosts: (Array<string> | null), cimd_enabled: (boolean | null), compass_enabled: (boolean | null), dcr_enabled: (boolean | null), default_locale: (string | null), default_signing_algorithm: (string | null), edit_username_enabled: (boolean | null), email_verification_enabled: (boolean | null), email_verification_template_id: (string | null), email_verification_ttl_hours: (number | null), forgot_password_enabled: (boolean | null), id_token_lifetime: (number | null), lockout_duration_seconds: (number | null), lockout_threshold: (number | null), login_aliases: (Array<string> | null), magic_link_enabled: (boolean | null), magic_link_template_id: (string | null), magic_link_ttl: (number | null), passkey_enabled: (boolean | null), refresh_token_lifetime: (number | null), remember_me_enabled: (boolean | null), require_mfa: (boolean | null), require_pushed_authorization_requests: (boolean | null), reset_password_template_id: (string | null), seawatch_pii_mode: (string | null), seawatch_pseudo_key: (string | null), supported_locales: (Array<string> | null), temporary_token_lifetime: (number | null), user_registration_enabled: (boolean | null), webhook_retry_base_delay_ms: (number | null), webhook_retry_max_attempts: (number | null), webhook_retry_max_delay_ms: (number | null), webhook_retry_max_total_delay_ms: (number | null) }>
 export type UpdateRealmValidator = { display_name?: (string | null), name: string }
 export type UpdateRedirectUriResponse = { data: RedirectUri }
 export type UpdateRedirectUriValidator = Partial<{ enabled: boolean }>
@@ -2153,6 +2178,34 @@ export type get_Get_client_secret = {
 },
 
     }
+export type post_Rotate_client_secret = {
+    method: "POST",
+    path: "/realms/{realm_name}/clients/{client_id}/client-secret/rotate",
+    requestFormat: "json",
+    parameters: {
+        path: {realm_name: string, client_id: string},
+        body: Schemas.RotateClientSecretRequest,
+    },
+    responses: {200: Schemas.RotateClientSecretResponse,
+400: Schemas.ApiErrorResponse | string,
+403: Schemas.ApiErrorResponse,
+404: Schemas.ApiErrorResponse,
+415: string,
+422: string,
+},
+}
+export type delete_Revoke_previous_client_secret = {
+    method: "DELETE",
+    path: "/realms/{realm_name}/clients/{client_id}/client-secret/previous",
+    requestFormat: "json",
+    parameters: {
+        path: {realm_name: string, client_id: string},
+    },
+    responses: {200: Schemas.RevokePreviousClientSecretResponse,
+403: Schemas.ApiErrorResponse,
+404: Schemas.ApiErrorResponse,
+},
+}
 /**
  * Assigns a client scope as a default scope to the specified client. Default scopes are always included in tokens.
  */
@@ -6929,6 +6982,7 @@ post: {
 "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers": Endpoints.post_Create_protocol_mapper,
 "/realms/{realm_name}/clients": Endpoints.post_Create_client,
 "/realms/{realm_name}/clients/register": Endpoints.post_Register_client,
+"/realms/{realm_name}/clients/{client_id}/client-secret/rotate": Endpoints.post_Rotate_client_secret,
 "/realms/{realm_name}/clients/{client_id}/evaluate-scopes": Endpoints.post_Evaluate_client_scopes,
 "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist": Endpoints.post_Add_client_whitelist_entry,
 "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.post_Create_post_logout_redirect_uri,
@@ -7043,6 +7097,7 @@ delete: {
 "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.delete_Delete_client_scope,
 "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}": Endpoints.delete_Delete_protocol_mapper,
 "/realms/{realm_name}/clients/{client_id}": Endpoints.delete_Delete_client,
+"/realms/{realm_name}/clients/{client_id}/client-secret/previous": Endpoints.delete_Revoke_previous_client_secret,
 "/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}": Endpoints.delete_Unassign_default_scope,
 "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist/{entry_id}": Endpoints.delete_Remove_client_whitelist_entry,
 "/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}": Endpoints.delete_Unassign_optional_scope,

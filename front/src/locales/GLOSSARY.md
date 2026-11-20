@@ -171,3 +171,74 @@ strings to match against a third-party UI, not prose. Translating them makes the
   sentences. Keep ASCII punctuation inside code, URLs and identifiers.
 - **Enumerations use `、`**, not `, `. Where the list is built in code rather than in the catalogue,
   the separator is still English — that is a known gap, tracked on the epic.
+
+# Glossaire français (`fr`)
+
+**Statut : proposé, en attente de relecture par un francophone natif.** Les termes marqués ⚠ sont ceux
+où un avis de relecture compte le plus. Les règles de la section « Never translated » plus haut
+s'appliquent telles quelles au français.
+
+## Vocabulaire IAM
+
+| English | Français | Note |
+|---|---|---|
+| realm | realm | ⚠ Conservé tel quel, masculin invariable. « royaume » est le mot de la traduction Keycloak mais ne se dit pas en entreprise. |
+| client | client | Une application, pas une personne. |
+| user / identity | utilisateur / identité | « identité » est le mot du panneau CIAM pour un utilisateur. |
+| account | compte | |
+| application | application | |
+| role / group | rôle / groupe | |
+| permission | permission | |
+| token | jeton | access / refresh / ID / temporary → jeton d'accès / jeton d'actualisation / jeton d'ID / jeton temporaire |
+| client secret | secret client | |
+| signing key | clé de signature | |
+| grant | type d'autorisation | ⚠ Sens OAuth. Une seule traduction partout. |
+| flow | flux | authorization code flow → flux de code d'autorisation |
+| assertion | assertion | Sens SAML. |
+| service account | compte de service | |
+| single sign-on | authentification unique | |
+| lifetime | durée de vie | |
+| confidential / public | confidentiel / public | Type de client. |
+| whitelist / allowlist | liste d'autorisation | |
+| sign in / login | connexion / se connecter | |
+| sign up / registration | inscription / s'inscrire | |
+| endpoint | point de terminaison | |
+| issuer | émetteur | |
+| callback URL | URL de rappel | |
+| required action | action requise | |
+| audience | audience | Le `aud` OIDC. |
+| membership | appartenance | |
+| lockout | verrouillage | |
+| MFA / second factor | authentification multifacteur / second facteur | |
+| builder | éditeur | Éditeurs par glisser-déposer des e-mails et des pages du portail. |
+| template | modèle | |
+| variable | variable | Le type `{{user.first_name}}`. |
+| assignment / unassign | attribution / retirer | |
+| transactional email | e-mail transactionnel | |
+| email | e-mail | Pas « courriel », pas « email ». |
+| security event | événement de sécurité | |
+| journal (les quatre listes d'activité) | historique | **Pas** « journal » : « Logs & events » devient « Journaux et événements ». |
+| authentication flow | flux d'authentification | |
+| maintenance mode | mode maintenance | |
+| magic link | lien magique | |
+| passkey | clé d'accès | |
+| device code | code d'appareil | |
+
+## Registre et ponctuation
+
+- **Vouvoiement partout** (« vous », « votre »). Jamais « tu ». Même registre pour les utilisateurs
+  finaux (`auth`, `account`) et les administrateurs ; le vocabulaire des utilisateurs finaux reste
+  simple là où l'anglais l'est.
+- **Impératif ou infinitif pour les boutons** : « Enregistrer », « Se connecter », « Annuler ».
+  Sentence case, comme l'anglais.
+- **Espaces insécables** : U+00A0 avant `:` `;` `!` `?` et à l'intérieur des guillemets `« »`.
+  Pas d'espace insécable avant `,` `.` `…`.
+- **Pluriels** : le français déclare `one`, `many` et `other`. Une clé `_one` / `_other` en anglais
+  reçoit **les trois** formes en français. `_many` reprend le libellé de `_other`, avec « de » devant
+  le nom si le nom suit directement le nombre (`{{count}} de clients`). `_one` couvre 0 et 1.
+- **Clés, `{{placeholders}}` et `<balises>` sont un contrat.** Jamais traduits, renommés, réordonnés
+  ou supprimés ; un placeholder peut changer de place dans la phrase.
+- **Les jetons que l'utilisateur doit retaper ne sont jamais traduits** (`delete`, le nom d'un realm).
+- **Les valeurs SAML restent en anglais** : `Entity ID`, `Assertion Consumer Service URL`,
+  `Name ID`, `NameFormat`.
+- Les accents sont obligatoires, y compris sur les majuscules (« À », « É »).

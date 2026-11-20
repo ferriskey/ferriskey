@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type CSSProperties } from 'react'
 import { Eye, EyeClosed } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface PortalInputProps {
   name: string | undefined
@@ -46,6 +47,7 @@ export function PortalInput({
   // eye icon appears once the user types into a `password` field. We track
   // the visibility flip with local state.
   const [revealed, setRevealed] = useState(false)
+  const { t } = useTranslation()
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   const labelUp = focused || filled || alwaysFloatLabel
@@ -142,7 +144,7 @@ export function PortalInput({
             e.stopPropagation()
             setRevealed((v) => !v)
           }}
-          aria-label={revealed ? 'Hide password' : 'Show password'}
+          aria-label={revealed ? t('portal_input.hide_password') : t('portal_input.show_password')}
           disabled={disabled}
           style={{
             position: 'absolute',
