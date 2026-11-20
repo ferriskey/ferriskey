@@ -27,7 +27,7 @@ impl ClientAssertionReplayStore for PostgresClientAssertionReplayStore {
     ) -> Result<bool, CoreError> {
         let result = self
             .db
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 "INSERT INTO client_assertion_jtis (client_id, jti, expires_at)
                  VALUES ($1, $2, $3)
@@ -48,7 +48,7 @@ impl ClientAssertionReplayStore for PostgresClientAssertionReplayStore {
     async fn delete_expired(&self, before: DateTime<Utc>, limit: u64) -> Result<u64, CoreError> {
         let result = self
             .db
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 "DELETE FROM client_assertion_jtis
                  WHERE ctid IN (
@@ -104,7 +104,9 @@ mod db_tests {
             .await
             .expect("connect admin pool");
         admin_pool
-            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{schema}""#)))
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                r#"CREATE SCHEMA "{schema}""#
+            ))))
             .await
             .expect("create test schema");
 

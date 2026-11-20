@@ -48,7 +48,7 @@ fn totp_for(secret: &str) -> String {
 }
 
 async fn stored(app: &TestApp, sql: &str, id: Uuid) -> String {
-    sqlx::query_scalar(sql)
+    sqlx::query_scalar(sqlx::AssertSqlSafe(sql.to_owned()))
         .bind(id)
         .fetch_one(&app.pool)
         .await

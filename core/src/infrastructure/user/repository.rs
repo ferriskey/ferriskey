@@ -1,4 +1,5 @@
 use chrono::{DateTime, FixedOffset, Utc};
+use sea_orm::ExprTrait;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, ConnectionTrait,
     DatabaseConnection, DbBackend, DbErr, EntityTrait, ModelTrait, QueryFilter, QuerySelect,
@@ -506,7 +507,7 @@ impl UserRepository for PostgresUserRepository {
     ) -> Result<(), CoreError> {
         let result = self
             .db
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 "UPDATE users SET \
                  locked_until = CASE WHEN failed_login_attempts + 1 >= $2 THEN $3 ELSE locked_until END, \
@@ -592,11 +593,14 @@ mod tests {
     #[test]
     fn listing_is_always_bound_to_the_realm() {
         let sql = sql(&UserFilter::default());
-        assert!(!sql.contains(r#""users"."created_at" >"#), "{sql}");
-        assert!(!sql.contains(r#""users"."created_at" <"#), "{sql}");
-        assert!(!sql.contains("TRUE"), "{sql}");
+        assert!(!str::contains(&sql, r#""users"."created_at" >"#), "{sql}");
+        assert!(!str::contains(&sql, r#""users"."created_at" <"#), "{sql}");
+        assert!(!str::contains(&sql, "TRUE"), "{sql}");
         assert!(
-            sql.contains(r#""users"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            str::contains(
+                &sql,
+                r#""users"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
             "{sql}"
         );
     }
@@ -611,12 +615,21 @@ mod tests {
             ..UserFilter::default()
         });
         assert!(
-            sql.contains(r#""users"."username" ILIKE E'%a\\%%'"#),
+            str::contains(&sql, r#""users"."username" ILIKE E'%a\\%%'"#),
             "{sql}"
         );
-        assert!(sql.contains(r#""users"."email" ILIKE '%b%'"#), "{sql}");
-        assert!(sql.contains(r#""users"."firstname" ILIKE '%c%'"#), "{sql}");
-        assert!(sql.contains(r#""users"."lastname" ILIKE '%d%'"#), "{sql}");
+        assert!(
+            str::contains(&sql, r#""users"."email" ILIKE '%b%'"#),
+            "{sql}"
+        );
+        assert!(
+            str::contains(&sql, r#""users"."firstname" ILIKE '%c%'"#),
+            "{sql}"
+        );
+        assert!(
+            str::contains(&sql, r#""users"."lastname" ILIKE '%d%'"#),
+            "{sql}"
+        );
     }
 
     #[test]
@@ -626,7 +639,8 @@ mod tests {
             ..UserFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#"(("users"."username" ILIKE E'%a\\%%') OR ("users"."email" ILIKE E'%a\\%%') OR ("users"."firstname" ILIKE E'%a\\%%') OR ("users"."lastname" ILIKE E'%a\\%%'))"#
             ),
             "{sql}"
@@ -643,11 +657,17 @@ mod tests {
             ..UserFilter::default()
         });
         assert!(
-            sql.contains(r#""users"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""users"."created_at" >= '2026-01-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""users"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""users"."created_at" < '2026-02-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
     }
@@ -659,8 +679,11 @@ mod tests {
             email_verified: Some(false),
             ..UserFilter::default()
         });
-        assert!(sql.contains(r#""users"."enabled" = TRUE"#), "{sql}");
-        assert!(sql.contains(r#""users"."email_verified" = FALSE"#), "{sql}");
+        assert!(str::contains(&sql, r#""users"."enabled" = TRUE"#), "{sql}");
+        assert!(
+            str::contains(&sql, r#""users"."email_verified" = FALSE"#),
+            "{sql}"
+        );
     }
 
     #[test]
@@ -686,7 +709,7 @@ mod tests {
             ..UserFilter::default()
         });
         assert!(
-            sql.contains(&format!(r#""users"."id" IN ('{first}', '{second}')"#)),
+            str::contains(&sql, &format!(r#""users"."id" IN ('{first}', '{second}')"#)),
             "{sql}"
         );
     }
@@ -697,9 +720,12 @@ mod tests {
             role_id: Some(Uuid::nil()),
             ..UserFilter::default()
         });
-        assert!(!sql.contains("JOIN"), "{sql}");
+        assert!(!str::contains(&sql, "JOIN"), "{sql}");
         assert!(
-            sql.contains(r#""users"."id" IN (SELECT "user_role"."user_id" FROM "user_role" WHERE "user_role"."role_id" = '00000000-0000-0000-0000-000000000000')"#),
+            str::contains(
+                &sql,
+                r#""users"."id" IN (SELECT "user_role"."user_id" FROM "user_role" WHERE "user_role"."role_id" = '00000000-0000-0000-0000-000000000000')"#
+            ),
             "{sql}"
         );
     }
@@ -711,15 +737,21 @@ mod tests {
             not_in_group: Some(group_id),
             ..UserFilter::default()
         });
-        assert!(!sql.contains("JOIN"), "{sql}");
+        assert!(!str::contains(&sql, "JOIN"), "{sql}");
         assert!(
-            sql.contains(&format!(
-                r#""users"."id" NOT IN (SELECT "organization_group_members"."user_id" FROM "organization_group_members" WHERE "organization_group_members"."group_id" = '{group_id}')"#
-            )),
+            str::contains(
+                &sql,
+                &format!(
+                    r#""users"."id" NOT IN (SELECT "organization_group_members"."user_id" FROM "organization_group_members" WHERE "organization_group_members"."group_id" = '{group_id}')"#
+                )
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""users"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            str::contains(
+                &sql,
+                r#""users"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
             "{sql}"
         );
     }
@@ -731,15 +763,21 @@ mod tests {
             not_in_organization: Some(organization_id),
             ..UserFilter::default()
         });
-        assert!(!sql.contains("JOIN"), "{sql}");
+        assert!(!str::contains(&sql, "JOIN"), "{sql}");
         assert!(
-            sql.contains(&format!(
-                r#""users"."id" NOT IN (SELECT "organization_members"."user_id" FROM "organization_members" WHERE "organization_members"."organization_id" = '{organization_id}')"#
-            )),
+            str::contains(
+                &sql,
+                &format!(
+                    r#""users"."id" NOT IN (SELECT "organization_members"."user_id" FROM "organization_members" WHERE "organization_members"."organization_id" = '{organization_id}')"#
+                )
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""users"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            str::contains(
+                &sql,
+                r#""users"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
             "{sql}"
         );
     }
@@ -796,15 +834,21 @@ mod tests {
             .build(DbBackend::Postgres)
             .to_string();
 
-        assert!(sql.starts_with(r#"UPDATE "users" SET"#), "{sql}");
-        assert!(sql.contains(r#""failed_login_attempts" = 0"#), "{sql}");
-        assert!(sql.contains(r#""locked_until" = NULL"#), "{sql}");
+        assert!(str::starts_with(&sql, r#"UPDATE "users" SET"#), "{sql}");
         assert!(
-            sql.contains(r#""id" = '00000000-0000-0000-0000-000000000000'"#),
+            str::contains(&sql, r#""failed_login_attempts" = 0"#),
+            "{sql}"
+        );
+        assert!(str::contains(&sql, r#""locked_until" = NULL"#), "{sql}");
+        assert!(
+            str::contains(&sql, r#""id" = '00000000-0000-0000-0000-000000000000'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""failed_login_attempts" <> 0 OR "users"."locked_until" IS NOT NULL"#),
+            str::contains(
+                &sql,
+                r#""failed_login_attempts" <> 0 OR "users"."locked_until" IS NOT NULL"#
+            ),
             "{sql}"
         );
     }
@@ -835,11 +879,18 @@ mod tests {
                 .await
                 .expect("connect admin pool");
             admin_pool
-                .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+                .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                    r#"CREATE SCHEMA "{}""#,
+                    schema
+                ))))
                 .await
                 .expect("create test schema");
 
-            let separator = if base_url.contains('?') { '&' } else { '?' };
+            let separator = if str::contains(base_url.as_str(), '?') {
+                '&'
+            } else {
+                '?'
+            };
             let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
             let pool = sqlx::PgPool::connect(&schema_url)
                 .await

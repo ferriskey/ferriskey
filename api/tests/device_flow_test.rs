@@ -110,10 +110,10 @@ mod tests {
             .expect("connect admin pool");
 
         admin_pool
-            .execute(sqlx::query(&format!(
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
                 "CREATE SCHEMA IF NOT EXISTS \"{}\"",
                 schema
-            )))
+            ))))
             .await
             .expect("create schema");
 
@@ -926,10 +926,10 @@ mod tests {
 
             // Validate the device_code is a UUID before interpolating it into SQL.
             let dc = uuid::Uuid::parse_str(device_code).expect("device_code is a uuid");
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "UPDATE device_auth_sessions SET expires_at = now() - interval '1 hour' WHERE device_code = '{}'",
                 dc
-            ))
+            )))
             .execute(&shared_ctx().pool)
             .await
             .expect("expire session");

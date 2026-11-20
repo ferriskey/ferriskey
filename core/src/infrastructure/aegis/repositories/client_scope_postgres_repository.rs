@@ -300,8 +300,14 @@ mod tests {
     #[test]
     fn an_unbounded_created_range_adds_no_predicate() {
         let sql = sql(&ClientScopeFilter::default());
-        assert!(!sql.contains(r#""client_scopes"."created_at" >"#), "{sql}");
-        assert!(!sql.contains(r#""client_scopes"."created_at" <"#), "{sql}");
+        assert!(
+            !str::contains(&sql, r#""client_scopes"."created_at" >"#),
+            "{sql}"
+        );
+        assert!(
+            !str::contains(&sql, r#""client_scopes"."created_at" <"#),
+            "{sql}"
+        );
     }
 
     #[test]
@@ -314,11 +320,17 @@ mod tests {
             ..ClientScopeFilter::default()
         });
         assert!(
-            sql.contains(r#""client_scopes"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""client_scopes"."created_at" >= '2026-01-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""client_scopes"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""client_scopes"."created_at" < '2026-02-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
     }
@@ -327,7 +339,10 @@ mod tests {
     fn listing_is_always_bound_to_the_realm() {
         let sql = sql(&ClientScopeFilter::default());
         assert!(
-            sql.contains(r#""client_scopes"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            str::contains(
+                &sql,
+                r#""client_scopes"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
             "{sql}"
         );
     }
@@ -340,11 +355,11 @@ mod tests {
             ..ClientScopeFilter::default()
         });
         assert!(
-            sql.contains(r#""client_scopes"."name" ILIKE E'%a\\%%'"#),
+            str::contains(&sql, r#""client_scopes"."name" ILIKE E'%a\\%%'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""client_scopes"."description" ILIKE '%b%'"#),
+            str::contains(&sql, r#""client_scopes"."description" ILIKE '%b%'"#),
             "{sql}"
         );
     }
@@ -356,7 +371,8 @@ mod tests {
             ..ClientScopeFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#"(("client_scopes"."name" ILIKE '%pro%') OR ("client_scopes"."description" ILIKE '%pro%'))"#
             ),
             "{sql}"
@@ -371,11 +387,11 @@ mod tests {
             ..ClientScopeFilter::default()
         });
         assert!(
-            sql.contains(r#""client_scopes"."protocol" = 'saml'"#),
+            str::contains(&sql, r#""client_scopes"."protocol" = 'saml'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""client_scopes"."default_scope_type" = 'OPTIONAL'"#),
+            str::contains(&sql, r#""client_scopes"."default_scope_type" = 'OPTIONAL'"#),
             "{sql}"
         );
     }
@@ -412,9 +428,12 @@ mod tests {
             ..ClientScopeFilter::default()
         });
         assert!(
-            sql.contains(&format!(
-                r#""client_scopes"."id" NOT IN (SELECT "client_scope_mappings"."client_scope_id" FROM "client_scope_mappings" WHERE "client_scope_mappings"."client_id" = '{client_id}')"#
-            )),
+            str::contains(
+                &sql,
+                &format!(
+                    r#""client_scopes"."id" NOT IN (SELECT "client_scope_mappings"."client_scope_id" FROM "client_scope_mappings" WHERE "client_scope_mappings"."client_id" = '{client_id}')"#
+                )
+            ),
             "{sql}"
         );
     }

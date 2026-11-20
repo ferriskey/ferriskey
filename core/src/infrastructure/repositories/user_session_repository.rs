@@ -490,15 +490,21 @@ mod tests {
     fn listing_is_always_bound_to_the_user_and_its_realm() {
         let sql = sql(&SessionFilter::default());
         assert!(
-            sql.contains(r#""user_sessions"."user_id" = '00000000-0000-0000-0000-000000000000'"#),
+            str::contains(
+                &sql,
+                r#""user_sessions"."user_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""user_sessions"."realm_id" = 'ffffffff-ffff-ffff-ffff-ffffffffffff'"#),
+            str::contains(
+                &sql,
+                r#""user_sessions"."realm_id" = 'ffffffff-ffff-ffff-ffff-ffffffffffff'"#
+            ),
             "{sql}"
         );
-        assert!(!sql.contains("ILIKE"), "{sql}");
-        assert!(!sql.contains(r#""persistent" ="#), "{sql}");
+        assert!(!str::contains(&sql, "ILIKE"), "{sql}");
+        assert!(!str::contains(&sql, r#""persistent" ="#), "{sql}");
     }
 
     #[test]
@@ -509,11 +515,11 @@ mod tests {
             ..SessionFilter::default()
         });
         assert!(
-            sql.contains(r#""user_sessions"."ip_address" ILIKE E'%10.\\%%'"#),
+            str::contains(&sql, r#""user_sessions"."ip_address" ILIKE E'%10.\\%%'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""user_sessions"."user_agent" ILIKE E'%fire\\_%'"#),
+            str::contains(&sql, r#""user_sessions"."user_agent" ILIKE E'%fire\\_%'"#),
             "{sql}"
         );
     }
@@ -525,7 +531,8 @@ mod tests {
             ..SessionFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#"(("user_sessions"."ip_address" ILIKE E'%a\\%%') OR ("user_sessions"."user_agent" ILIKE E'%a\\%%'))"#
             ),
             "{sql}"
@@ -542,11 +549,17 @@ mod tests {
             ..SessionFilter::default()
         });
         assert!(
-            sql.contains(r#""user_sessions"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""user_sessions"."created_at" >= '2026-01-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""user_sessions"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""user_sessions"."created_at" < '2026-02-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
     }
@@ -573,7 +586,7 @@ mod tests {
             ..SessionFilter::default()
         });
         assert!(
-            sql.contains(r#""user_sessions"."persistent" = TRUE"#),
+            str::contains(&sql, r#""user_sessions"."persistent" = TRUE"#),
             "{sql}"
         );
     }

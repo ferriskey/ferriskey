@@ -74,7 +74,6 @@ impl GroupAttributeRepository for PostgresGroupAttributeRepository {
             };
 
             AttributeEntity::update(active_model)
-                .filter(AttributeColumn::Id.eq(existing.id))
                 .exec(&self.db)
                 .await
                 .map_err(|e| {

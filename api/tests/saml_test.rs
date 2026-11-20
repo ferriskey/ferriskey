@@ -98,7 +98,10 @@ mod tests {
             .await
             .expect("connect admin pool");
         admin_pool
-            .execute(format!("CREATE SCHEMA IF NOT EXISTS \"{}\"", schema).as_str())
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                "CREATE SCHEMA IF NOT EXISTS \"{}\"",
+                schema
+            ))))
             .await
             .expect("create schema");
 

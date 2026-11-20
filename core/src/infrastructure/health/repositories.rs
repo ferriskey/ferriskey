@@ -23,7 +23,7 @@ impl HealthCheckRepository for PostgresHealthCheckRepository {
 
         let result = tokio::time::timeout(
             timeout_duration,
-            self.db.query_one(Statement::from_string(
+            self.db.query_one_raw(Statement::from_string(
                 DatabaseBackend::Postgres,
                 "SELECT 1".to_owned(),
             )),

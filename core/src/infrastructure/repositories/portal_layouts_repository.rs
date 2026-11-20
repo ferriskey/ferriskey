@@ -1,3 +1,4 @@
+use sea_orm::ExprTrait;
 use std::collections::HashMap;
 
 use chrono::{TimeZone, Utc};
@@ -401,7 +402,7 @@ mod listing_tests {
             ..PortalLayoutFilter::default()
         });
         assert!(
-            sql.contains(r#""portal_layouts"."name" ILIKE E'%a\\%%'"#),
+            str::contains(&sql, r#""portal_layouts"."name" ILIKE E'%a\\%%'"#),
             "{sql}"
         );
     }
@@ -409,8 +410,14 @@ mod listing_tests {
     #[test]
     fn an_unbounded_created_range_adds_no_predicate() {
         let sql = sql(&PortalLayoutFilter::default());
-        assert!(!sql.contains(r#""portal_layouts"."created_at" >"#), "{sql}");
-        assert!(!sql.contains(r#""portal_layouts"."created_at" <"#), "{sql}");
+        assert!(
+            !str::contains(&sql, r#""portal_layouts"."created_at" >"#),
+            "{sql}"
+        );
+        assert!(
+            !str::contains(&sql, r#""portal_layouts"."created_at" <"#),
+            "{sql}"
+        );
     }
 
     #[test]
@@ -423,11 +430,17 @@ mod listing_tests {
             ..PortalLayoutFilter::default()
         });
         assert!(
-            sql.contains(r#""portal_layouts"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""portal_layouts"."created_at" >= '2026-01-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""portal_layouts"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""portal_layouts"."created_at" < '2026-02-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
     }
@@ -442,12 +455,15 @@ mod listing_tests {
     fn listing_is_always_bound_to_the_realm() {
         let sql = sql(&PortalLayoutFilter::default());
         assert!(
-            sql.contains(r#""portal_layouts"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            str::contains(
+                &sql,
+                r#""portal_layouts"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
             "{sql}"
         );
-        assert!(!sql.contains("ILIKE"), "{sql}");
-        assert!(!sql.contains("EXISTS"), "{sql}");
-        assert!(!sql.contains(" IN "), "{sql}");
+        assert!(!str::contains(&sql, "ILIKE"), "{sql}");
+        assert!(!str::contains(&sql, "EXISTS"), "{sql}");
+        assert!(!str::contains(&sql, " IN "), "{sql}");
     }
 
     #[test]
@@ -457,7 +473,7 @@ mod listing_tests {
             ..PortalLayoutFilter::default()
         });
         assert!(
-            sql.contains(r#""portal_layouts"."name" ILIKE E'%a\\%%'"#),
+            str::contains(&sql, r#""portal_layouts"."name" ILIKE E'%a\\%%'"#),
             "{sql}"
         );
     }
@@ -469,7 +485,7 @@ mod listing_tests {
             ..PortalLayoutFilter::default()
         });
         assert!(
-            sql.contains(r#""portal_layouts"."is_default" = FALSE"#),
+            str::contains(&sql, r#""portal_layouts"."is_default" = FALSE"#),
             "{sql}"
         );
     }
@@ -481,12 +497,13 @@ mod listing_tests {
             ..PortalLayoutFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#"EXISTS(SELECT 1 FROM "portal_themes" WHERE "portal_themes"."layout_id" = "portal_layouts"."id" AND "portal_themes"."realm_id" = '00000000-0000-0000-0000-000000000000')"#
             ),
             "{sql}"
         );
-        assert!(!sql.contains("NOT"), "{sql}");
+        assert!(!str::contains(&sql, "NOT"), "{sql}");
     }
 
     #[test]
@@ -496,7 +513,7 @@ mod listing_tests {
             ..PortalLayoutFilter::default()
         });
         assert!(
-            sql.contains(r#"NOT EXISTS(SELECT 1 FROM "portal_themes""#),
+            str::contains(&sql, r#"NOT EXISTS(SELECT 1 FROM "portal_themes""#),
             "{sql}"
         );
     }
@@ -508,7 +525,10 @@ mod listing_tests {
             ..PortalLayoutFilter::default()
         });
         assert!(
-            sql.contains(r#""portal_layouts"."id" IN ('00000000-0000-0000-0000-000000000000', 'ffffffff-ffff-ffff-ffff-ffffffffffff')"#),
+            str::contains(
+                &sql,
+                r#""portal_layouts"."id" IN ('00000000-0000-0000-0000-000000000000', 'ffffffff-ffff-ffff-ffff-ffffffffffff')"#
+            ),
             "{sql}"
         );
     }

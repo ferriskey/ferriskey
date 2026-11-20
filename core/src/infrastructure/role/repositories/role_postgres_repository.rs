@@ -1,3 +1,4 @@
+use sea_orm::ExprTrait;
 use std::collections::HashMap;
 
 use chrono::Utc;
@@ -370,8 +371,8 @@ mod tests {
     #[test]
     fn an_unbounded_created_range_adds_no_predicate() {
         let sql = sql(&RoleFilter::default());
-        assert!(!sql.contains(r#""roles"."created_at" >"#), "{sql}");
-        assert!(!sql.contains(r#""roles"."created_at" <"#), "{sql}");
+        assert!(!str::contains(&sql, r#""roles"."created_at" >"#), "{sql}");
+        assert!(!str::contains(&sql, r#""roles"."created_at" <"#), "{sql}");
     }
 
     #[test]
@@ -384,11 +385,17 @@ mod tests {
             ..RoleFilter::default()
         });
         assert!(
-            sql.contains(r#""roles"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""roles"."created_at" >= '2026-01-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""roles"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""roles"."created_at" < '2026-02-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
     }
@@ -397,7 +404,10 @@ mod tests {
     fn listing_is_always_bound_to_the_realm() {
         let sql = sql(&RoleFilter::default());
         assert!(
-            sql.contains(r#""roles"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            str::contains(
+                &sql,
+                r#""roles"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
             "{sql}"
         );
     }
@@ -409,9 +419,12 @@ mod tests {
             description: Some("b".to_string()),
             ..RoleFilter::default()
         });
-        assert!(sql.contains(r#""roles"."name" ILIKE E'%a\\%%'"#), "{sql}");
         assert!(
-            sql.contains(r#""roles"."description" ILIKE '%b%'"#),
+            str::contains(&sql, r#""roles"."name" ILIKE E'%a\\%%'"#),
+            "{sql}"
+        );
+        assert!(
+            str::contains(&sql, r#""roles"."description" ILIKE '%b%'"#),
             "{sql}"
         );
     }
@@ -423,10 +436,13 @@ mod tests {
             ..RoleFilter::default()
         });
         assert!(
-            sql.contains(r#"AND (("roles"."client_id" IS NULL AND "roles"."name" = 'app.ns_%') OR EXISTS(SELECT 1 FROM "clients" WHERE "clients"."id" = "roles"."client_id" AND "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND ("clients"."client_id" || '.' || "roles"."name") = 'app.ns_%'))"#),
+            str::contains(
+                &sql,
+                r#"AND (("roles"."client_id" IS NULL AND "roles"."name" = 'app.ns_%') OR EXISTS(SELECT 1 FROM "clients" WHERE "clients"."id" = "roles"."client_id" AND "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND ("clients"."client_id" || '.' || "roles"."name") = 'app.ns_%'))"#
+            ),
             "{sql}"
         );
-        assert!(!sql.contains("ILIKE"), "{sql}");
+        assert!(!str::contains(&sql, "ILIKE"), "{sql}");
     }
 
     #[test]
@@ -437,9 +453,12 @@ mod tests {
             client_id: Some(client),
             ..RoleFilter::default()
         });
-        assert!(sql.contains(r#""roles"."require_mfa" = TRUE"#), "{sql}");
         assert!(
-            sql.contains(&format!(r#""roles"."client_id" = '{client}'"#)),
+            str::contains(&sql, r#""roles"."require_mfa" = TRUE"#),
+            "{sql}"
+        );
+        assert!(
+            str::contains(&sql, &format!(r#""roles"."client_id" = '{client}'"#)),
             "{sql}"
         );
     }
@@ -453,7 +472,7 @@ mod tests {
             ..RoleFilter::default()
         });
         assert!(
-            sql.contains(&format!(r#""roles"."id" IN ('{first}', '{second}')"#)),
+            str::contains(&sql, &format!(r#""roles"."id" IN ('{first}', '{second}')"#)),
             "{sql}"
         );
     }
@@ -499,7 +518,10 @@ mod tests {
             ..RoleFilter::default()
         });
         assert!(
-            sql.contains(r#"AND (("roles"."name" ILIKE E'%app\\%%') OR ("roles"."description" ILIKE E'%app\\%%') OR "roles"."client_id" IN (SELECT "clients"."id" FROM "clients" WHERE "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND ("clients"."client_id" ILIKE E'%app\\%%')) OR EXISTS("#),
+            str::contains(
+                &sql,
+                r#"AND (("roles"."name" ILIKE E'%app\\%%') OR ("roles"."description" ILIKE E'%app\\%%') OR "roles"."client_id" IN (SELECT "clients"."id" FROM "clients" WHERE "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND ("clients"."client_id" ILIKE E'%app\\%%')) OR EXISTS("#
+            ),
             "{sql}"
         );
     }
@@ -511,7 +533,10 @@ mod tests {
             ..RoleFilter::default()
         });
         assert!(
-            sql.contains(r#"OR EXISTS(SELECT 1 FROM "clients" WHERE "clients"."id" = "roles"."client_id" AND "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND (("clients"."client_id" || '.' || "roles"."name") ILIKE E'%app-web.ns.adm\\_%')))"#),
+            str::contains(
+                &sql,
+                r#"OR EXISTS(SELECT 1 FROM "clients" WHERE "clients"."id" = "roles"."client_id" AND "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND (("clients"."client_id" || '.' || "roles"."name") ILIKE E'%app-web.ns.adm\\_%')))"#
+            ),
             "{sql}"
         );
         assert_eq!(sql.matches("ILIKE").count(), 4, "{sql}");

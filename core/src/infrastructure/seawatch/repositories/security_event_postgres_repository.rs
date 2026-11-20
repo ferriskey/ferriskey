@@ -194,7 +194,7 @@ impl PostgresSecurityEventRepository {
 
     async fn ensure_head(&self, realm_id: Uuid) -> Result<(), CoreError> {
         self.db
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 ENSURE_HEAD_SQL,
                 [realm_id.into()],
@@ -289,7 +289,7 @@ impl SecurityEventRepository for PostgresSecurityEventRepository {
         for _ in 0..CHAIN_ATTEMPTS {
             let inserted = self
                 .db
-                .query_one(chained_insert(&event, preimage.clone()))
+                .query_one_raw(chained_insert(&event, preimage.clone()))
                 .await
                 .map_err(|e| {
                     error!("Failed to store chained security event: {}", e);
@@ -332,7 +332,7 @@ impl SecurityEventRepository for PostgresSecurityEventRepository {
         for _ in 0..CHAIN_ATTEMPTS {
             let inserted = self
                 .db
-                .query_all(chained_batch_insert(realm_id, &events, &preimages))
+                .query_all_raw(chained_batch_insert(realm_id, &events, &preimages))
                 .await
                 .map_err(|e| {
                     error!("Failed to store a batch of chained security events: {}", e);
@@ -428,7 +428,8 @@ mod tests {
     fn listing_is_always_bound_to_the_realm() {
         let sql = sql(&SecurityEventFilter::default());
         assert!(
-            sql.ends_with(
+            str::ends_with(
+                &sql,
                 r#"WHERE "security_events"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
             ),
             "{sql}"
@@ -442,10 +443,13 @@ mod tests {
             ..SecurityEventFilter::default()
         });
         assert!(
-            sql.contains(r#""security_events"."ip_address" ILIKE E'%a\\%\\_\\\\%'"#),
+            str::contains(
+                &sql,
+                r#""security_events"."ip_address" ILIKE E'%a\\%\\_\\\\%'"#
+            ),
             "{sql}"
         );
-        assert!(!sql.contains(r#""user_agent" ILIKE"#), "{sql}");
+        assert!(!str::contains(&sql, r#""user_agent" ILIKE"#), "{sql}");
     }
 
     #[test]
@@ -455,7 +459,10 @@ mod tests {
             ..SecurityEventFilter::default()
         });
         assert!(
-            sql.contains(r#""security_events"."ip_address" ILIKE E'%10.\\%\\_%'"#),
+            str::contains(
+                &sql,
+                r#""security_events"."ip_address" ILIKE E'%10.\\%\\_%'"#
+            ),
             "{sql}"
         );
     }
@@ -470,26 +477,28 @@ mod tests {
             ..SecurityEventFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""security_events"."actor_id" = 'ffffffff-ffff-ffff-ffff-ffffffffffff'"#
             ),
             "{sql}"
         );
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""security_events"."target_id" = '00000000-0000-0000-0000-000000000000'"#
             ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""security_events"."status" = 'failure'"#),
+            str::contains(&sql, r#""security_events"."status" = 'failure'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""security_events"."target_type" = 'client'"#),
+            str::contains(&sql, r#""security_events"."target_type" = 'client'"#),
             "{sql}"
         );
-        assert!(!sql.contains("ILIKE"), "{sql}");
+        assert!(!str::contains(&sql, "ILIKE"), "{sql}");
     }
 
     #[test]
@@ -502,7 +511,8 @@ mod tests {
             ..SecurityEventFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""security_events"."event_type" IN ('login_failure', 'session_revoked')"#
             ),
             "{sql}"
@@ -517,11 +527,17 @@ mod tests {
             ..SecurityEventFilter::default()
         });
         assert!(
-            sql.contains(r#""security_events"."timestamp" >= '2026-01-01 00:05:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""security_events"."timestamp" >= '2026-01-01 00:05:00.000000'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""security_events"."timestamp" <= '2026-01-02 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""security_events"."timestamp" <= '2026-01-02 00:00:00.000000'"#
+            ),
             "{sql}"
         );
     }
@@ -555,11 +571,18 @@ mod tests {
                 .await
                 .expect("connect admin pool");
             admin_pool
-                .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+                .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                    r#"CREATE SCHEMA "{}""#,
+                    schema
+                ))))
                 .await
                 .expect("create test schema");
 
-            let separator = if base_url.contains('?') { '&' } else { '?' };
+            let separator = if str::contains(base_url.as_str(), '?') {
+                '&'
+            } else {
+                '?'
+            };
             let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
             let pool = sqlx::PgPool::connect(&schema_url)
                 .await
