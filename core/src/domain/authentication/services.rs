@@ -2427,6 +2427,7 @@ where
         claims.sid = input.session_id;
 
         if let Some(authentication) = &input.authentication {
+            claims.additional_claims.remove("amr");
             claims.additional_claims.insert(
                 "acr".to_string(),
                 serde_json::Value::String(authentication.acr.clone()),
@@ -2460,6 +2461,8 @@ where
                 );
                 id_claims.auth_time = input.auth_time;
                 if let Some(authentication) = &input.authentication {
+                    id_claims.additional_claims.remove("acr");
+                    id_claims.additional_claims.remove("amr");
                     id_claims.acr = Some(authentication.acr.clone());
                     id_claims.amr = (!authentication.amr.is_empty()).then(|| {
                         authentication
@@ -2806,10 +2809,13 @@ where
         Ok(())
     }
 
+    /// `login` is the authorization request the step would complete: a level
+    /// it asked for and its factors do not reach yet holds the user to MFA.
     async fn resolve_pending_auth_step(
         &self,
         user: &User,
         scope: &RealmScope,
+        login: Option<&AuthSession>,
     ) -> Result<(Option<PendingAuthStep>, Vec<Role>), CoreError> {
         let credentials = self
             .credential_repository
@@ -2824,6 +2830,13 @@ where
             .map_err(|_| CoreError::InternalServerError)?;
 
         let realm_settings = self.realm_settings_of(scope).await.ok();
+        let requested_level = login.and_then(|login| {
+            let default_map = AcrLoaMap::default();
+            let map = realm_settings
+                .as_deref()
+                .map_or(&default_map, |settings| &settings.acr_loa_map);
+            login.level_still_owed(user.id, map)
+        });
 
         let pending_step = mfa_policy::pending_auth_step(
             &user.required_actions,
@@ -2833,7 +2846,7 @@ where
                 .iter()
                 .any(|credential| matches!(credential.credential_type, CredentialType::Otp)),
             credentials.iter().any(|credential| credential.temporary),
-            None,
+            requested_level,
         );
 
         Ok((pending_step, user_roles))
@@ -3070,8 +3083,9 @@ where
             return Err(CoreError::UserDisabled);
         }
 
-        let (pending_step, user_roles) =
-            self.resolve_pending_auth_step(&user, &params.realm).await?;
+        let (pending_step, user_roles) = self
+            .resolve_pending_auth_step(&user, &params.realm, None)
+            .await?;
 
         if let Err(error) = refuse_token_issuance_when_actions_pending(pending_step.as_ref()) {
             warn!(
@@ -6169,7 +6183,14 @@ where
             .map_err(|err| warn!("Failed to notify UserCreated webhook: {}", err))
             .ok();
 
-        let pending_step = self.resolve_pending_auth_step(&user, &scope).await?.0;
+        let pending_step = self
+            .resolve_pending_auth_step(
+                &user,
+                &scope,
+                resumable.as_ref().map(|(auth_session, _)| auth_session),
+            )
+            .await?
+            .0;
 
         // If the registration happened inside an active OIDC authorization flow
         // (a FERRISKEY_SESSION cookie was present), resume that flow by
@@ -6694,8 +6715,9 @@ where
             return Err(CoreError::Forbidden("account is disabled".to_string()));
         }
 
-        let (pending_step, user_roles) =
-            self.resolve_pending_auth_step(&user, &realm_scope).await?;
+        let (pending_step, user_roles) = self
+            .resolve_pending_auth_step(&user, &realm_scope, None)
+            .await?;
 
         if let Err(error) = refuse_token_issuance_when_step_pending(pending_step.as_ref()) {
             warn!(

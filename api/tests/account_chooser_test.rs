@@ -1090,6 +1090,33 @@ fn prompt_none_with_one_resumable_entry_and_no_cookie_resumes_it() {
 
 #[test]
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
+fn prompt_none_does_not_resume_an_entry_below_the_requested_level() {
+    rt().block_on(async {
+        let (app, _shared) = chooser_app().await;
+        let (server, client, _alice, mut browser) = alice_only(app).await;
+        browser.sso.take();
+
+        let response = authorize_with(
+            &server,
+            app,
+            &client,
+            &browser,
+            &[("prompt", "none"), ("acr_values", "2")],
+        )
+        .await;
+        let location = location_of(&response);
+
+        assert!(location.starts_with(common::CALLBACK), "{location}");
+        assert!(query_param(&location, "code").is_none(), "{location}");
+        assert_eq!(
+            query_param(&location, "error").as_deref(),
+            Some("interaction_required")
+        );
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_chooser_test -- --ignored"]
 fn prompt_none_with_several_entries_resumes_the_active_one() {
     rt().block_on(async {
         let (app, _shared) = chooser_app().await;

@@ -25,13 +25,18 @@ mod tests {
         app: &TestApp,
         client: &SeededClient,
     ) -> Cookie<'static> {
-        let authorized = authorize(
-            server,
-            app,
-            &client.client_id,
-            &[("prompt", "create"), ("state", "s-resume")],
-        )
-        .await;
+        open_the_flow_with(server, app, client, &[]).await
+    }
+
+    async fn open_the_flow_with(
+        server: &TestServer,
+        app: &TestApp,
+        client: &SeededClient,
+        extra: &[(&str, &str)],
+    ) -> Cookie<'static> {
+        let mut params = vec![("prompt", "create"), ("state", "s-resume")];
+        params.extend_from_slice(extra);
+        let authorized = authorize(server, app, &client.client_id, &params).await;
         assert_eq!(authorized.status_code(), 302, "{}", authorized.text());
         authorized.cookie("FERRISKEY_SESSION")
     }
@@ -189,6 +194,27 @@ mod tests {
                 signed_in.maybe_cookie("FERRISKEY_LOGIN_ACTION").is_some(),
                 "the sign-in must hand over the step token that finishes the enrollment"
             );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_registration_for_a_multi_factor_request_does_not_resume_the_flow() {
+        rt().block_on(async {
+            let _settings = REALM_SETTINGS.lock().await;
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::public()).await;
+            app.set_user_registration(true).await;
+
+            let session = open_the_flow_with(&server, app, &client, &[("acr_values", "2")]).await;
+            let registered = register_in(&server, app, &session, &fresh_email()).await;
+
+            assert_eq!(registered.status_code(), 201, "{}", registered.text());
+            let body: Value = registered.json();
+            assert_eq!(body["status"], "pending_action", "{body}");
+            assert!(!body.to_string().contains("code="), "{body}");
+            assert!(registered.maybe_cookie("FERRISKEY_SSO").is_none());
         });
     }
 }

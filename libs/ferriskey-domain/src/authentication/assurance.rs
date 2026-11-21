@@ -44,11 +44,13 @@ impl AuthenticationFactor {
 
     /// WebAuthn always requires user verification here, so a key alone is
     /// already two factors.
-    fn reaches_multi_factor(self) -> bool {
-        matches!(
-            self,
-            Self::Otp | Self::RecoveryCode | Self::HardwareKey | Self::SyncedKey
-        )
+    fn is_multi_factor_alone(self) -> bool {
+        matches!(self, Self::HardwareKey | Self::SyncedKey)
+    }
+
+    /// An OTP or a recovery code only adds to a factor answered before it.
+    fn is_second_factor(self) -> bool {
+        matches!(self, Self::Otp | Self::RecoveryCode)
     }
 }
 
@@ -111,10 +113,13 @@ impl LevelOfAssurance {
             return None;
         }
 
-        if factors
+        let alone = factors
             .iter()
-            .any(|used| used.factor.reaches_multi_factor())
-        {
+            .any(|used| used.factor.is_multi_factor_alone());
+        let second = factors.iter().any(|used| used.factor.is_second_factor());
+        let first = factors.iter().any(|used| !used.factor.is_second_factor());
+
+        if alone || (second && first) {
             Some(Self::MultiFactor)
         } else {
             Some(Self::SingleFactor)
@@ -168,6 +173,8 @@ pub enum AcrLoaMapError {
     UnknownLevel(u8),
     #[error("acr value {0:?} must be non-empty and contain no whitespace")]
     InvalidAcr(String),
+    #[error("acr value {0:?} is built in and cannot be mapped")]
+    BuiltinAcr(String),
 }
 
 /// The realm's own `acr` names, each mapped to a level of assurance. The
@@ -220,6 +227,13 @@ impl TryFrom<BTreeMap<String, LevelOfAssurance>> for AcrLoaMap {
             .find(|acr| acr.is_empty() || acr.chars().any(char::is_whitespace))
         {
             return Err(AcrLoaMapError::InvalidAcr(acr.clone()));
+        }
+
+        if let Some(acr) = value
+            .keys()
+            .find(|acr| LevelOfAssurance::from_builtin_acr(acr).is_some())
+        {
+            return Err(AcrLoaMapError::BuiltinAcr(acr.clone()));
         }
 
         Ok(Self(value))
@@ -370,6 +384,36 @@ mod tests {
         .unwrap();
 
         assert_eq!(context.amr, vec!["pwd", "otp", "mfa"]);
+    }
+
+    #[test]
+    fn an_otp_or_a_recovery_code_alone_is_a_single_factor_login() {
+        for factor in [
+            AuthenticationFactor::Otp,
+            AuthenticationFactor::RecoveryCode,
+        ] {
+            let context = AuthenticationContext::resolve(
+                &used(&[factor]),
+                &AcrLoaMap::default(),
+                &AcrRequest::default(),
+            )
+            .unwrap();
+
+            assert_eq!(context.acr, "1");
+            assert_eq!(context.amr, vec!["otp"]);
+        }
+    }
+
+    #[test]
+    fn a_realm_cannot_remap_a_built_in_acr() {
+        for acr in ["1", "2"] {
+            let entries = BTreeMap::from([(acr.to_string(), LevelOfAssurance::SingleFactor)]);
+
+            assert_eq!(
+                AcrLoaMap::try_from(entries),
+                Err(AcrLoaMapError::BuiltinAcr(acr.to_string()))
+            );
+        }
     }
 
     #[test]

@@ -798,11 +798,17 @@ impl crate::domain::device_session::ports::AccountChooserService for Application
         device_token: Option<&str>,
         scope: &RealmScope,
         active_sso_token: Option<&str>,
-        max_age: Option<i64>,
+        requirements: crate::domain::device_session::entities::ResumeRequirements,
         client_id: uuid::Uuid,
     ) -> Result<Vec<crate::domain::device_session::entities::AccountEntry>, CoreError> {
         self.account_chooser_service
-            .list_entries(device_token, scope, active_sso_token, max_age, client_id)
+            .list_entries(
+                device_token,
+                scope,
+                active_sso_token,
+                requirements,
+                client_id,
+            )
             .await
     }
 
@@ -811,11 +817,11 @@ impl crate::domain::device_session::ports::AccountChooserService for Application
         device_token: Option<&str>,
         scope: &RealmScope,
         session_id: uuid::Uuid,
-        max_age: Option<i64>,
+        requirements: crate::domain::device_session::entities::ResumeRequirements,
         client_id: uuid::Uuid,
     ) -> Result<crate::domain::device_session::entities::SelectedAccount, CoreError> {
         self.account_chooser_service
-            .select_entry(device_token, scope, session_id, max_age, client_id)
+            .select_entry(device_token, scope, session_id, requirements, client_id)
             .await
     }
 
