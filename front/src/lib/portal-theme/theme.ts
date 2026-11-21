@@ -97,7 +97,6 @@ export function withDarkPalette(tokens: Schemas.PortalThemeConfig): Schemas.Port
   return { ...tokens, colors: tokens.darkColors }
 }
 
-export const OWN_SURFACE_ATTR = 'data-fk-own-surface'
 const COLOR_VAR_PREFIX = '--fk-color-'
 const LIGHT_VAR_PREFIX = '--fk-light-color-'
 // The blocks whose style reads a `backgroundColor` prop.
@@ -124,49 +123,100 @@ function alphaOf(color: string): string {
   return alpha
 }
 
-// An empty or fully transparent colour paints nothing.
-function isSurfaceColor(color: unknown): boolean {
-  if (typeof color !== 'string') return false
+// Blank text changes no background in the generated CSS.
+function isApplicable(color: unknown): color is string {
+  return typeof color === 'string' && color.trim() !== ''
+}
+
+// A fully transparent colour paints nothing.
+function isSurfaceColor(color: string): boolean {
   const text = color.trim().toLowerCase()
-  const isClearWord = text === '' || CLEAR_KEYWORDS.has(text)
-  if (isClearWord || CLEAR_HEX.test(text)) return false
+  if (CLEAR_KEYWORDS.has(text) || CLEAR_HEX.test(text)) return false
   if (!COLOR_FUNCTION.test(text)) return true
   const alpha = Number.parseFloat(alphaOf(text))
   return Number.isNaN(alpha) || alpha > 0
 }
 
+type SurfacePalette = { apply: string; release: string }
+type SurfaceStep = { width: number; surface: boolean }
+
+// Word characters and `-`: safe in a quoted selector.
+const PLAIN_ID = /^[\w-]+$/
+
+// Widths where a visible background starts or stops, narrowest first.
+function surfaceSteps(node: BuilderNode, widths: Record<string, number>): SurfaceStep[] {
+  const layers = node.breakpoints ? Object.entries(node.breakpoints) : []
+  return layers
+    .flatMap(([name, props]) => {
+      const color = props.backgroundColor
+      if (!Number.isFinite(widths[name]) || !isApplicable(color)) return []
+      return [{ width: widths[name], surface: isSurfaceColor(color) }]
+    })
+    .sort((a, b) => a.width - b.width)
+}
+
+function surfaceRules(
+  node: BuilderNode,
+  palette: SurfacePalette,
+  widths: Record<string, number>,
+): string[] {
+  if (!SURFACE_BLOCKS.has(node.type) || !PLAIN_ID.test(node.id)) return []
+  const rule = (declarations: string): string => `[data-fk-id="${node.id}"] { ${declarations} }`
+  const base = node.props.backgroundColor
+  const baseSurface = isApplicable(base) && isSurfaceColor(base)
+  // A card's breakpoint overrides never reach the generated CSS.
+  const steps = node.type === 'card' ? [] : surfaceSteps(node, widths)
+  // `surfacesBefore[i]` is the state before step `i`.
+  const surfacesBefore = [baseSurface, ...steps.map((step) => step.surface)]
+  const changes = steps.filter((step, index) => step.surface !== surfacesBefore[index])
+  return [
+    ...(baseSurface ? [rule(palette.apply)] : []),
+    ...changes.map((step) => {
+      const declarations = step.surface ? palette.apply : palette.release
+      return `@media (min-width: ${step.width}px) { ${rule(declarations)} }`
+    }),
+  ]
+}
+
 /**
- * True for a block with its own visible background.
- * A breakpoint can give it too.
+ * Rules keeping the light palette inside blocks with a surface.
+ * They switch at the widths where the background changes.
+ * Empty when `palette.apply` is.
  *
  * @example
- * hasOwnSurface({ type: 'card', props: { backgroundColor: '#fff' }, … }) // true
+ * ownSurfaceCss(tree, { apply: 'a: b;', release: 'a: inherit;' }, { md: 768 })
+ * // '[data-fk-id="box"] { a: b; }'
  */
-export function hasOwnSurface(node: BuilderNode): boolean {
-  if (!SURFACE_BLOCKS.has(node.type)) return false
-  const overrides = node.breakpoints ? Object.values(node.breakpoints) : []
-  return [node.props, ...overrides].some((props) => isSurfaceColor(props.backgroundColor))
+export function ownSurfaceCss(
+  tree: BuilderNode[],
+  palette: SurfacePalette,
+  widths: Record<string, number>,
+): string {
+  if (!palette.apply) return ''
+  const rulesOf = (nodes: BuilderNode[]): string[] =>
+    nodes.flatMap((node) => [...surfaceRules(node, palette, widths), ...rulesOf(node.children)])
+  return rulesOf(tree).join('\n')
 }
 
 /**
  * The light palette, for blocks with their own surface.
  * `vars` hold its colours under `--fk-light-color-*` names.
- * `css` maps them back onto those blocks.
+ * `apply` maps them back onto a block.
+ * `release` takes the colours of its parent again.
  *
  * @example
  * ownSurfaceTheme(lightTheme).vars // { '--fk-light-color-body-text': '#1e212a', … }
  */
-export function ownSurfaceTheme(light: PortalThemeConfig): {
+export function ownSurfaceTheme(light: PortalThemeConfig): SurfacePalette & {
   vars: Record<string, string>
-  css: string
 } {
   const colors = Object.entries(themeToCssVars(light)).filter(([name]) =>
     name.startsWith(COLOR_VAR_PREFIX),
   )
-  const mapped = colors.map(([name]) => `${name}: var(${lightVarName(name)});`)
   return {
     vars: Object.fromEntries(colors.map(([name, value]) => [lightVarName(name), value])),
-    css: `[${OWN_SURFACE_ATTR}] { ${mapped.join(' ')} }`,
+    apply: colors.map(([name]) => `${name}: var(${lightVarName(name)});`).join(' '),
+    release: colors.map(([name]) => `${name}: inherit;`).join(' '),
   }
 }
 

@@ -11,12 +11,17 @@ import { useGetLoginSettings } from '@/api/realm.api'
 import { useSetupOtp } from '@/api/trident.api'
 import type { RouterParams } from '@/routes/router'
 import type { BuilderNode } from '@/lib/builder-core'
-import { generateBreakpointCss, treeToReactNode } from '@/lib/builder-portal'
+import {
+  BREAKPOINT_WIDTHS,
+  generateBreakpointCss,
+  treeToReactNode,
+} from '@/lib/builder-portal'
 import { collectRenderedTypes } from '@/lib/builder-portal/rendered-types'
 import type { AccountChooserOptions } from '@/lib/builder-portal/components/account-list-block'
 import {
   darkPaletteCssVars,
   mergeWithDefaults,
+  ownSurfaceCss,
   ownSurfaceTheme,
   themeToCssVars,
   withDarkPalette,
@@ -208,11 +213,13 @@ export function PortalLayoutWrapper({
   // A dark palette draws outlines in its text colour.
   // Blocks with their own surface keep the light palette.
   const darkPalette = useMemo(() => {
-    if (!isDarkScheme || !hasDarkPalette || !activeData) return { vars: {}, css: '' }
+    if (!isDarkScheme || !hasDarkPalette || !activeData) {
+      return { vars: {}, own: { apply: '', release: '' } }
+    }
     const own = ownSurfaceTheme(mergeWithDefaults(activeData.design_tokens))
     return {
       vars: { ...darkPaletteCssVars(mergeWithDefaults(tokens)), ...own.vars },
-      css: own.css,
+      own,
     }
   }, [isDarkScheme, hasDarkPalette, activeData, tokens])
   useEffect(() => {
@@ -386,10 +393,12 @@ export function PortalLayoutWrapper({
 
   // Collect responsive overrides from both the page tree and the layout tree
   // (each node's id is unique across them) into a single <style> block.
-  const breakpointCss = [
-    generateBreakpointCss(pageTree),
-    generateBreakpointCss(layoutTree),
-  ]
+  // The light palette follows each block's background across widths.
+  const treeCss = (tree: BuilderNode[]): string =>
+    [generateBreakpointCss(tree), ownSurfaceCss(tree, darkPalette.own, BREAKPOINT_WIDTHS)]
+      .filter(Boolean)
+      .join('\n')
+  const breakpointCss = [treeCss(pageTree), treeCss(layoutTree)]
     .filter(Boolean)
     .join('\n')
 
@@ -432,7 +441,6 @@ export function PortalLayoutWrapper({
     [data-fk-portal-spinner] {
       animation: fk-portal-spin 0.8s linear infinite;
     }
-    ${darkPalette.css}
   `
   const buttonInteractionStyle = (
     <style dangerouslySetInnerHTML={{ __html: buttonInteractionCss }} />
@@ -480,10 +488,7 @@ export function PortalLayoutWrapper({
         runtime: true,
         identityProviders,
       })
-      const verifiedStyleCss = [
-        generateBreakpointCss(verifiedTree),
-        generateBreakpointCss(layoutTree),
-      ]
+      const verifiedStyleCss = [treeCss(verifiedTree), treeCss(layoutTree)]
         .filter(Boolean)
         .join('\n')
       const verifiedStyle = verifiedStyleCss ? (
