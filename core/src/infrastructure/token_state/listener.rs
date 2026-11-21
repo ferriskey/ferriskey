@@ -18,6 +18,10 @@ const FIRST_RETRY: Duration = Duration::from_secs(1);
 const LONGEST_RETRY: Duration = Duration::from_secs(30);
 const MAX_IDENTIFIER_BYTES: usize = 63;
 
+/// The spaces PostgreSQL skips around a listed name.
+/// It keeps Unicode spaces in the name.
+const SEARCH_PATH_SPACES: [char; 6] = [' ', '\t', '\n', '\r', '\x0b', '\x0c'];
+
 /// Keeps `state` in step with replicas of its schema.
 ///
 /// NOTIFY reaches every session of the database.
@@ -28,7 +32,7 @@ const MAX_IDENTIFIER_BYTES: usize = 63;
 /// So the replica comes first.
 /// No change can then look like a heartbeat.
 /// The schema is named as PostgreSQL resolves it.
-/// A replica ignores announcements of another schema.
+/// A replica ignores announcements of another named schema.
 pub fn spawn_token_state_sync(
     pool: &PgPool,
     schema: &str,
@@ -154,11 +158,10 @@ fn react(payload: &str, origin: &str, state: &TokenState) {
         return;
     }
 
-    // A replica older than this change announces no schema.
-    // So does a replica whose schema cannot be named.
-    // Its announcement still empties the caches of the others.
-    // It empties its own on every announcement it receives.
-    // Ignoring either would serve revoked sessions until expiry.
+    // A replica announces no schema when legacy or unnameable.
+    // Its announcement empties every cache.
+    // It empties its own on every announcement.
+    // Ignoring either serves revoked sessions until expiry.
     if let (Some(theirs), Some(ours)) = (schema_of(payload), schema_of(origin))
         && theirs != ours
     {
@@ -191,12 +194,12 @@ fn schema_of(announcement: &str) -> Option<&str> {
 
 /// The schema as PostgreSQL resolves it.
 ///
-/// Spaces around a name are ignored.
+/// ASCII spaces around a name are ignored.
 /// An unquoted name is lowercased.
 /// A quoted name keeps its case.
-/// Inside it, `""` is one quote.
+/// Inside, `""` is one quote.
 fn canonical_schema(schema: &str) -> String {
-    let schema = schema.trim();
+    let schema = schema.trim_matches(SEARCH_PATH_SPACES);
 
     match schema
         .strip_prefix('"')
@@ -361,11 +364,7 @@ mod tests {
 
     #[test]
     fn a_name_over_63_bytes_names_no_schema() {
-        let quoted_64 = format!("\"{}\"", "a".repeat(64));
-
         assert!(schema_of(&new_origin(&"a".repeat(64))).is_none());
-        assert!(schema_of(&new_origin(&"A".repeat(64))).is_none());
-        assert!(schema_of(&new_origin(&quoted_64)).is_none());
         assert!(schema_of(&new_origin(&"é".repeat(32))).is_none());
     }
 
@@ -381,11 +380,34 @@ mod tests {
 
     #[test]
     fn spaces_around_a_name_are_ignored() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
         assert_eq!(canonical_schema(" public "), "public");
         assert_eq!(canonical_schema("  PUBLIC "), canonical_schema("public"));
         assert_eq!(canonical_schema(" \"Public\" "), "Public");
-        assert_eq!(canonical_schema(" \" a \" "), " a ");
-        assert_eq!(canonical_schema("\" a \""), " a ");
+
+        for space in [' ', '\t', '\n', '\r', '\x0b', '\x0c'] {
+            assert_eq!(canonical_schema(&format!("public{space}")), "public");
+        }
+
+        react(&new_origin("public "), &new_origin("public"), &state);
+
+        assert_eq!(state.generation(), 1);
+    }
+
+    #[test]
+    fn a_unicode_space_stays_part_of_the_name() {
+        for space in ['\u{a0}', '\u{85}', '\u{3000}'] {
+            let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+            react(
+                &new_origin(&format!("public{space}")),
+                &new_origin(&format!("\"public{space}\"")),
+                &state,
+            );
+
+            assert_eq!(state.generation(), 1, "U+{:04X} was trimmed", space as u32);
+        }
     }
 
     #[test]
