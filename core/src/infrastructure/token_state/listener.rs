@@ -176,7 +176,7 @@ fn new_origin(schema: &str) -> String {
     let canonical = canonical_schema(schema);
 
     // PostgreSQL cuts a name at 63 bytes.
-    // So two longer names can reach one schema.
+    // So a longer name can reach a 63-byte schema.
     if schema.contains(',') || canonical.len() > MAX_IDENTIFIER_BYTES {
         return replica.to_string();
     }
@@ -189,12 +189,15 @@ fn schema_of(announcement: &str) -> Option<&str> {
     announcement.split_once('/').map(|(_, schema)| schema)
 }
 
-/// The schema as PostgreSQL resolves it from the search_path.
+/// The schema as PostgreSQL resolves it.
 ///
-/// An unquoted name is folded to lowercase.
+/// Spaces around a name are ignored.
+/// An unquoted name is lowercased.
 /// A quoted name keeps its case.
-/// Inside it, `""` stands for one quote.
+/// Inside it, `""` is one quote.
 fn canonical_schema(schema: &str) -> String {
+    let schema = schema.trim();
+
     match schema
         .strip_prefix('"')
         .and_then(|rest| rest.strip_suffix('"'))
@@ -358,9 +361,31 @@ mod tests {
 
     #[test]
     fn a_name_over_63_bytes_names_no_schema() {
-        assert!(schema_of(&new_origin(&"a".repeat(63))).is_some());
+        let quoted_64 = format!("\"{}\"", "a".repeat(64));
+
         assert!(schema_of(&new_origin(&"a".repeat(64))).is_none());
+        assert!(schema_of(&new_origin(&"A".repeat(64))).is_none());
+        assert!(schema_of(&new_origin(&quoted_64)).is_none());
         assert!(schema_of(&new_origin(&"é".repeat(32))).is_none());
+    }
+
+    #[test]
+    fn a_name_of_63_bytes_keeps_its_schema() {
+        let quoted_63 = format!("\"{}\"", "a".repeat(63));
+        let multibyte_63 = format!("{}a", "é".repeat(31));
+
+        assert!(schema_of(&new_origin(&"a".repeat(63))).is_some());
+        assert!(schema_of(&new_origin(&quoted_63)).is_some());
+        assert!(schema_of(&new_origin(&multibyte_63)).is_some());
+    }
+
+    #[test]
+    fn spaces_around_a_name_are_ignored() {
+        assert_eq!(canonical_schema(" public "), "public");
+        assert_eq!(canonical_schema("  PUBLIC "), canonical_schema("public"));
+        assert_eq!(canonical_schema(" \"Public\" "), "Public");
+        assert_eq!(canonical_schema(" \" a \" "), " a ");
+        assert_eq!(canonical_schema("\" a \""), " a ");
     }
 
     #[test]
@@ -375,6 +400,8 @@ mod tests {
         assert_eq!(state.generation(), 2);
     }
 
+    // A schema-less announcement empties every replica of the database.
+    // A database test sending one would empty its neighbours' caches.
     async fn replica(pool: &PgPool, schema: &str) -> Arc<TokenState> {
         let (state, feed) = TokenState::new(Duration::from_secs(60));
         let mut ready = state.subscribe();
@@ -399,8 +426,6 @@ mod tests {
         PgPool::connect(&url).await.expect("connect")
     }
 
-    // A schema-less announcement empties every replica of the database.
-    // A database test sending one would empty its neighbours' caches.
     #[tokio::test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn a_change_on_one_replica_empties_the_other() {
