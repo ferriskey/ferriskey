@@ -1599,6 +1599,49 @@ mod tests {
         });
     }
 
+    const ESSENTIAL_LEVEL_2: &str = r#"{"id_token":{"acr":{"essential":true,"values":["2"]}}}"#;
+    const PASSWORD_ONLY: &str = "UPDATE user_sessions \
+         SET authentication_factors = '[{\"factor\":\"password\",\"at\":\"2026-01-01T00:00:00Z\"}]' \
+         WHERE id = (SELECT user_session_id FROM auth_sessions WHERE code = $1)";
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn an_essential_acr_the_session_no_longer_meets_fails_the_exchange() {
+        let _serial = serial();
+        rt().block_on(async {
+            let server = make_server();
+            let sso = sign_in_with_otp(&server).await;
+            let survey =
+                survey_authorize_with(&server, Some(&sso), &[("claims", ESSENTIAL_LEVEL_2)]).await;
+            let location = location_of(&survey);
+            assert!(location.starts_with(SURVEY_REDIRECT_URI), "{location}");
+            let code = code_of(&location);
+
+            bound_session_query(PASSWORD_ONLY, &code).await;
+            let token = exchange_survey_code(&server, &code).await;
+
+            assert_eq!(token.status_code(), 400, "{}", token.text());
+            assert_eq!(token.json::<serde_json::Value>()["error"], "invalid_grant");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn a_voluntary_acr_the_session_no_longer_meets_is_asserted_as_reached() {
+        let _serial = serial();
+        rt().block_on(async {
+            let server = make_server();
+            let sso = sign_in_with_otp(&server).await;
+            let survey = survey_authorize_with(&server, Some(&sso), &[("acr_values", "2")]).await;
+            let code = code_of(&location_of(&survey));
+
+            bound_session_query(PASSWORD_ONLY, &code).await;
+            let (id_claims, _) = exchanged_claims(&server, &code).await;
+
+            assert_eq!(id_claims["acr"], "1", "{id_claims}");
+        });
+    }
+
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn an_essential_acr_the_realm_does_not_know_is_refused() {

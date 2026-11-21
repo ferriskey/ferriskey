@@ -3131,6 +3131,22 @@ where
             }
         };
 
+        // An essential `acr` is met or the request fails (OIDC Core 5.5.1.1):
+        // the session may have re-authenticated with fewer factors since.
+        if auth_session.acr_essential
+            && !auth_session.acr_request().is_satisfied_by(
+                &realm_settings.acr_loa_map,
+                LevelOfAssurance::of(&user_session.authentication_factors),
+            )
+        {
+            warn!(
+                user_id = %user_id,
+                session_id = %user_session.id,
+                "Refused a code exchange: the session no longer meets the essential acr"
+            );
+            return Err(CoreError::InvalidAuthorizationCode);
+        }
+
         let (jwt, refresh_token, id_token) = self
             .create_jwt(
                 &client_scopes,
@@ -5544,6 +5560,7 @@ where
             resource: input.resource,
             max_age: input.max_age,
             acr_values: acr_request.to_param(),
+            acr_essential: input.acr_essential,
         };
         let session = self
             .auth_session_repository
@@ -6197,9 +6214,20 @@ where
         // finalizing the auth session and returning the redirect URL back to
         // the original client, mirroring the behavior of the login handler.
         if let Some(session_code) = input.session_code
-            && let Some((auth_session, client)) = resumable
+            && let Some((mut auth_session, client)) = resumable
             && pending_step.is_none()
         {
+            // The password the user just chose is the factor of this login.
+            let password = VerifiedFactor::now(user.id, AuthenticationFactor::Password);
+            self.auth_session_repository
+                .record_verified_factor(auth_session.id, password)
+                .await
+                .map_err(|e| {
+                    warn!(user_id = %user.id, error = ?e, "Failed to record the registration password on the login");
+                    CoreError::InternalServerError
+                })?;
+            auth_session.verified_factors.push(password);
+
             let output = match self
                 .consent_gate(
                     user.id,
@@ -7127,6 +7155,7 @@ mod tests {
             resource: None,
             max_age: None,
             acr_values: None,
+            acr_essential: false,
             verified_factors: Vec::new(),
         }
     }

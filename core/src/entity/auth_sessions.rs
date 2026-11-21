@@ -42,6 +42,7 @@ pub struct Model {
     pub max_age: Option<i64>,
     pub verified_factors: Json,
     pub acr_values: Option<String>,
+    pub acr_essential: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -75,6 +76,7 @@ pub enum Column {
     MaxAge,
     VerifiedFactors,
     AcrValues,
+    AcrEssential,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -134,6 +136,7 @@ impl ColumnTrait for Column {
             Self::MaxAge => ColumnType::BigInteger.def().null(),
             Self::VerifiedFactors => ColumnType::JsonBinary.def(),
             Self::AcrValues => ColumnType::Text.def().null(),
+            Self::AcrEssential => ColumnType::Boolean.def(),
         }
     }
 }
