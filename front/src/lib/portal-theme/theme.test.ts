@@ -29,6 +29,17 @@ function surfaceCss(...tree: BuilderNode[]): string {
   return ownSurfaceCss(tree, PALETTE, WIDTHS)
 }
 
+function isBreakpoints(value: unknown): value is NonNullable<BuilderNode['breakpoints']> {
+  return value instanceof Object
+}
+
+// Saved trees come from JSON: a layer can be null.
+function savedBreakpoints(json: string): BuilderNode['breakpoints'] {
+  const saved: unknown = JSON.parse(json)
+  if (!isBreakpoints(saved)) throw new Error('breakpoints must be an object')
+  return saved
+}
+
 test('a theme without a dark palette keeps its colours', () => {
   const lightOnly = { colors: { bodyText: '#000000' } }
   assert.equal(withDarkPalette(lightOnly), lightOnly)
@@ -139,6 +150,24 @@ test('an empty breakpoint value does not clear a background, as in the generated
     )
     assert.equal(surfaceCss(container), BASE_RULE)
   }
+})
+
+test('a blank breakpoint value gives a block without background no rule', () => {
+  for (const blank of ['', '   ']) {
+    const container = block('container', {}, { breakpoints: { md: { backgroundColor: blank } } })
+    assert.equal(surfaceCss(container), '')
+  }
+})
+
+test('a null breakpoint layer is skipped, as in the generated CSS', () => {
+  const saved = savedBreakpoints('{"md": null, "lg": {"backgroundColor": "#ffffff"}}')
+  assert.equal(
+    surfaceCss(block('container', {}, { breakpoints: saved })),
+    '@media (min-width: 1024px) { [data-fk-id="b"] { APPLY } }'
+  )
+  const onlyNull = savedBreakpoints('{"md": null}')
+  const container = block('container', { backgroundColor: '#ffffff' }, { breakpoints: onlyNull })
+  assert.equal(surfaceCss(container), BASE_RULE)
 })
 
 test('swapping one visible background for another changes nothing', () => {

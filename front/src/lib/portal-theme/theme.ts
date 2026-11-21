@@ -124,7 +124,7 @@ function alphaOf(color: string): string {
 }
 
 // Blank text changes no background in the generated CSS.
-function isApplicable(color: unknown): color is string {
+function isFilled(color: unknown): color is string {
   return typeof color === 'string' && color.trim() !== ''
 }
 
@@ -148,8 +148,9 @@ function surfaceSteps(node: BuilderNode, widths: Record<string, number>): Surfac
   const layers = node.breakpoints ? Object.entries(node.breakpoints) : []
   return layers
     .flatMap(([name, props]) => {
+      if (!props || !Number.isFinite(widths[name])) return []
       const color = props.backgroundColor
-      if (!Number.isFinite(widths[name]) || !isApplicable(color)) return []
+      if (!isFilled(color)) return []
       return [{ width: widths[name], surface: isSurfaceColor(color) }]
     })
     .sort((a, b) => a.width - b.width)
@@ -163,8 +164,9 @@ function surfaceRules(
   if (!SURFACE_BLOCKS.has(node.type) || !PLAIN_ID.test(node.id)) return []
   const rule = (declarations: string): string => `[data-fk-id="${node.id}"] { ${declarations} }`
   const base = node.props.backgroundColor
-  const baseSurface = isApplicable(base) && isSurfaceColor(base)
-  // A card's breakpoint overrides never reach the generated CSS.
+  const baseSurface = isFilled(base) && isSurfaceColor(base)
+  // A card has no case in `styleForNodeWithProps` (breakpoints.ts).
+  // Its breakpoint overrides emit nothing: keep the two aligned.
   const steps = node.type === 'card' ? [] : surfaceSteps(node, widths)
   // `surfacesBefore[i]` is the state before step `i`.
   const surfacesBefore = [baseSurface, ...steps.map((step) => step.surface)]
