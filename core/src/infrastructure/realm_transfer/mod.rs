@@ -1,3 +1,4 @@
+pub mod caches;
 pub mod postgres_archive;
 mod tables;
 

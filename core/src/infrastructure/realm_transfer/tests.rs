@@ -9,6 +9,9 @@ use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::realm_transfer::bundle::{BundleHeader, BundleRealm, BundleRow};
 use crate::domain::realm_transfer::ports::{RealmArchiveRepository, RowSink, RowSource};
+use crate::domain::realm_transfer::value_objects::{ImportMode, ImportReport};
+use crate::infrastructure::client::repositories::client_postgres_repository::CLIENT_SECRET_PURPOSE;
+use crate::infrastructure::identity_provider::repositories::identity_provider_postgres_repository::IDENTITY_PROVIDER_SECRET_PURPOSE;
 use crate::infrastructure::realm::repositories::smtp_config_postgres_repository::SMTP_PASSWORD_PURPOSE;
 use crate::infrastructure::repositories::credential_repository::OTP_SECRET_PURPOSE;
 use crate::infrastructure::repositories::keystore_repository::PRIVATE_KEY_PURPOSE;
@@ -226,10 +229,19 @@ async fn import(
     target: &Instance,
     realm: &BundleRealm,
     rows: Vec<BundleRow>,
-) -> Result<crate::domain::realm_transfer::value_objects::ImportReport, CoreError> {
+) -> Result<ImportReport, CoreError> {
+    import_as(target, realm, ImportMode::Update, rows).await
+}
+
+async fn import_as(
+    target: &Instance,
+    realm: &BundleRealm,
+    mode: ImportMode,
+    rows: Vec<BundleRow>,
+) -> Result<ImportReport, CoreError> {
     target
         .archive
-        .import_rows(&header(realm), &mut Feed(rows.into_iter()))
+        .import_rows(&header(realm), mode, &mut Feed(rows.into_iter()))
         .await
 }
 
@@ -612,5 +624,186 @@ async fn a_group_of_another_realm_hanging_under_this_realm_stays_out_of_the_expo
         rows.iter()
             .filter(|row| row.table == "organization_groups")
             .all(|row| row.row["id"] != stray.to_string())
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires PostgreSQL"]
+async fn an_import_cleared_only_to_create_stops_when_the_realm_appeared_meanwhile() {
+    let source = instance(RING_A).await;
+    let target = instance(RING_B).await;
+    let seeded = seed(&source, "acme").await;
+    let rows = export(&source, &seeded.realm).await;
+    import_as(&target, &seeded.realm, ImportMode::Create, rows.clone())
+        .await
+        .expect("first import");
+
+    let refused = import_as(&target, &seeded.realm, ImportMode::Create, rows).await;
+
+    assert!(
+        matches!(refused, Err(CoreError::RealmBundleConflict(_))),
+        "{refused:?}"
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires PostgreSQL"]
+async fn a_reimport_keeps_the_events_the_target_chained_after_the_bundle() {
+    let source = instance(RING_A).await;
+    let target = instance(RING_B).await;
+    let seeded = seed(&source, "acme").await;
+    sqlx::query(
+        "INSERT INTO security_events (id, realm_id, event_type, status, timestamp, created_at, event_hash, prev_hash) \
+         VALUES ($1, $2, 'user_created', 'success', NOW(), NOW() - interval '1 hour', 'bundle-head', 'genesis')",
+    )
+    .bind(Uuid::now_v7())
+    .bind(seeded.realm.id)
+    .execute(&source.pool)
+    .await
+    .expect("source event");
+    exec(
+        &source.pool,
+        "INSERT INTO security_event_chain_heads (realm_id, event_hash, prev_hash) VALUES ($1, 'bundle-head', 'genesis')",
+        &[seeded.realm.id],
+    )
+    .await;
+    let rows = export(&source, &seeded.realm).await;
+    import(&target, &seeded.realm, rows.clone())
+        .await
+        .expect("first import");
+    let head = "SELECT event_hash FROM security_event_chain_heads WHERE realm_id = $1";
+    assert_eq!(
+        stored(&target.pool, head, seeded.realm.id).await,
+        "bundle-head"
+    );
+
+    sqlx::query(
+        "INSERT INTO security_events (id, realm_id, event_type, status, timestamp, created_at, event_hash, prev_hash) \
+         VALUES ($1, $2, 'realm_imported', 'success', NOW(), NOW(), 'target-head', 'bundle-head')",
+    )
+    .bind(Uuid::now_v7())
+    .bind(seeded.realm.id)
+    .execute(&target.pool)
+    .await
+    .expect("target event");
+    exec(
+        &target.pool,
+        "UPDATE security_event_chain_heads SET event_hash = 'target-head', prev_hash = 'bundle-head' WHERE realm_id = $1",
+        &[seeded.realm.id],
+    )
+    .await;
+    import(&target, &seeded.realm, rows)
+        .await
+        .expect("second import");
+
+    assert_eq!(
+        stored(&target.pool, head, seeded.realm.id).await,
+        "target-head"
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires PostgreSQL"]
+async fn a_realm_without_an_active_signing_key_is_not_exported() {
+    let source = instance(RING_A).await;
+    let seeded = seed(&source, "acme").await;
+    exec(
+        &source.pool,
+        "UPDATE jwt_keys SET revoked_at = NOW() WHERE id = $1",
+        &[seeded.key_id],
+    )
+    .await;
+    let realm_id = RealmId::new(seeded.realm.id);
+
+    assert!(matches!(
+        source.archive.ensure_exportable(realm_id).await,
+        Err(CoreError::RealmBundleWithoutKeys)
+    ));
+    assert!(matches!(
+        source
+            .archive
+            .export_rows(realm_id, &mut Collected::default())
+            .await,
+        Err(CoreError::RealmBundleWithoutKeys)
+    ));
+}
+
+#[tokio::test]
+#[ignore = "requires PostgreSQL"]
+async fn client_and_identity_provider_secrets_are_sealed_again_for_the_target() {
+    let source = instance(RING_A).await;
+    let target = instance(RING_B).await;
+    let seeded = seed(&source, "acme").await;
+    let client_id = Uuid::now_v7();
+    let provider_id = Uuid::now_v7();
+    let client_secret = source
+        .cipher
+        .seal(
+            CLIENT_SECRET_PURPOSE,
+            &client_id.to_string(),
+            "client-secret",
+        )
+        .unwrap();
+    let provider_secret = source
+        .cipher
+        .seal(
+            IDENTITY_PROVIDER_SECRET_PURPOSE,
+            &provider_id.to_string(),
+            "provider-secret",
+        )
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO clients (id, realm_id, client_id, name, protocol, client_type, secret) \
+         VALUES ($1, $2, 'portal', 'Portal', 'openid-connect', 'confidential', $3)",
+    )
+    .bind(client_id)
+    .bind(seeded.realm.id)
+    .bind(client_secret)
+    .execute(&source.pool)
+    .await
+    .expect("client");
+    sqlx::query(
+        "INSERT INTO identity_providers (id, realm_id, alias, provider_id, config) \
+         VALUES ($1, $2, 'upstream', 'oidc', jsonb_build_object('client_id', 'fk', 'client_secret', $3::text))",
+    )
+    .bind(provider_id)
+    .bind(seeded.realm.id)
+    .bind(provider_secret)
+    .execute(&source.pool)
+    .await
+    .expect("identity provider");
+
+    let rows = export(&source, &seeded.realm).await;
+    import(&target, &seeded.realm, rows).await.expect("import");
+
+    let client = stored(
+        &target.pool,
+        "SELECT secret FROM clients WHERE id = $1",
+        client_id,
+    )
+    .await;
+    let provider = stored(
+        &target.pool,
+        "SELECT config #>> '{client_secret}' FROM identity_providers WHERE id = $1",
+        provider_id,
+    )
+    .await;
+    assert_eq!(
+        target
+            .cipher
+            .open(CLIENT_SECRET_PURPOSE, &client_id.to_string(), &client)
+            .unwrap(),
+        "client-secret"
+    );
+    assert_eq!(
+        target
+            .cipher
+            .open(
+                IDENTITY_PROVIDER_SECRET_PURPOSE,
+                &provider_id.to_string(),
+                &provider
+            )
+            .unwrap(),
+        "provider-secret"
     );
 }

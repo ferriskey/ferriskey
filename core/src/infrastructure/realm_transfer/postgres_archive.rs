@@ -7,15 +7,37 @@ use serde_json::{Map, Value};
 use sqlx::{PgConnection, PgPool, Row};
 use uuid::Uuid;
 
-use super::tables::{SEALED_COLUMNS, TABLES, TableSpec, spec_of};
+use super::tables::{SEALED_COLUMNS, SealedColumn, TABLES, TableSpec, spec_of};
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::realm_transfer::bundle::{BundleHeader, BundleRow};
 use crate::domain::realm_transfer::ports::{RealmArchiveRepository, RowSink, RowSource};
-use crate::domain::realm_transfer::value_objects::ImportReport;
+use crate::domain::realm_transfer::value_objects::{ImportMode, ImportReport};
 use crate::infrastructure::token_state::TokenState;
 
+use super::caches::ConfigCaches;
+
 const BATCH_ROWS: usize = 500;
+// Far below the 1 GiB PostgreSQL allows for the one JSONB parameter a batch
+// is sent as, with room for a last row at the bundle's line limit.
+const BATCH_BYTES: usize = 64 * 1024 * 1024;
+
+const ACTIVE_KEYS_SQL: &str = "SELECT COUNT(*) FROM jwt_keys \
+     WHERE realm_id = $1 AND rotated_at IS NULL AND revoked_at IS NULL";
+
+// The head follows the newest event kept, so a reimport over a target that
+// already chained its own events after the bundle's does not rewind it.
+const CHAIN_HEAD_SQL: &str = r#"
+INSERT INTO security_event_chain_heads (realm_id, event_hash, prev_hash)
+SELECT $1, latest.event_hash, latest.prev_hash
+FROM (SELECT 1) AS one
+LEFT JOIN LATERAL (
+    SELECT event_hash, prev_hash FROM security_events
+    WHERE realm_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1
+) AS latest ON true
+ON CONFLICT (realm_id) DO UPDATE
+SET event_hash = EXCLUDED.event_hash, prev_hash = EXCLUDED.prev_hash, updated_at = NOW()
+"#;
 
 #[derive(Debug, Default)]
 struct TableShape {
@@ -30,6 +52,7 @@ pub struct PostgresRealmArchiveRepository {
     pool: PgPool,
     cipher: SecretCipher,
     changes: Option<Arc<TokenState>>,
+    caches: Option<ConfigCaches>,
 }
 
 impl std::fmt::Debug for PostgresRealmArchiveRepository {
@@ -47,8 +70,47 @@ fn quote(identifier: &str) -> String {
     format!("\"{}\"", identifier.replace('"', "\"\""))
 }
 
+async fn active_keys(connection: &mut PgConnection, realm_id: Uuid) -> Result<i64, CoreError> {
+    sqlx::query_scalar(ACTIVE_KEYS_SQL)
+        .bind(realm_id)
+        .fetch_one(connection)
+        .await
+        .map_err(database)
+}
+
+fn json_size(value: &Value) -> usize {
+    match value {
+        Value::String(text) => text.len() + 2,
+        Value::Array(items) => items.iter().map(json_size).sum::<usize>() + items.len() + 2,
+        Value::Object(fields) => object_size(fields),
+        _ => 8,
+    }
+}
+
+fn object_size(fields: &Map<String, Value>) -> usize {
+    fields
+        .iter()
+        .map(|(key, value)| key.len() + 4 + json_size(value))
+        .sum::<usize>()
+        + 2
+}
+
 fn row_id(row: &Map<String, Value>) -> Option<String> {
     row.get("id").and_then(Value::as_str).map(str::to_owned)
+}
+
+fn sealed_slot<'a>(
+    row: &'a mut Map<String, Value>,
+    sealed: &SealedColumn,
+) -> Option<&'a mut String> {
+    let mut slot = row.get_mut(sealed.column)?;
+    for key in sealed.path {
+        slot = slot.as_object_mut()?.get_mut(*key)?;
+    }
+    match slot {
+        Value::String(text) => Some(text),
+        _ => None,
+    }
 }
 
 fn applies(row: &Map<String, Value>, only_when: Option<(&str, &str)>) -> bool {
@@ -90,11 +152,17 @@ impl PostgresRealmArchiveRepository {
             pool,
             cipher,
             changes: None,
+            caches: None,
         }
     }
 
     pub fn announcing_changes(mut self, changes: Arc<TokenState>) -> Self {
         self.changes = Some(changes);
+        self
+    }
+
+    pub fn clearing(mut self, caches: ConfigCaches) -> Self {
+        self.caches = Some(caches);
         self
     }
 
@@ -171,20 +239,21 @@ impl PostgresRealmArchiveRepository {
             if !applies(row, sealed.only_when) {
                 continue;
             }
-            let (Some(id), Some(Value::String(stored))) = (row_id(row), row.get(sealed.column))
-            else {
+            let Some(id) = row_id(row) else {
                 continue;
             };
-            let opened = self
+            let Some(stored) = sealed_slot(row, sealed) else {
+                continue;
+            };
+            *stored = self
                 .cipher
                 .open(sealed.purpose, &id, stored)
                 .map_err(|error| {
                     CoreError::InvalidRealmBundle(format!(
                         "{table}.{} could not be opened: {error}",
-                        sealed.column
+                        sealed.label()
                     ))
                 })?;
-            row.insert(sealed.column.to_owned(), Value::String(opened));
         }
 
         if let Some((column, _)) = row
@@ -203,8 +272,10 @@ impl PostgresRealmArchiveRepository {
             if !applies(row, sealed.only_when) {
                 continue;
             }
-            let (Some(id), Some(Value::String(plain))) = (row_id(row), row.get(sealed.column))
-            else {
+            let Some(id) = row_id(row) else {
+                continue;
+            };
+            let Some(plain) = sealed_slot(row, sealed) else {
                 continue;
             };
             let id = Uuid::parse_str(&id)
@@ -212,11 +283,10 @@ impl PostgresRealmArchiveRepository {
                     CoreError::InvalidRealmBundle(format!("{table}.id is not a UUID: {error}"))
                 })?
                 .to_string();
-            let stored = self
+            *plain = self
                 .cipher
                 .seal(sealed.purpose, &id, plain)
                 .map_err(|error| CoreError::Database(error.to_string()))?;
-            row.insert(sealed.column.to_owned(), Value::String(stored));
         }
         Ok(())
     }
@@ -228,6 +298,7 @@ struct Import<'a> {
     shapes: Shapes,
     table: Option<&'static TableSpec>,
     batch: Vec<Map<String, Value>>,
+    batch_bytes: usize,
     rows: BTreeMap<String, u64>,
     ignored: BTreeSet<String>,
 }
@@ -269,6 +340,7 @@ impl Import<'_> {
         self.archive.seal_secrets(spec.name, &mut values)?;
 
         self.table = Some(spec);
+        self.batch_bytes += object_size(&values);
         self.batch.push(values);
         Ok(())
     }
@@ -278,6 +350,7 @@ impl Import<'_> {
             return Ok(());
         };
         let rows = std::mem::replace(&mut self.batch, Vec::with_capacity(BATCH_ROWS));
+        self.batch_bytes = 0;
         self.flush(spec, rows, connection).await
     }
 
@@ -360,6 +433,14 @@ impl RealmArchiveRepository for PostgresRealmArchiveRepository {
             .map_err(database)
     }
 
+    async fn ensure_exportable(&self, realm_id: RealmId) -> Result<(), CoreError> {
+        let mut connection = self.pool.acquire().await.map_err(database)?;
+        match active_keys(&mut connection, realm_id.into()).await? {
+            1 => Ok(()),
+            _ => Err(CoreError::RealmBundleWithoutKeys),
+        }
+    }
+
     async fn export_rows<K: RowSink>(
         &self,
         realm_id: RealmId,
@@ -371,6 +452,9 @@ impl RealmArchiveRepository for PostgresRealmArchiveRepository {
             .execute(&mut *tx)
             .await
             .map_err(database)?;
+        if active_keys(&mut tx, realm_id).await? != 1 {
+            return Err(CoreError::RealmBundleWithoutKeys);
+        }
         let shapes = Self::shapes(&mut tx).await?;
 
         for spec in TABLES {
@@ -403,6 +487,7 @@ impl RealmArchiveRepository for PostgresRealmArchiveRepository {
     async fn import_rows<S: RowSource>(
         &self,
         header: &BundleHeader,
+        mode: ImportMode,
         source: &mut S,
     ) -> Result<ImportReport, CoreError> {
         let realm_id = header.realm.id;
@@ -418,6 +503,11 @@ impl RealmArchiveRepository for PostgresRealmArchiveRepository {
                 .fetch_one(&mut *tx)
                 .await
                 .map_err(database)?;
+        if existed && mode == ImportMode::Create {
+            return Err(CoreError::RealmBundleConflict(
+                "the realm was created by another import while this one ran; import again to update it".to_owned(),
+            ));
+        }
 
         let mut import = Import {
             archive: self,
@@ -425,6 +515,7 @@ impl RealmArchiveRepository for PostgresRealmArchiveRepository {
             shapes: Self::shapes(&mut tx).await?,
             table: None,
             batch: Vec::with_capacity(BATCH_ROWS),
+            batch_bytes: 0,
             rows: BTreeMap::new(),
             ignored: BTreeSet::new(),
         };
@@ -434,29 +525,31 @@ impl RealmArchiveRepository for PostgresRealmArchiveRepository {
             let switching = import
                 .table
                 .is_some_and(|current| current.name != spec.name);
-            if switching || import.batch.len() == BATCH_ROWS || import.parent_is_staged(spec, &row)
-            {
+            let full = import.batch.len() == BATCH_ROWS
+                || import.batch_bytes + object_size(&row.row) > BATCH_BYTES;
+            if switching || full || import.parent_is_staged(spec, &row) {
                 import.flush_batch(&mut tx).await?;
             }
             import.stage(spec, row)?;
         }
         import.flush_batch(&mut tx).await?;
 
-        let active_keys: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM jwt_keys \
-             WHERE realm_id = $1 AND rotated_at IS NULL AND revoked_at IS NULL",
-        )
-        .bind(realm_id)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(database)?;
-        if active_keys != 1 {
+        sqlx::query(CHAIN_HEAD_SQL)
+            .bind(realm_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(database)?;
+
+        if active_keys(&mut tx, realm_id).await? != 1 {
             return Err(CoreError::RealmBundleWithoutKeys);
         }
 
         tx.commit().await.map_err(database)?;
         if let Some(changes) = &self.changes {
             changes.changed();
+        }
+        if let Some(caches) = &self.caches {
+            caches.clear();
         }
 
         Ok(ImportReport {
@@ -467,5 +560,27 @@ impl RealmArchiveRepository for PostgresRealmArchiveRepository {
             ignored_columns: import.ignored.into_iter().collect(),
             unfinished_steps: Vec::new(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::object_size;
+
+    #[test]
+    fn a_row_size_estimate_is_never_below_its_serialized_size() {
+        let row = json!({
+            "id": "0190f7a1-0000-7000-8000-000000000000",
+            "enabled": true,
+            "count": 1234567,
+            "nothing": null,
+            "tags": ["a", "bb", "ccc"],
+            "nested": { "deep": { "text": "x".repeat(4096) } },
+        });
+        let row = row.as_object().expect("an object");
+
+        assert!(object_size(row) >= serde_json::to_string(row).expect("json").len());
     }
 }

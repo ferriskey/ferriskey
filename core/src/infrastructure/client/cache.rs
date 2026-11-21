@@ -29,6 +29,19 @@ impl<R> CachedClientRepository<R> {
             by_client_id: Arc::new(TtlCache::new(ttl)),
         }
     }
+
+    pub fn caches(&self) -> ClientCaches {
+        ClientCaches(Arc::clone(&self.by_client_id))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ClientCaches(Arc<TtlCache<(Uuid, String), Client>>);
+
+impl ClientCaches {
+    pub fn clear(&self) {
+        self.0.clear();
+    }
 }
 
 impl<R: ClientRepository> ClientRepository for CachedClientRepository<R> {
