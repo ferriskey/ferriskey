@@ -12,6 +12,9 @@ use super::handlers::get_realm::{__path_get_realm, get_realm};
 use super::handlers::get_smtp_config::{__path_get_smtp_config, get_smtp_config};
 use super::handlers::get_user_realm_settings::get_user_realm_settings;
 use super::handlers::get_user_realms::{__path_get_user_realms, get_user_realms};
+use super::handlers::realm_transfer::{
+    __path_export_realm, __path_import_realm, export_realm, import_realm,
+};
 use super::handlers::resource_owners::{
     __path_get_resource_owners, __path_replace_resource_owners, get_resource_owners,
     replace_resource_owners,
@@ -26,11 +29,18 @@ use super::handlers::update_password_policy::{
 use super::handlers::update_realm::{__path_update_realm, update_realm};
 use super::handlers::update_realm_setting::{__path_update_realm_setting, update_realm_setting};
 use super::handlers::upsert_smtp_config::{__path_upsert_smtp_config, upsert_smtp_config};
+use axum::extract::Path;
 use axum::routing::{delete, get, post, put};
 use axum::{Router, middleware};
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_api_core::auth::auth;
 use utoipa::OpenApi;
+
+const IMPORT_SEGMENT: &str = "import";
+
+fn realm_named_import() -> Path<String> {
+    Path(IMPORT_SEGMENT.to_owned())
+}
 
 #[derive(OpenApi)]
 #[openapi(paths(
@@ -52,6 +62,8 @@ use utoipa::OpenApi;
     list_signing_keys,
     rotate_signing_key,
     revoke_signing_key,
+    export_realm,
+    import_realm,
 ))]
 pub struct RealmApiDoc;
 
@@ -134,6 +146,22 @@ pub fn realm_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             post(revoke_signing_key),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/export",
+                state.args.server.root_path
+            ),
+            post(export_realm),
+        )
+        .route(
+            &format!("{}/realms/{IMPORT_SEGMENT}", state.args.server.root_path),
+            post(import_realm)
+                .get(|state, identity| get_realm(realm_named_import(), state, identity))
+                .put(|state, identity, payload| {
+                    update_realm(realm_named_import(), state, identity, payload)
+                })
+                .delete(|state, identity| delete_realm(realm_named_import(), state, identity)),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .route(

@@ -2104,12 +2104,14 @@ dependencies = [
  "ferriskey-api-webhook",
  "ferriskey-core",
  "ferriskey-saml",
+ "ferriskey-security",
  "hmac 0.13.0",
  "jsonwebtoken",
  "opentelemetry",
  "opentelemetry-appender-tracing",
  "opentelemetry-otlp",
  "opentelemetry_sdk",
+ "p256",
  "regex",
  "rustls",
  "sea-orm",
@@ -2828,6 +2830,7 @@ dependencies = [
 name = "ferriskey-security"
 version = "0.10.0"
 dependencies = [
+ "argon2",
  "aws-lc-rs",
  "base64 0.23.1",
  "chrono",

@@ -85,6 +85,10 @@ pub enum SecurityEventType {
     AccountSelectionDenied,
     #[serde(rename = "device_session_created")]
     DeviceSessionCreated,
+    #[serde(rename = "realm_exported")]
+    RealmExported,
+    #[serde(rename = "realm_imported")]
+    RealmImported,
     #[serde(rename = "unknown")]
     Unknown,
 }
@@ -126,6 +130,8 @@ impl std::fmt::Display for SecurityEventType {
             Self::AccountSelected => write!(f, "account_selected"),
             Self::AccountSelectionDenied => write!(f, "account_selection_denied"),
             Self::DeviceSessionCreated => write!(f, "device_session_created"),
+            Self::RealmExported => write!(f, "realm_exported"),
+            Self::RealmImported => write!(f, "realm_imported"),
             Self::Unknown => write!(f, "unknown"),
         }
     }

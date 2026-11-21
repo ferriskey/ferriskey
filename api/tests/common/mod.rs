@@ -130,6 +130,20 @@ fn boot_sealed_blocking(secrets_encryption_keys: &str) -> TestApp {
     )
 }
 
+/// A fresh instance whose master realm is named `master`, as in production:
+/// realm creation and realm import look the master realm up by that name.
+pub async fn master_instance(secrets_encryption_keys: &str) -> TestApp {
+    TestApp::boot(
+        0,
+        false,
+        false,
+        secrets_encryption_keys,
+        RefreshTokenFormat::default(),
+        Some("master"),
+    )
+    .await
+}
+
 fn boot_with(
     config_cache_ttl_seconds: u64,
     seed_default_scopes: bool,
@@ -143,6 +157,7 @@ fn boot_with(
         trust_forwarded_for,
         secrets_encryption_keys,
         refresh_token_format,
+        None,
     );
     match tokio::runtime::Handle::try_current() {
         Ok(handle) => tokio::task::block_in_place(|| handle.block_on(boot)),
@@ -168,6 +183,7 @@ impl TestApp {
         trust_forwarded_for: bool,
         secrets_encryption_keys: &str,
         refresh_token_format: RefreshTokenFormat,
+        master_realm: Option<&str>,
     ) -> TestApp {
         let host = env_or("DATABASE_HOST", "localhost");
         let port = env_u16_or("DATABASE_PORT", 5432);
@@ -225,7 +241,9 @@ impl TestApp {
         .await
         .expect("create service");
 
-        let realm = format!("oidc-{}", Uuid::new_v4().simple());
+        let realm = master_realm
+            .map(str::to_owned)
+            .unwrap_or_else(|| format!("oidc-{}", Uuid::new_v4().simple()));
         service
             .initialize_application(StartupConfig {
                 webapp_url: "http://localhost:5555".to_string(),
@@ -306,6 +324,18 @@ impl TestApp {
             router: Mutex::new(router(state).expect("build router")),
             realm: self.realm.clone(),
             realm_id: self.realm_id,
+            pool: self.pool.clone(),
+            database: self.database.clone(),
+            config_cache_ttl_seconds: self.config_cache_ttl_seconds,
+        }
+    }
+
+    /// The same instance, with the realm helpers pointed at another realm.
+    pub fn realm_view(&self, realm: &str, realm_id: Uuid) -> TestApp {
+        TestApp {
+            router: Mutex::new(self.router.lock().expect("router mutex poisoned").clone()),
+            realm: realm.to_string(),
+            realm_id,
             pool: self.pool.clone(),
             database: self.database.clone(),
             config_cache_ttl_seconds: self.config_cache_ttl_seconds,
