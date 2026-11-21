@@ -20,7 +20,10 @@ const LONGEST_RETRY: Duration = Duration::from_secs(30);
 /// Keeps `state` in step with replicas of its schema.
 ///
 /// NOTIFY reaches every session of the database.
-/// Each announcement names its schema: `<schema>/<replica>`.
+/// Each announcement names its replica and its schema: `<replica>/<schema>`.
+/// The replica comes first.
+/// A schema can start with `ping:`.
+/// So a change never looks like a heartbeat.
 /// The schema is named as PostgreSQL resolves it.
 /// A replica ignores announcements of another schema.
 pub fn spawn_token_state_sync(
@@ -37,7 +40,7 @@ pub fn spawn_token_state_sync(
     let listening = PgPoolOptions::new()
         .max_connections(1)
         .connect_lazy_with(options);
-    let origin = format!("{}/{}", canonical_schema(schema), Uuid::new_v4());
+    let origin = new_origin(schema);
 
     tokio::spawn(publish(announcing, origin.clone(), feed));
     tokio::spawn(listen(listening, origin, state));
@@ -160,9 +163,13 @@ fn react(payload: &str, origin: &str, state: &TokenState) {
     state.changed_elsewhere();
 }
 
+fn new_origin(schema: &str) -> String {
+    format!("{}/{}", Uuid::new_v4(), canonical_schema(schema))
+}
+
 /// The schema an announcement names, if any.
 fn schema_of(announcement: &str) -> Option<&str> {
-    announcement.rsplit_once('/').map(|(schema, _)| schema)
+    announcement.split_once('/').map(|(_, schema)| schema)
 }
 
 /// The schema as PostgreSQL resolves it from the search_path.
@@ -216,8 +223,8 @@ mod tests {
         let (state, _feed) = TokenState::new(Duration::from_secs(60));
 
         react(
-            "oidc_other/another-replica",
-            "oidc_mine/this-replica",
+            "another-replica/oidc_other",
+            "this-replica/oidc_mine",
             &state,
         );
 
@@ -229,11 +236,11 @@ mod tests {
         let (state, _feed) = TokenState::new(Duration::from_secs(60));
 
         react(
-            "oidc_mine/another-replica",
-            "oidc_mine/this-replica",
+            "another-replica/oidc_mine",
+            "this-replica/oidc_mine",
             &state,
         );
-        react("another-replica", "oidc_mine/this-replica", &state);
+        react("another-replica", "this-replica/oidc_mine", &state);
 
         assert_eq!(state.generation(), 2);
     }
@@ -255,11 +262,49 @@ mod tests {
     #[test]
     fn announcements_of_two_spellings_of_one_schema_empty_the_caches() {
         let (state, _feed) = TokenState::new(Duration::from_secs(60));
-        let theirs = format!("{}/another-replica", canonical_schema("PUBLIC"));
-        let ours = format!("{}/this-replica", canonical_schema("public"));
 
-        react(&theirs, &ours, &state);
+        react(&new_origin("PUBLIC"), &new_origin("public"), &state);
 
+        assert_eq!(state.generation(), 1);
+    }
+
+    #[test]
+    fn a_change_from_a_schema_named_like_a_heartbeat_empties_the_caches() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+        react(
+            &new_origin("\"ping:tenant\""),
+            &new_origin("\"ping:tenant\""),
+            &state,
+        );
+
+        assert_eq!(state.generation(), 1);
+    }
+
+    #[test]
+    fn a_heartbeat_is_ignored_whatever_the_schema_of_its_replica() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+        let ours = new_origin("public");
+
+        for schema in ["public", "other", "\"ping:tenant\""] {
+            react(
+                &format!("{HEARTBEAT_PREFIX}{}", new_origin(schema)),
+                &ours,
+                &state,
+            );
+        }
+
+        assert_eq!(state.generation(), 0);
+    }
+
+    #[test]
+    fn a_schema_with_a_slash_is_compared_whole() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+        react(&new_origin("\"a/b\""), &new_origin("\"a\""), &state);
+        assert_eq!(state.generation(), 0);
+
+        react(&new_origin("\"a/b\""), &new_origin("\"a/b\""), &state);
         assert_eq!(state.generation(), 1);
     }
 
@@ -308,6 +353,20 @@ mod tests {
         let pool = pool().await;
         let first = replica(&pool, "public").await;
         let second = replica(&pool, "PUBLIC").await;
+        let mut watching = second.subscribe();
+        let seen = second.generation();
+
+        first.changed();
+
+        wait_past(&mut watching, seen).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_change_reaches_a_replica_whose_schema_is_named_like_a_heartbeat() {
+        let pool = pool().await;
+        let first = replica(&pool, "\"ping:tenant\"").await;
+        let second = replica(&pool, "\"ping:tenant\"").await;
         let mut watching = second.subscribe();
         let seen = second.generation();
 
