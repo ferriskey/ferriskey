@@ -33,6 +33,10 @@ use ferriskey_organization::{
     OrganizationMemberRepository, OrganizationRepository,
 };
 
+use crate::domain::authentication::assurance::{
+    AcrLoaMap, AcrRequest, AuthenticationContext, AuthenticationFactor, FactorUse,
+    LevelOfAssurance, VerifiedFactor,
+};
 use crate::domain::authentication::client_assertion::ports::ClientAssertionVerifier;
 use crate::domain::authentication::client_authentication::{
     ClientGrant, ClientProof, authenticate_client, authorize_client,
@@ -382,6 +386,7 @@ pub(crate) struct NewSession<'a> {
     pub(crate) origin: &'a SessionOrigin,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn open_or_reauthenticate_session<S, E>(
     sessions: &S,
     events: &E,
@@ -389,6 +394,7 @@ pub(crate) async fn open_or_reauthenticate_session<S, E>(
     user_id: Uuid,
     scope: &RealmScope,
     new_session: NewSession<'_>,
+    factors: &[FactorUse],
 ) -> Result<(UserSession, String), CoreError>
 where
     S: UserSessionRepository,
@@ -409,6 +415,7 @@ where
             scope,
             session_lifetime_seconds,
             persistent,
+            factors,
         )
         .await?
     {
@@ -423,13 +430,16 @@ where
         session_lifetime_seconds,
         persistent,
         origin,
+        factors,
     )
     .await
 }
 
 /// Record a fresh authentication in `candidate`: new secret, new
-/// `authenticated_at`, a lifetime restarted from now. `None` when the session
-/// is gone, revoked meanwhile, or belongs to another account.
+/// `authenticated_at`, the factors of this login, a lifetime restarted from
+/// now. `None` when the session is gone, revoked meanwhile, or belongs to
+/// another account.
+#[allow(clippy::too_many_arguments)]
 async fn reauthenticate_session<S, E>(
     sessions: &S,
     events: &E,
@@ -438,6 +448,7 @@ async fn reauthenticate_session<S, E>(
     scope: &RealmScope,
     session_lifetime_seconds: i64,
     persistent: bool,
+    factors: &[FactorUse],
 ) -> Result<Option<(UserSession, String)>, CoreError>
 where
     S: UserSessionRepository,
@@ -465,6 +476,7 @@ where
     session.authenticated_at = now;
     session.expires_at = now + session_duration;
     session.persistent = persistent;
+    session.authentication_factors = factors.to_vec();
 
     let scoped = Unscoped::new(session.clone()).in_realm(scope)?;
     match sessions.reauthenticate(&scoped).await {
@@ -628,6 +640,7 @@ where
 /// `origin` carries the browser's `user_agent` and `ip_address` when the caller
 /// has them; the logins that complete outside the credential request leave
 /// them unset.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn open_user_session<S, E>(
     sessions: &S,
     events: &E,
@@ -636,6 +649,7 @@ pub(crate) async fn open_user_session<S, E>(
     session_lifetime_seconds: i64,
     persistent: bool,
     origin: &SessionOrigin,
+    factors: &[FactorUse],
 ) -> Result<(UserSession, String), CoreError>
 where
     S: UserSessionRepository,
@@ -664,6 +678,7 @@ where
     let sso_token = generate_random_token();
     session.sso_token_hash = Some(sso_token_hash(&sso_token));
     session.persistent = persistent;
+    session.authentication_factors = factors.to_vec();
 
     sessions.create(&session).await.map_err(|e| {
         warn!(
@@ -812,6 +827,19 @@ fn temporary_token_lifetime(realm_settings: Option<&RealmSetting>) -> i64 {
     realm_settings
         .map(|s| s.temporary_token_lifetime)
         .unwrap_or(DEFAULT_TEMPORARY_TOKEN_LIFETIME)
+}
+
+/// The `acr` and `amr` a refresh asserts: the level the session reached under
+/// its built-in name, since the original request is gone.
+fn session_authentication(
+    session: Option<&UserSession>,
+    acr_loa_map: &AcrLoaMap,
+) -> Option<AuthenticationContext> {
+    AuthenticationContext::resolve(
+        &session?.authentication_factors,
+        acr_loa_map,
+        &AcrRequest::default(),
+    )
 }
 
 pub fn second_factor_verified(claims: &JwtClaim) -> bool {
@@ -1582,6 +1610,20 @@ where
             input.code_challenge_method.as_ref(),
         )?;
 
+        if input.acr_essential {
+            let acr_request = AcrRequest::parse(input.acr_values.as_deref());
+            let default_acr_loa_map = AcrLoaMap::default();
+            let acr_loa_map = scope
+                .realm()
+                .settings
+                .as_ref()
+                .map_or(&default_acr_loa_map, |settings| &settings.acr_loa_map);
+
+            if !acr_request.names_a_known_level(acr_loa_map) {
+                return Err(CoreError::UnmetAuthenticationRequirements);
+            }
+        }
+
         if let Some(resource) = input.resource.as_deref() {
             let allowed_resources = self
                 .realm_repository
@@ -1958,6 +2000,8 @@ where
             aud: access_claims.azp.clone(),
             azp: Some(access_claims.azp.clone()),
             auth_time: None,
+            acr: None,
+            amr: None,
             email: None,
             email_verified: None,
             exp: iat + id_token_lifetime,
@@ -2015,6 +2059,7 @@ where
             // Preview only — nothing is signed or persisted, so there is no session.
             session_id: None,
             auth_time: None,
+            authentication: None,
             resource: None,
         };
 
@@ -2298,6 +2343,7 @@ where
         realm_id: RealmId,
         session_lifetime_seconds: i64,
         persistent: bool,
+        factors: &[FactorUse],
     ) -> Result<(UserSession, String), CoreError> {
         open_user_session(
             self.user_session_repository.as_ref(),
@@ -2307,6 +2353,7 @@ where
             session_lifetime_seconds,
             persistent,
             &SessionOrigin::default(),
+            factors,
         )
         .await
     }
@@ -2379,6 +2426,19 @@ where
         // check it is still alive. Absent for flows that establish no session.
         claims.sid = input.session_id;
 
+        if let Some(authentication) = &input.authentication {
+            claims.additional_claims.remove("amr");
+            claims.additional_claims.insert(
+                "acr".to_string(),
+                serde_json::Value::String(authentication.acr.clone()),
+            );
+            if !authentication.amr.is_empty() {
+                claims
+                    .additional_claims
+                    .insert("amr".to_string(), serde_json::json!(authentication.amr));
+            }
+        }
+
         let jwt = encode_token_with_key(&claims, claims.exp.unwrap_or(0), &key)
             .instrument(info_span!("auth.create_jwt.sign_access"))
             .await
@@ -2400,6 +2460,18 @@ where
                     input.id_token_lifetime,
                 );
                 id_claims.auth_time = input.auth_time;
+                if let Some(authentication) = &input.authentication {
+                    id_claims.additional_claims.remove("acr");
+                    id_claims.additional_claims.remove("amr");
+                    id_claims.acr = Some(authentication.acr.clone());
+                    id_claims.amr = (!authentication.amr.is_empty()).then(|| {
+                        authentication
+                            .amr
+                            .iter()
+                            .map(|amr| amr.to_string())
+                            .collect()
+                    });
+                }
                 Some(
                     encode_token_with_key(&id_claims, id_claims.exp, &key)
                         .instrument(info_span!("auth.create_jwt.sign_id"))
@@ -2571,6 +2643,7 @@ where
             nonce: None,
             session_id: None,
             auth_time: None,
+            authentication: None,
             resource: None,
         };
 
@@ -2610,11 +2683,12 @@ where
         Ok(jwt)
     }
 
+    /// The live session a token names, if it names one.
     async fn ensure_session_binding(
         &self,
         claimed_sid: Option<Uuid>,
         realm_id: RealmId,
-    ) -> Result<(), CoreError> {
+    ) -> Result<Option<UserSession>, CoreError> {
         let session = match claimed_sid {
             Some(sid) => self
                 .user_session_repository
@@ -2628,11 +2702,24 @@ where
             None => None,
         };
 
-        validate_session_binding(claimed_sid, session.as_ref(), realm_id, Utc::now())
+        validate_session_binding(claimed_sid, session.as_ref(), realm_id, Utc::now())?;
+
+        Ok(session)
     }
 
     #[instrument(skip(self, token))]
     async fn verify_token(&self, token: String, realm_id: RealmId) -> Result<JwtClaim, CoreError> {
+        self.verify_token_and_session(token, realm_id)
+            .await
+            .map(|(claims, _)| claims)
+    }
+
+    /// [`Self::verify_token`], also handing back the session the token names.
+    async fn verify_token_and_session(
+        &self,
+        token: String,
+        realm_id: RealmId,
+    ) -> Result<(JwtClaim, Option<UserSession>), CoreError> {
         let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
 
         let kid = jsonwebtoken::decode_header(&token)
@@ -2660,7 +2747,8 @@ where
             return Err(CoreError::ExpiredToken);
         }
 
-        self.ensure_session_binding(token_data.claims.sid, realm_id)
+        let session = self
+            .ensure_session_binding(token_data.claims.sid, realm_id)
             .await?;
 
         // Enforce immediate revocation: of this token, or of all the user's tokens.
@@ -2681,7 +2769,7 @@ where
             }
         }
 
-        Ok(token_data.claims)
+        Ok((token_data.claims, session))
     }
 
     async fn refuse_login_identifier_collision(
@@ -2721,10 +2809,13 @@ where
         Ok(())
     }
 
+    /// `login` is the authorization request the step would complete: a level
+    /// it asked for and its factors do not reach yet holds the user to MFA.
     async fn resolve_pending_auth_step(
         &self,
         user: &User,
         scope: &RealmScope,
+        login: Option<&AuthSession>,
     ) -> Result<(Option<PendingAuthStep>, Vec<Role>), CoreError> {
         let credentials = self
             .credential_repository
@@ -2739,6 +2830,13 @@ where
             .map_err(|_| CoreError::InternalServerError)?;
 
         let realm_settings = self.realm_settings_of(scope).await.ok();
+        let requested_level = login.and_then(|login| {
+            let default_map = AcrLoaMap::default();
+            let map = realm_settings
+                .as_deref()
+                .map_or(&default_map, |settings| &settings.acr_loa_map);
+            login.level_still_owed(user.id, map)
+        });
 
         let pending_step = mfa_policy::pending_auth_step(
             &user.required_actions,
@@ -2748,6 +2846,7 @@ where
                 .iter()
                 .any(|credential| matches!(credential.credential_type, CredentialType::Otp)),
             credentials.iter().any(|credential| credential.temporary),
+            requested_level,
         );
 
         Ok((pending_step, user_roles))
@@ -2757,8 +2856,15 @@ where
         &self,
         token: String,
         realm_id: RealmId,
-    ) -> Result<(JwtClaim, crate::domain::jwt::entities::RefreshToken), CoreError> {
-        let claims = self.verify_token(token, realm_id).await?;
+    ) -> Result<
+        (
+            JwtClaim,
+            crate::domain::jwt::entities::RefreshToken,
+            Option<UserSession>,
+        ),
+        CoreError,
+    > {
+        let (claims, session) = self.verify_token_and_session(token, realm_id).await?;
 
         let refresh_token = self
             .refresh_token_repository
@@ -2775,7 +2881,7 @@ where
             return Err(CoreError::ExpiredToken);
         }
 
-        Ok((claims, refresh_token))
+        Ok((claims, refresh_token, session))
     }
 
     /// Resolve the final scope string for a given client and requested scope.
@@ -2977,8 +3083,9 @@ where
             return Err(CoreError::UserDisabled);
         }
 
-        let (pending_step, user_roles) =
-            self.resolve_pending_auth_step(&user, &params.realm).await?;
+        let (pending_step, user_roles) = self
+            .resolve_pending_auth_step(&user, &params.realm, None)
+            .await?;
 
         if let Err(error) = refuse_token_issuance_when_actions_pending(pending_step.as_ref()) {
             warn!(
@@ -3012,11 +3119,33 @@ where
         let user_session = match bound_session {
             Some(session) => session,
             None => {
-                self.create_user_session(user.id, params.realm.id(), lifetimes.refresh_token, false)
-                    .await?
-                    .0
+                self.create_user_session(
+                    user.id,
+                    params.realm.id(),
+                    lifetimes.refresh_token,
+                    false,
+                    &auth_session.factors_of(user.id),
+                )
+                .await?
+                .0
             }
         };
+
+        // An essential `acr` is met or the request fails (OIDC Core 5.5.1.1):
+        // the session may have re-authenticated with fewer factors since.
+        if auth_session.acr_essential
+            && !auth_session.acr_request().is_satisfied_by(
+                &realm_settings.acr_loa_map,
+                LevelOfAssurance::of(&user_session.authentication_factors),
+            )
+        {
+            warn!(
+                user_id = %user_id,
+                session_id = %user_session.id,
+                "Refused a code exchange: the session no longer meets the essential acr"
+            );
+            return Err(CoreError::InvalidAuthorizationCode);
+        }
 
         let (jwt, refresh_token, id_token) = self
             .create_jwt(
@@ -3040,6 +3169,11 @@ where
                     nonce: auth_session.nonce.clone(),
                     session_id: Some(user_session.id),
                     auth_time: Some(user_session.authenticated_at.timestamp()),
+                    authentication: AuthenticationContext::resolve(
+                        &user_session.authentication_factors,
+                        &realm_settings.acr_loa_map,
+                        &auth_session.acr_request(),
+                    ),
                     resource,
                 },
             )
@@ -3220,6 +3354,7 @@ where
                     // Machine-to-machine: no user is present, so no SSO session exists.
                     session_id: None,
                     auth_time: None,
+                    authentication: None,
                     resource,
                 },
                 id_token,
@@ -3334,6 +3469,7 @@ where
         client: &'c Client,
         username: &str,
         password: &str,
+        requested_level: Option<LevelOfAssurance>,
     ) -> Result<VerifiedLogin<'c>, CoreError> {
         let realm_id = scope.id();
         let settings = self.realm_settings_of(scope).await.ok();
@@ -3423,7 +3559,7 @@ where
             .get_user_roles(context.user.id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
-        let pending_step = context.pending_step(settings, &roles);
+        let pending_step = context.pending_step(settings, &roles, requested_level);
 
         Ok(VerifiedLogin {
             context,
@@ -3541,7 +3677,7 @@ where
             .await?;
 
         let login = self
-            .verify_login(&params.realm, &client, &username, &password)
+            .verify_login(&params.realm, &client, &username, &password, None)
             .instrument(info_span!("auth.password.verify_login"))
             .await
             .map_err(|error| match error {
@@ -3575,8 +3711,20 @@ where
         let lifetimes = TokenLifetimes::resolve(realm_settings, &client);
 
         let (user_session, _) = self
-            .create_user_session(user.id, params.realm.id(), lifetimes.refresh_token, false)
+            .create_user_session(
+                user.id,
+                params.realm.id(),
+                lifetimes.refresh_token,
+                false,
+                &[FactorUse::now(AuthenticationFactor::Password)],
+            )
             .await?;
+
+        let authentication = AuthenticationContext::resolve(
+            &user_session.authentication_factors,
+            &realm_settings.acr_loa_map,
+            &AcrRequest::default(),
+        );
 
         let (jwt, refresh_token, id_token) = self
             .create_jwt(
@@ -3600,6 +3748,7 @@ where
                     nonce: None,
                     session_id: Some(user_session.id),
                     auth_time: Some(user_session.authenticated_at.timestamp()),
+                    authentication,
                     resource,
                 },
             )
@@ -3717,18 +3866,18 @@ where
         };
         let family_id = consumed.family_id;
 
-        match self
+        let session = match self
             .ensure_session_binding(consumed.session_id, params.realm.id())
             .await
         {
-            Ok(()) => {}
+            Ok(session) => session,
             Err(error @ CoreError::SessionRevoked) => {
                 return Err(self
                     .revoke_family_then(family_id, revoked_session_is_an_invalid_grant(error))
                     .await);
             }
             Err(error) => return Err(error),
-        }
+        };
 
         let resource = match effective_refresh_resource(
             consumed.resource.as_deref(),
@@ -3772,6 +3921,8 @@ where
             .await
             .unwrap_or_default();
 
+        let authentication = session_authentication(session.as_ref(), &settings.acr_loa_map);
+
         let (jwt, refresh_token, id_token) = self
             .mint_token_set(
                 &client_scopes,
@@ -3794,6 +3945,7 @@ where
                     nonce: None,
                     session_id: consumed.session_id,
                     auth_time: None,
+                    authentication,
                     resource,
                 },
                 plan,
@@ -3817,7 +3969,7 @@ where
         token_str: String,
         params: GrantTypeParams,
     ) -> Result<JwtToken, CoreError> {
-        let (claims, stored) = self
+        let (claims, stored, session) = self
             .verify_refresh_token(token_str, params.realm.id())
             .await
             .map_err(revoked_session_is_an_invalid_grant)?;
@@ -3883,6 +4035,7 @@ where
             .unwrap_or_default();
 
         let plan = RefreshPlan::new(self.refresh_token_format, lifetimes.refresh_token)?;
+        let authentication = session_authentication(session.as_ref(), &settings.acr_loa_map);
 
         let outcome = self
             .refresh_token_repository
@@ -3937,6 +4090,7 @@ where
                             nonce: None,
                             session_id: claims.sid,
                             auth_time: None,
+                            authentication,
                             resource,
                         },
                         plan,
@@ -4040,7 +4194,7 @@ where
     async fn determine_next_step(
         &self,
         auth_result: AuthenticationResult,
-        auth_session: AuthSession,
+        mut auth_session: AuthSession,
         params: &CredentialsAuthParams,
         client: &Client,
         origin: SessionOrigin,
@@ -4049,8 +4203,11 @@ where
         let session_code = params.session_code;
         let webapp_base_url = params.webapp_base_url.as_str();
         let flow_id = auth_session.compass_flow_id.map(FlowId);
+        let password = VerifiedFactor::now(auth_result.user_id, AuthenticationFactor::Password);
+        auth_session.verified_factors.push(password);
 
         if !auth_result.required_actions.is_empty() {
+            self.keep_for_next_step(session_code, password).await?;
             return Ok(AuthenticateOutput::requires_actions(
                 auth_result.user_id,
                 auth_result.required_actions,
@@ -4063,6 +4220,7 @@ where
         if has_otp_credentials {
             // No step here: the challenge is only being handed to the user. Whether
             // they pass it is decided in `challenge_otp`, which records the outcome.
+            self.keep_for_next_step(session_code, password).await?;
             let token = auth_result.token.ok_or(CoreError::InternalServerError)?;
             let email = self
                 .user_repository
@@ -4095,6 +4253,7 @@ where
             )
             .await?
         {
+            self.keep_for_next_step(session_code, password).await?;
             return Ok(output);
         }
 
@@ -4110,6 +4269,22 @@ where
             client,
         )
         .await
+    }
+
+    /// Persist a factor for the step that will finish the login. A login
+    /// finished in the same request hands it to its session directly.
+    async fn keep_for_next_step(
+        &self,
+        session_code: Uuid,
+        factor: VerifiedFactor,
+    ) -> Result<(), CoreError> {
+        self.auth_session_repository
+            .record_verified_factor(session_code, factor)
+            .await
+            .map_err(|e| {
+                warn!(error = ?e, "Failed to record a factor on the login");
+                CoreError::InternalServerError
+            })
     }
 
     async fn consent_scope_view(
@@ -4471,6 +4646,7 @@ where
                         persistent,
                         origin: &origin,
                     },
+                    &auth_session.factors_of(user_id),
                 )
                 .await?;
                 (session, Some(cookie))
@@ -4527,7 +4703,12 @@ where
         password: &str,
         base_url: &str,
     ) -> Result<AuthenticationResult, CoreError> {
-        let login = self.verify_login(scope, client, username, password).await?;
+        let requested_level = auth_session
+            .acr_request()
+            .required_level(&self.realm_settings_of(scope).await?.acr_loa_map);
+        let login = self
+            .verify_login(scope, client, username, password, requested_level)
+            .await?;
         let user_id = login.context.user.id;
 
         if !login.otp_challenge_follows() && login.context.user.needs_lockout_reset() {
@@ -4636,6 +4817,7 @@ where
         session: Scoped<UserSession>,
         scope: &RealmScope,
         max_age: Option<i64>,
+        acr_request: &AcrRequest,
         client_id: Uuid,
     ) -> Result<(Scoped<UserSession>, User, Client), CoreError> {
         let realm_id = scope.id();
@@ -4659,6 +4841,20 @@ where
             .await?;
 
         let realm_settings = self.realm_repository.get_realm_settings(realm_id).await?;
+
+        let default_acr_loa_map = AcrLoaMap::default();
+        let acr_loa_map = realm_settings
+            .as_ref()
+            .map_or(&default_acr_loa_map, |settings| &settings.acr_loa_map);
+        let session_level = LevelOfAssurance::of(&session.get().authentication_factors);
+        if !acr_request.is_satisfied_by(acr_loa_map, session_level) {
+            info!(
+                session_id = %session.get().id,
+                level = ?session_level,
+                "The SSO session is below the requested acr: the login must step up"
+            );
+            return Err(CoreError::ReauthenticationRequired);
+        }
 
         let user_roles = self
             .user_role_repository
@@ -4708,7 +4904,13 @@ where
 
         let session = self.find_sso_session(&cookie, &scope).await?;
         let (session, user, client) = self
-            .resumable_session(session, &scope, max_age, auth_session.client_id)
+            .resumable_session(
+                session,
+                &scope,
+                max_age,
+                &auth_session.acr_request(),
+                auth_session.client_id,
+            )
             .await?;
         let user_session_id = session.get().id;
 
@@ -4974,7 +5176,7 @@ where
             .ensure_session_binding(stored.session_id, scope.id())
             .await
         {
-            Ok(()) => {}
+            Ok(_) => {}
             Err(CoreError::SessionRevoked) => return Ok(inactive),
             Err(error) => return Err(error),
         }
@@ -5335,6 +5537,7 @@ where
             input.user_agent.clone(),
         );
 
+        let acr_request = AcrRequest::parse(input.acr_values.as_deref());
         let params = AuthSessionParams {
             realm_id: scope.id(),
             client_id: client.id,
@@ -5356,6 +5559,8 @@ where
             issuer: input.issuer,
             resource: input.resource,
             max_age: input.max_age,
+            acr_values: acr_request.to_param(),
+            acr_essential: input.acr_essential,
         };
         let session = self
             .auth_session_repository
@@ -5995,16 +6200,34 @@ where
             .map_err(|err| warn!("Failed to notify UserCreated webhook: {}", err))
             .ok();
 
-        let pending_step = self.resolve_pending_auth_step(&user, &scope).await?.0;
+        let pending_step = self
+            .resolve_pending_auth_step(
+                &user,
+                &scope,
+                resumable.as_ref().map(|(auth_session, _)| auth_session),
+            )
+            .await?
+            .0;
 
         // If the registration happened inside an active OIDC authorization flow
         // (a FERRISKEY_SESSION cookie was present), resume that flow by
         // finalizing the auth session and returning the redirect URL back to
         // the original client, mirroring the behavior of the login handler.
         if let Some(session_code) = input.session_code
-            && let Some((auth_session, client)) = resumable
+            && let Some((mut auth_session, client)) = resumable
             && pending_step.is_none()
         {
+            // The password the user just chose is the factor of this login.
+            let password = VerifiedFactor::now(user.id, AuthenticationFactor::Password);
+            self.auth_session_repository
+                .record_verified_factor(auth_session.id, password)
+                .await
+                .map_err(|e| {
+                    warn!(user_id = %user.id, error = ?e, "Failed to record the registration password on the login");
+                    CoreError::InternalServerError
+                })?;
+            auth_session.verified_factors.push(password);
+
             let output = match self
                 .consent_gate(
                     user.id,
@@ -6175,7 +6398,7 @@ where
                 .map_err(|_| CoreError::InternalServerError)?;
 
             match self.ensure_session_binding(claims.sid, scope.id()).await {
-                Ok(()) => {}
+                Ok(_) => {}
                 Err(CoreError::SessionRevoked) => return Ok(inactive),
                 Err(error) => return Err(error),
             }
@@ -6206,7 +6429,7 @@ where
             || claims.typ == ClaimsTyp::Refresh
         {
             claims = match self.verify_refresh_token(token, scope.id()).await {
-                Ok((c, stored)) if stored.status.is_active() => c,
+                Ok((c, stored, _)) if stored.status.is_active() => c,
                 _ => return Ok(inactive),
             };
         }
@@ -6520,8 +6743,9 @@ where
             return Err(CoreError::Forbidden("account is disabled".to_string()));
         }
 
-        let (pending_step, user_roles) =
-            self.resolve_pending_auth_step(&user, &realm_scope).await?;
+        let (pending_step, user_roles) = self
+            .resolve_pending_auth_step(&user, &realm_scope, None)
+            .await?;
 
         if let Err(error) = refuse_token_issuance_when_step_pending(pending_step.as_ref()) {
             warn!(
@@ -6549,7 +6773,13 @@ where
         }
 
         let (user_session, _) = self
-            .create_user_session(user.id, realm_scope.id(), lifetimes.refresh_token, false)
+            .create_user_session(
+                user.id,
+                realm_scope.id(),
+                lifetimes.refresh_token,
+                false,
+                &[],
+            )
             .await?;
 
         if let Some(client) = client {
@@ -6580,6 +6810,7 @@ where
                         nonce: None,
                         session_id: Some(user_session.id),
                         auth_time: Some(user_session.authenticated_at.timestamp()),
+                        authentication: None,
                         resource: None,
                     },
                 )
@@ -6923,6 +7154,9 @@ mod tests {
             issuer: None,
             resource: None,
             max_age: None,
+            acr_values: None,
+            acr_essential: false,
+            verified_factors: Vec::new(),
         }
     }
 
@@ -7842,6 +8076,7 @@ mod tests {
             persistent: false,
             authenticated_at: chrono::Utc::now(),
             device_session_id: None,
+            authentication_factors: Vec::new(),
         }
     }
 
@@ -7982,6 +8217,7 @@ mod tests {
             &[role(false)],
             has_otp_credential,
             has_temporary_password,
+            None,
         )
     }
 
@@ -8019,7 +8255,7 @@ mod tests {
 
     #[test]
     fn a_direct_grant_is_refused_when_a_role_mandates_mfa_enrolment() {
-        let pending = pending_auth_step(&[], None, &[role(true)], false, false);
+        let pending = pending_auth_step(&[], None, &[role(true)], false, false, None);
 
         assert!(matches!(
             refuse_token_issuance_when_step_pending(pending.as_ref()),
@@ -8504,6 +8740,7 @@ mod bound_session_tests {
             persistent: false,
             authenticated_at: chrono::Utc::now(),
             device_session_id: None,
+            authentication_factors: Vec::new(),
         }
     }
 
@@ -8642,6 +8879,7 @@ mod bound_session_tests {
                 persistent: true,
                 origin: &SessionOrigin::default(),
             },
+            &[],
         )
         .await
         .expect("re-authentication succeeds");
@@ -8686,6 +8924,7 @@ mod bound_session_tests {
                 persistent: false,
                 origin: &SessionOrigin::default(),
             },
+            &[],
         )
         .await
         .expect("a new session opens");
@@ -8723,6 +8962,7 @@ mod bound_session_tests {
                 persistent: false,
                 origin: &SessionOrigin::default(),
             },
+            &[],
         )
         .await
         .expect("the login still completes into a new session");
@@ -8755,6 +8995,7 @@ mod bound_session_tests {
             3600,
             false,
             &origin,
+            &[],
         )
         .await
         .expect("the session opens");
@@ -8784,6 +9025,7 @@ mod bound_session_tests {
             3600,
             false,
             &SessionOrigin::default(),
+            &[],
         )
         .await;
 

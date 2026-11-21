@@ -1,3 +1,4 @@
+use ferriskey_domain::authentication::assurance::LevelOfAssurance;
 use ferriskey_domain::user::entities::RequiredAction;
 use ferriskey_domain::{realm::RealmSetting, role::entities::Role};
 
@@ -30,12 +31,15 @@ pub enum PendingAuthStep {
     OtpChallenge,
 }
 
+/// `requested_level` is the level the client asked this login to reach: a
+/// multi-factor request holds the user to MFA like the realm or a role would.
 pub fn pending_auth_step(
     persisted_actions: &[RequiredAction],
     settings: Option<&RealmSetting>,
     roles: &[Role],
     has_otp_credential: bool,
     has_temporary_password: bool,
+    requested_level: Option<LevelOfAssurance>,
 ) -> Option<PendingAuthStep> {
     let mut effective = persisted_actions.to_vec();
 
@@ -43,8 +47,11 @@ pub fn pending_auth_step(
         effective.push(RequiredAction::UpdatePassword);
     }
 
+    let mfa_required = user_requires_mfa(settings, roles)
+        || requested_level == Some(LevelOfAssurance::MultiFactor);
+
     if !has_temporary_password
-        && user_requires_mfa(settings, roles)
+        && mfa_required
         && let Some(action) = required_action_for_mfa(has_otp_credential)
         && !effective.contains(&action)
     {
@@ -143,7 +150,7 @@ mod tests {
         let settings = make_realm_setting(false);
         let role = make_role(false);
         assert_eq!(
-            pending_auth_step(&[], Some(&settings), &[role], false, false),
+            pending_auth_step(&[], Some(&settings), &[role], false, false, None),
             None
         );
     }
@@ -153,7 +160,7 @@ mod tests {
         let settings = make_realm_setting(false);
         let role = make_role(false);
         assert_eq!(
-            pending_auth_step(&[], Some(&settings), &[role], true, false),
+            pending_auth_step(&[], Some(&settings), &[role], true, false, None),
             Some(PendingAuthStep::OtpChallenge)
         );
     }
@@ -168,7 +175,8 @@ mod tests {
                 Some(&settings),
                 &[role],
                 true,
-                false
+                false,
+                None
             ),
             Some(PendingAuthStep::RequiredActions(vec![
                 RequiredAction::UpdatePassword
@@ -181,10 +189,44 @@ mod tests {
         let settings = make_realm_setting(true);
         let role = make_role(false);
         assert_eq!(
-            pending_auth_step(&[], Some(&settings), &[role], false, false),
+            pending_auth_step(&[], Some(&settings), &[role], false, false, None),
             Some(PendingAuthStep::RequiredActions(vec![
                 RequiredAction::ConfigureOtp
             ]))
+        );
+    }
+
+    #[test]
+    fn a_multi_factor_request_demands_enrolment_like_a_realm_policy() {
+        let settings = make_realm_setting(false);
+        assert_eq!(
+            pending_auth_step(
+                &[],
+                Some(&settings),
+                &[],
+                false,
+                false,
+                Some(LevelOfAssurance::MultiFactor)
+            ),
+            Some(PendingAuthStep::RequiredActions(vec![
+                RequiredAction::ConfigureOtp
+            ]))
+        );
+    }
+
+    #[test]
+    fn a_single_factor_request_adds_no_step() {
+        let settings = make_realm_setting(false);
+        assert_eq!(
+            pending_auth_step(
+                &[],
+                Some(&settings),
+                &[],
+                false,
+                false,
+                Some(LevelOfAssurance::SingleFactor)
+            ),
+            None
         );
     }
 
@@ -193,7 +235,7 @@ mod tests {
         let settings = make_realm_setting(false);
         let role = make_role(true);
         assert_eq!(
-            pending_auth_step(&[], Some(&settings), &[role], false, false),
+            pending_auth_step(&[], Some(&settings), &[role], false, false, None),
             Some(PendingAuthStep::RequiredActions(vec![
                 RequiredAction::ConfigureOtp
             ]))
@@ -210,7 +252,8 @@ mod tests {
                 Some(&settings),
                 &[role],
                 false,
-                true
+                true,
+                None
             ),
             Some(PendingAuthStep::RequiredActions(vec![
                 RequiredAction::UpdatePassword
@@ -228,7 +271,8 @@ mod tests {
                 Some(&settings),
                 &[role],
                 false,
-                false
+                false,
+                None
             ),
             Some(PendingAuthStep::RequiredActions(vec![
                 RequiredAction::ConfigureOtp
@@ -240,7 +284,7 @@ mod tests {
     fn a_realm_without_settings_still_honours_role_level_mfa() {
         let role = make_role(true);
         assert_eq!(
-            pending_auth_step(&[], None, &[role], false, false),
+            pending_auth_step(&[], None, &[role], false, false, None),
             Some(PendingAuthStep::RequiredActions(vec![
                 RequiredAction::ConfigureOtp
             ]))
@@ -252,7 +296,7 @@ mod tests {
         let settings = make_realm_setting(false);
         let role = make_role(false);
         assert_eq!(
-            pending_auth_step(&[], Some(&settings), &[role], false, true),
+            pending_auth_step(&[], Some(&settings), &[role], false, true, None),
             Some(PendingAuthStep::RequiredActions(vec![
                 RequiredAction::UpdatePassword
             ]))
@@ -269,7 +313,8 @@ mod tests {
                 Some(&settings),
                 &[role],
                 false,
-                true
+                true,
+                None
             ),
             Some(PendingAuthStep::RequiredActions(vec![
                 RequiredAction::UpdatePassword

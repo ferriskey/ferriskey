@@ -6,7 +6,8 @@ use uuid::Uuid;
 
 use crate::common::app_errors::CoreError;
 use crate::device_session::entities::{
-    AccountEntry, DeviceSession, DeviceSessionError, SelectedAccount, display_name, mask_email,
+    AccountEntry, DeviceSession, DeviceSessionError, ResumeRequirements, SelectedAccount,
+    display_name, mask_email,
 };
 use crate::device_session::ports::{
     AccountChooserService, DeviceSessionRepository, SessionResumptionPort,
@@ -229,7 +230,7 @@ where
         device_token: Option<&str>,
         scope: &RealmScope,
         active_sso_token: Option<&str>,
-        max_age: Option<i64>,
+        requirements: ResumeRequirements,
         client_id: Uuid,
     ) -> Result<Vec<AccountEntry>, CoreError> {
         let settings = self
@@ -277,7 +278,7 @@ where
 
             let requires_reauthentication = match self
                 .resumption
-                .resumable_session(scope, session, max_age, client_id)
+                .resumable_session(scope, session, requirements.clone(), client_id)
                 .await
             {
                 Ok((_, user)) => user.is_locked(Utc::now()),
@@ -335,7 +336,7 @@ where
         device_token: Option<&str>,
         scope: &RealmScope,
         session_id: Uuid,
-        max_age: Option<i64>,
+        requirements: ResumeRequirements,
         client_id: Uuid,
     ) -> Result<SelectedAccount, CoreError> {
         let (device_id, session) = self
@@ -350,7 +351,7 @@ where
 
         let (session, user) = self
             .resumption
-            .resumable_session(scope, session, max_age, client_id)
+            .resumable_session(scope, session, requirements, client_id)
             .await?;
 
         if user.is_locked(Utc::now()) {
@@ -402,6 +403,7 @@ mod tests {
     use chrono::Duration;
 
     use super::*;
+    use crate::authentication::assurance::AcrRequest;
     use crate::device_session::ports::{MockDeviceSessionRepository, MockSessionResumptionPort};
     use crate::realm::ports::MockRealmRepository;
     use crate::realm::{Realm, RealmId, RealmSetting};
@@ -564,7 +566,13 @@ mod tests {
 
     async fn list(service: &Service, scope: &RealmScope, token: Option<&str>) -> Vec<AccountEntry> {
         service
-            .list_entries(token, scope, None, None, Uuid::new_v4())
+            .list_entries(
+                token,
+                scope,
+                None,
+                ResumeRequirements::default(),
+                Uuid::new_v4(),
+            )
             .await
             .expect("listing must not fail")
     }
@@ -742,7 +750,7 @@ mod tests {
                 Some(TOKEN),
                 &scope,
                 Some("active-secret"),
-                None,
+                ResumeRequirements::default(),
                 Uuid::new_v4(),
             )
             .await
@@ -807,7 +815,7 @@ mod tests {
                 Some(TOKEN),
                 &scope,
                 Some("active-secret"),
-                None,
+                ResumeRequirements::default(),
                 Uuid::new_v4(),
             )
             .await
@@ -898,7 +906,13 @@ mod tests {
         );
 
         let result = service
-            .list_entries(Some(TOKEN), &scope, None, None, Uuid::new_v4())
+            .list_entries(
+                Some(TOKEN),
+                &scope,
+                None,
+                ResumeRequirements::default(),
+                Uuid::new_v4(),
+            )
             .await;
 
         assert!(matches!(result, Err(CoreError::InvalidClient)));
@@ -963,7 +977,13 @@ mod tests {
         let service = selecting(&scope, target.clone(), Ok(()), sessions);
 
         let selected = service
-            .select_entry(Some(TOKEN), &scope, target_id, None, Uuid::new_v4())
+            .select_entry(
+                Some(TOKEN),
+                &scope,
+                target_id,
+                ResumeRequirements::default(),
+                Uuid::new_v4(),
+            )
             .await
             .expect("a resumable entry must be selectable");
 
@@ -988,7 +1008,13 @@ mod tests {
         let service = selecting(&scope, target, Ok(()), sessions);
 
         let selected = service
-            .select_entry(Some(TOKEN), &scope, target_id, None, Uuid::new_v4())
+            .select_entry(
+                Some(TOKEN),
+                &scope,
+                target_id,
+                ResumeRequirements::default(),
+                Uuid::new_v4(),
+            )
             .await
             .expect("a resumable entry must be selectable");
 
@@ -1004,7 +1030,13 @@ mod tests {
         let service = selecting(&scope, target, Err(reason), sessions);
 
         service
-            .select_entry(Some(TOKEN), &scope, target_id, Some(60), Uuid::new_v4())
+            .select_entry(
+                Some(TOKEN),
+                &scope,
+                target_id,
+                ResumeRequirements::new(Some(60), Default::default()),
+                Uuid::new_v4(),
+            )
             .await
             .expect_err("a refused selection must not succeed")
     }
@@ -1043,7 +1075,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn select_passes_max_age_and_client_to_the_guard() {
+    async fn select_passes_max_age_acr_and_client_to_the_guard() {
         let scope = scope();
         let target = session(&scope, Uuid::new_v4());
         let target_id = target.id;
@@ -1051,8 +1083,11 @@ mod tests {
         let mut port = resumption();
         port.expect_resumable_session()
             .times(1)
-            .withf(move |_, session, max_age, client| {
-                session.get().id == target_id && *max_age == Some(30) && *client == client_id
+            .withf(move |_, session, requirements, client| {
+                session.get().id == target_id
+                    && *requirements
+                        == ResumeRequirements::new(Some(30), AcrRequest::parse(Some("2")))
+                    && *client == client_id
             })
             .returning(|_, _, _, _| Box::pin(async { Err(CoreError::ReauthenticationRequired) }));
         let service = service(
@@ -1064,7 +1099,13 @@ mod tests {
         );
 
         let result = service
-            .select_entry(Some(TOKEN), &scope, target_id, Some(30), client_id)
+            .select_entry(
+                Some(TOKEN),
+                &scope,
+                target_id,
+                ResumeRequirements::new(Some(30), AcrRequest::parse(Some("2"))),
+                client_id,
+            )
             .await;
 
         assert!(matches!(result, Err(CoreError::ReauthenticationRequired)));
@@ -1081,7 +1122,13 @@ mod tests {
         );
 
         let result = service
-            .select_entry(Some(TOKEN), &scope, Uuid::new_v4(), None, Uuid::new_v4())
+            .select_entry(
+                Some(TOKEN),
+                &scope,
+                Uuid::new_v4(),
+                ResumeRequirements::default(),
+                Uuid::new_v4(),
+            )
             .await;
 
         assert!(matches!(result, Err(CoreError::DeviceSessionNotFound)));
@@ -1095,10 +1142,22 @@ mod tests {
         let service = selecting(&scope, target, Ok(()), MockUserSessionRepository::new());
 
         let forged = service
-            .select_entry(Some("forged"), &scope, target_id, None, Uuid::new_v4())
+            .select_entry(
+                Some("forged"),
+                &scope,
+                target_id,
+                ResumeRequirements::default(),
+                Uuid::new_v4(),
+            )
             .await;
         let absent = service
-            .select_entry(None, &scope, target_id, None, Uuid::new_v4())
+            .select_entry(
+                None,
+                &scope,
+                target_id,
+                ResumeRequirements::default(),
+                Uuid::new_v4(),
+            )
             .await;
 
         assert!(matches!(forged, Err(CoreError::DeviceSessionNotFound)));
@@ -1122,7 +1181,13 @@ mod tests {
         );
 
         let result = service
-            .select_entry(Some(TOKEN), &scope, target_id, None, Uuid::new_v4())
+            .select_entry(
+                Some(TOKEN),
+                &scope,
+                target_id,
+                ResumeRequirements::default(),
+                Uuid::new_v4(),
+            )
             .await;
 
         assert!(matches!(result, Err(CoreError::SessionNotFound)));
@@ -1216,7 +1281,13 @@ mod tests {
         );
 
         service
-            .select_entry(Some(TOKEN), &scope, target_id, None, Uuid::new_v4())
+            .select_entry(
+                Some(TOKEN),
+                &scope,
+                target_id,
+                ResumeRequirements::default(),
+                Uuid::new_v4(),
+            )
             .await
             .expect("selection must succeed");
     }
@@ -1234,7 +1305,13 @@ mod tests {
         let service = selecting(&scope, target, Ok(()), sessions);
 
         let result = service
-            .select_entry(Some(TOKEN), &scope, target_id, None, Uuid::new_v4())
+            .select_entry(
+                Some(TOKEN),
+                &scope,
+                target_id,
+                ResumeRequirements::default(),
+                Uuid::new_v4(),
+            )
             .await;
 
         assert!(matches!(result, Err(CoreError::SessionNotFound)));
@@ -1268,7 +1345,13 @@ mod tests {
         );
 
         let result = service
-            .select_entry(Some(TOKEN), &scope, target_id, None, Uuid::new_v4())
+            .select_entry(
+                Some(TOKEN),
+                &scope,
+                target_id,
+                ResumeRequirements::default(),
+                Uuid::new_v4(),
+            )
             .await;
 
         assert!(matches!(result, Err(CoreError::AccountLocked)));
@@ -1297,7 +1380,13 @@ mod tests {
             );
 
             let result = service
-                .list_entries(Some(TOKEN), &scope, None, None, Uuid::new_v4())
+                .list_entries(
+                    Some(TOKEN),
+                    &scope,
+                    None,
+                    ResumeRequirements::default(),
+                    Uuid::new_v4(),
+                )
                 .await;
 
             match (listed, result) {

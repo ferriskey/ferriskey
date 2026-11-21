@@ -1,6 +1,7 @@
 use uuid::Uuid;
 
 use crate::auth::Identity;
+use crate::authentication::assurance::AcrLoaMap;
 use crate::common::app_errors::CoreError;
 use crate::common::locale::SupportedLocales;
 use crate::common::pagination::{Page, PageRequest};
@@ -112,6 +113,7 @@ pub trait RealmRepository: Send + Sync {
         account_chooser_enabled: Option<bool>,
         account_chooser_show_email: Option<bool>,
         require_pushed_authorization_requests: Option<bool>,
+        acr_loa_map: Option<AcrLoaMap>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(

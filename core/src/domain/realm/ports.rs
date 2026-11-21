@@ -16,6 +16,7 @@ use crate::domain::{
     },
     user::entities::User,
 };
+use ferriskey_domain::authentication::assurance::AcrLoaMap;
 use ferriskey_domain::realm::LoginAliases;
 use ferriskey_security::jwt::signing_keys::SigningKey;
 
@@ -220,6 +221,7 @@ pub struct UpdateRealmSettingInput {
     pub account_chooser_enabled: Option<bool>,
     pub account_chooser_show_email: Option<bool>,
     pub require_pushed_authorization_requests: Option<bool>,
+    pub acr_loa_map: Option<AcrLoaMap>,
 }
 
 pub struct DeleteRealmInput {

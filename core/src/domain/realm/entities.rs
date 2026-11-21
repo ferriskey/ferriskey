@@ -16,6 +16,7 @@ pub struct AuthorizationServerSettings {
     pub dcr_enabled: bool,
     pub require_pushed_authorization_requests: bool,
     pub scopes_supported: Vec<String>,
+    pub acr_values_supported: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]

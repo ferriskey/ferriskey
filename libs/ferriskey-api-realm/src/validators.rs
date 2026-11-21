@@ -1,3 +1,4 @@
+use ferriskey_core::domain::authentication::assurance::AcrLoaMap;
 use ferriskey_core::domain::realm::entities::{LoginAliases, ResourceOwner};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -107,6 +108,10 @@ pub struct UpdateRealmSettingValidator {
     pub account_chooser_show_email: Option<bool>,
     /// Refuse `/auth` requests that were not pushed first (RFC 9126 §5).
     pub require_pushed_authorization_requests: Option<bool>,
+    /// The realm's own `acr` values, each mapped to a level of assurance
+    /// (1: one factor, 2: multi-factor). Replaces the whole map.
+    #[schema(value_type = Option<std::collections::BTreeMap<String, u8>>)]
+    pub acr_loa_map: Option<AcrLoaMap>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

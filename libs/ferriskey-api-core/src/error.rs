@@ -336,6 +336,10 @@ impl From<CoreError> for ApiError {
                 error: "invalid_request".into(),
                 error_description: "This client must use pushed authorization requests.".into(),
             },
+            CoreError::UnmetAuthenticationRequirements => Self::OAuthError {
+                error: "unmet_authentication_requirements".into(),
+                error_description: "No requested acr value is known to this realm.".into(),
+            },
             CoreError::UserDisabled => Self::Forbidden("User account is disabled".into()),
             CoreError::AccountLocked => Self::Unauthorized(
                 "Account is temporarily locked due to too many failed login attempts".into(),

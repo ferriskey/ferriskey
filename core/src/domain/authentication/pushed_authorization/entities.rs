@@ -32,6 +32,10 @@ pub struct AuthorizationParameters {
     pub prompt: Option<String>,
     pub max_age: Option<i64>,
     pub resource: Option<String>,
+    #[serde(default)]
+    pub acr_values: Option<String>,
+    #[serde(default)]
+    pub claims: Option<String>,
 }
 
 /// A `urn:ietf:params:oauth:request_uri:<reference>` handed to the client.
@@ -188,6 +192,8 @@ mod tests {
                 prompt: None,
                 max_age: None,
                 resource: None,
+                acr_values: None,
+                claims: None,
             },
             now,
         );

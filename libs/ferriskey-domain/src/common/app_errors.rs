@@ -386,6 +386,8 @@ pub enum CoreError {
 
     #[error("This client must push its authorization requests")]
     PushedAuthorizationRequired,
+    #[error("The essential authentication context requested cannot be met")]
+    UnmetAuthenticationRequirements,
 
     #[error("User account is disabled")]
     UserDisabled,
@@ -602,6 +604,7 @@ impl CoreError {
             CoreError::InvalidTarget => "invalid_target",
             CoreError::InvalidRequestUri => "invalid_request_uri",
             CoreError::PushedAuthorizationRequired => "pushed_authorization_required",
+            CoreError::UnmetAuthenticationRequirements => "unmet_authentication_requirements",
             CoreError::UserDisabled => "user_disabled",
             CoreError::AccountLocked => "account_locked",
             CoreError::ClientUnderMaintenance(_) => "client_under_maintenance",
@@ -932,6 +935,10 @@ mod tests {
                 CoreError::PushedAuthorizationRequired,
                 "pushed_authorization_required",
             ),
+            (
+                CoreError::UnmetAuthenticationRequirements,
+                "unmet_authentication_requirements",
+            ),
             (CoreError::UserDisabled, "user_disabled"),
             (CoreError::AccountLocked, "account_locked"),
             (
@@ -1036,7 +1043,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 141);
+        assert_eq!(every_variant_with_expected_reason().len(), 142);
     }
 
     #[test]
