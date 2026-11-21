@@ -152,7 +152,8 @@ fn react(payload: &str, origin: &str, state: &TokenState) {
     }
 
     // A replica older than this change announces no schema.
-    // Its announcement still empties the caches.
+    // So does a replica on a schema list.
+    // Any announcement involving one still empties the caches.
     // Ignoring it would serve revoked sessions until expiry.
     if let (Some(theirs), Some(ours)) = (schema_of(payload), schema_of(origin))
         && theirs != ours
@@ -163,8 +164,17 @@ fn react(payload: &str, origin: &str, state: &TokenState) {
     state.changed_elsewhere();
 }
 
+/// A `,` marks a `search_path` list.
+/// The database resolves it, so it names no schema.
+/// Its replica announces none, and every announcement empties its caches.
 fn new_origin(schema: &str) -> String {
-    format!("{}/{}", Uuid::new_v4(), canonical_schema(schema))
+    let replica = Uuid::new_v4();
+
+    if schema.contains(',') {
+        return replica.to_string();
+    }
+
+    format!("{replica}/{}", canonical_schema(schema))
 }
 
 /// The schema an announcement names, if any.
@@ -308,6 +318,30 @@ mod tests {
         assert_eq!(state.generation(), 1);
     }
 
+    #[test]
+    fn a_schema_list_and_a_single_schema_empty_each_other() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+        react(&new_origin("public,public"), &new_origin("public"), &state);
+        react(&new_origin("public"), &new_origin("public,public"), &state);
+        react(
+            &new_origin("public,public"),
+            &new_origin("public,public"),
+            &state,
+        );
+
+        assert_eq!(state.generation(), 3);
+    }
+
+    #[test]
+    fn a_replica_on_a_schema_list_cannot_tell_schemas_apart() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+        react(&new_origin("other"), &new_origin("app,public"), &state);
+
+        assert_eq!(state.generation(), 1);
+    }
+
     async fn replica(pool: &PgPool, schema: &str) -> Arc<TokenState> {
         let (state, feed) = TokenState::new(Duration::from_secs(60));
         let mut ready = state.subscribe();
@@ -367,6 +401,20 @@ mod tests {
         let pool = pool().await;
         let first = replica(&pool, "\"ping:tenant\"").await;
         let second = replica(&pool, "\"ping:tenant\"").await;
+        let mut watching = second.subscribe();
+        let seen = second.generation();
+
+        first.changed();
+
+        wait_past(&mut watching, seen).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_change_reaches_a_replica_whose_schema_is_a_list() {
+        let pool = pool().await;
+        let first = replica(&pool, "public").await;
+        let second = replica(&pool, "public,public").await;
         let mut watching = second.subscribe();
         let seen = second.generation();
 
