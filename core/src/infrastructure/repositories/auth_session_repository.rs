@@ -73,6 +73,7 @@ impl TryFrom<crate::entity::auth_sessions::Model> for AuthSession {
             resource: model.resource,
             max_age: model.max_age,
             acr_values: model.acr_values,
+            acr_essential: model.acr_essential,
             verified_factors: serde_json::from_value(model.verified_factors).unwrap_or_else(|e| {
                 error!(auth_session_id = %model.id, error = %e, "Ignoring unreadable verified factors");
                 Vec::new()
@@ -128,6 +129,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             resource: Set(session.resource.clone()),
             max_age: Set(session.max_age),
             acr_values: Set(session.acr_values.clone()),
+            acr_essential: Set(session.acr_essential),
             verified_factors: Set(serde_json::to_value(&session.verified_factors).map_err(
                 |e| {
                     error!("Error serializing verified factors: {:?}", e);
@@ -735,6 +737,7 @@ mod tests {
             resource: None,
             max_age: None,
             acr_values: None,
+            acr_essential: false,
         })
     }
 

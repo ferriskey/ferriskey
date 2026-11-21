@@ -4924,6 +4924,7 @@ mod tests {
             resource: None,
             max_age: None,
             acr_values: None,
+            acr_essential: false,
             verified_factors: Vec::new(),
         }
     }

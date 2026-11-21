@@ -68,6 +68,9 @@ pub struct AuthSession {
     pub max_age: Option<i64>,
     /// The `acr` values the client asked for, space-separated.
     pub acr_values: Option<String>,
+    /// Whether the client asked for `acr` as an essential claim: the login
+    /// fails rather than assert a level below it.
+    pub acr_essential: bool,
     /// The factors answered so far in this login.
     pub verified_factors: Vec<VerifiedFactor>,
 }
@@ -123,6 +126,7 @@ pub struct AuthSessionParams {
     pub resource: Option<String>,
     pub max_age: Option<i64>,
     pub acr_values: Option<String>,
+    pub acr_essential: bool,
 }
 
 impl AuthSession {
@@ -159,6 +163,7 @@ impl AuthSession {
             resource: params.resource,
             max_age: params.max_age.filter(|max_age| *max_age >= 0),
             acr_values: params.acr_values,
+            acr_essential: params.acr_essential,
             verified_factors: Vec::new(),
         }
     }
@@ -211,6 +216,7 @@ mod tests {
             resource: None,
             max_age: None,
             acr_values: acr_values.map(str::to_string),
+            acr_essential: false,
         })
     }
 
