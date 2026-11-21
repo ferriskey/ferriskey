@@ -16,12 +16,14 @@ const SILENCE_LIMIT: Duration = Duration::from_secs(45);
 const ANNOUNCE_TIMEOUT: Duration = Duration::from_secs(5);
 const FIRST_RETRY: Duration = Duration::from_secs(1);
 const LONGEST_RETRY: Duration = Duration::from_secs(30);
+const MAX_IDENTIFIER_BYTES: usize = 63;
 
 /// Keeps `state` in step with replicas of its schema.
 ///
 /// NOTIFY reaches every session of the database.
 /// An announcement names its replica, then its schema: `<replica>/<schema>`.
-/// A replica on a schema list names no schema.
+/// A schema list names no schema.
+/// Nor does a name PostgreSQL would cut at 63 bytes.
 /// A schema can start with `ping:`, like a heartbeat.
 /// So the replica comes first.
 /// No change can then look like a heartbeat.
@@ -153,7 +155,7 @@ fn react(payload: &str, origin: &str, state: &TokenState) {
     }
 
     // A replica older than this change announces no schema.
-    // So does a replica on a schema list.
+    // So does a replica whose schema cannot be named.
     // Its announcement still empties the caches of the others.
     // It empties its own on every announcement it receives.
     // Ignoring either would serve revoked sessions until expiry.
@@ -168,15 +170,18 @@ fn react(payload: &str, origin: &str, state: &TokenState) {
 
 /// A comma marks a `search_path` list.
 /// A quoted name holding one counts too, to be safe.
-/// A list names no schema, so its replica announces none.
+/// A list or an overlong name names no schema.
 fn new_origin(schema: &str) -> String {
     let replica = Uuid::new_v4();
+    let canonical = canonical_schema(schema);
 
-    if schema.contains(',') {
+    // PostgreSQL cuts a name at 63 bytes.
+    // So two longer names can reach one schema.
+    if schema.contains(',') || canonical.len() > MAX_IDENTIFIER_BYTES {
         return replica.to_string();
     }
 
-    format!("{replica}/{}", canonical_schema(schema))
+    format!("{replica}/{canonical}")
 }
 
 /// The schema an announcement names, if any.
@@ -351,6 +356,25 @@ mod tests {
         assert_eq!(state.generation(), 1);
     }
 
+    #[test]
+    fn a_name_over_63_bytes_names_no_schema() {
+        assert!(schema_of(&new_origin(&"a".repeat(63))).is_some());
+        assert!(schema_of(&new_origin(&"a".repeat(64))).is_none());
+        assert!(schema_of(&new_origin(&"é".repeat(32))).is_none());
+    }
+
+    #[test]
+    fn two_spellings_of_one_overlong_name_empty_the_caches() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+        let kept = "a".repeat(63);
+        let spelled_longer = format!("{kept}b");
+
+        react(&new_origin(&spelled_longer), &new_origin(&kept), &state);
+        react(&new_origin(&kept), &new_origin(&spelled_longer), &state);
+
+        assert_eq!(state.generation(), 2);
+    }
+
     async fn replica(pool: &PgPool, schema: &str) -> Arc<TokenState> {
         let (state, feed) = TokenState::new(Duration::from_secs(60));
         let mut ready = state.subscribe();
@@ -375,6 +399,8 @@ mod tests {
         PgPool::connect(&url).await.expect("connect")
     }
 
+    // A schema-less announcement empties every replica of the database.
+    // A database test sending one would empty its neighbours' caches.
     #[tokio::test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn a_change_on_one_replica_empties_the_other() {
@@ -411,21 +437,6 @@ mod tests {
         let pool = pool().await;
         let schema = format!("\"ping:tenant_{}\"", Uuid::new_v4().simple());
         let first = replica(&pool, &schema).await;
-        let second = replica(&pool, &schema).await;
-        let mut watching = second.subscribe();
-        let seen = second.generation();
-
-        first.changed();
-
-        wait_past(&mut watching, seen).await;
-    }
-
-    #[tokio::test]
-    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
-    async fn a_change_reaches_a_replica_whose_schema_is_a_list() {
-        let pool = pool().await;
-        let schema = format!("token_state_{}", Uuid::new_v4().simple());
-        let first = replica(&pool, &format!("{schema},{schema}")).await;
         let second = replica(&pool, &schema).await;
         let mut watching = second.subscribe();
         let seen = second.generation();
