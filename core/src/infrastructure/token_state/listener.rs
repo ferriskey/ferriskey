@@ -29,6 +29,7 @@ const SEARCH_PATH_SPACES: [char; 6] = [' ', '\t', '\n', '\r', '\x0b', '\x0c'];
 /// A schema list names no schema.
 /// Nor does a name PostgreSQL would cut at 63 bytes.
 /// Nor does `$user`, the schema of the role.
+/// Nor does a name with a backslash.
 /// A schema can start with `ping:`, like a heartbeat.
 /// So the replica comes first.
 /// No change can then look like a heartbeat.
@@ -174,14 +175,19 @@ fn react(payload: &str, origin: &str, state: &TokenState) {
 
 /// A comma marks a `search_path` list.
 /// A quoted name holding one counts too, to be safe.
-/// A list, an overlong name or `$user` names no schema.
+/// A list or an overlong name names no schema.
+/// So do a backslash and `$user`.
 fn new_origin(schema: &str) -> String {
     let replica = Uuid::new_v4();
     let canonical = canonical_schema(schema);
 
+    // PostgreSQL reads a backslash as an escape.
+    // So `pub\lic` can reach `public`.
+    let marked = schema.contains([',', '\\']);
+
     // PostgreSQL cuts a name at 63 bytes.
     // So a longer name can reach a 63-byte schema.
-    let unnameable = schema.contains(',') || canonical.len() > MAX_IDENTIFIER_BYTES;
+    let unnameable = marked || canonical.len() > MAX_IDENTIFIER_BYTES;
 
     // `$user` names the schema of the role.
     // Another replica may spell that name out.
@@ -393,6 +399,12 @@ mod tests {
         for space in [' ', '\t', '\n', '\r', '\x0b', '\x0c'] {
             assert_eq!(canonical_schema(&format!("{space}public{space}")), "public");
         }
+    }
+
+    #[test]
+    fn a_name_with_a_backslash_names_no_schema() {
+        assert!(schema_of(&new_origin("pub\\lic")).is_none());
+        assert!(schema_of(&new_origin("public")).is_some());
     }
 
     #[test]
