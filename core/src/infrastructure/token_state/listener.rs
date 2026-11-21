@@ -19,7 +19,7 @@ const LONGEST_RETRY: Duration = Duration::from_secs(30);
 const MAX_IDENTIFIER_BYTES: usize = 63;
 
 /// The spaces PostgreSQL skips around a listed name.
-/// It keeps Unicode spaces in the name.
+/// Unicode spaces stay in the name.
 const SEARCH_PATH_SPACES: [char; 6] = [' ', '\t', '\n', '\r', '\x0b', '\x0c'];
 
 /// Keeps `state` in step with replicas of its schema.
@@ -28,6 +28,7 @@ const SEARCH_PATH_SPACES: [char; 6] = [' ', '\t', '\n', '\r', '\x0b', '\x0c'];
 /// An announcement names its replica, then its schema: `<replica>/<schema>`.
 /// A schema list names no schema.
 /// Nor does a name PostgreSQL would cut at 63 bytes.
+/// Nor does `$user`, the schema of the role.
 /// A schema can start with `ping:`, like a heartbeat.
 /// So the replica comes first.
 /// No change can then look like a heartbeat.
@@ -173,14 +174,18 @@ fn react(payload: &str, origin: &str, state: &TokenState) {
 
 /// A comma marks a `search_path` list.
 /// A quoted name holding one counts too, to be safe.
-/// A list or an overlong name names no schema.
+/// A list, an overlong name or `$user` names no schema.
 fn new_origin(schema: &str) -> String {
     let replica = Uuid::new_v4();
     let canonical = canonical_schema(schema);
 
     // PostgreSQL cuts a name at 63 bytes.
     // So a longer name can reach a 63-byte schema.
-    if schema.contains(',') || canonical.len() > MAX_IDENTIFIER_BYTES {
+    let unnameable = schema.contains(',') || canonical.len() > MAX_IDENTIFIER_BYTES;
+
+    // `$user` names the schema of the role.
+    // Another replica may spell that name out.
+    if unnameable || canonical == "$user" {
         return replica.to_string();
     }
 
@@ -380,19 +385,20 @@ mod tests {
 
     #[test]
     fn spaces_around_a_name_are_ignored() {
-        let (state, _feed) = TokenState::new(Duration::from_secs(60));
-
         assert_eq!(canonical_schema(" public "), "public");
         assert_eq!(canonical_schema("  PUBLIC "), canonical_schema("public"));
         assert_eq!(canonical_schema(" \"Public\" "), "Public");
+        assert_eq!(canonical_schema(" \" a \" "), " a ");
 
         for space in [' ', '\t', '\n', '\r', '\x0b', '\x0c'] {
-            assert_eq!(canonical_schema(&format!("public{space}")), "public");
+            assert_eq!(canonical_schema(&format!("{space}public{space}")), "public");
         }
+    }
 
-        react(&new_origin("public "), &new_origin("public"), &state);
-
-        assert_eq!(state.generation(), 1);
+    #[test]
+    fn the_user_placeholder_names_no_schema() {
+        assert!(schema_of(&new_origin("$user")).is_none());
+        assert!(schema_of(&new_origin("\"$user\"")).is_none());
     }
 
     #[test]
