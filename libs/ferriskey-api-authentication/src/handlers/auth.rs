@@ -240,6 +240,13 @@ fn requested_acr(acr_values: Option<&str>, claims: Option<&str>) -> Option<(Opti
         return Some(voluntary);
     }
 
+    if values
+        .iter()
+        .any(|value| value.is_empty() || value.contains(char::is_whitespace))
+    {
+        return None;
+    }
+
     Some((
         Some(values.join(" ")),
         acr["essential"].as_bool().unwrap_or(false),
@@ -962,6 +969,21 @@ mod tests {
                 Some(r#"{"id_token":{"acr":{"essential":true}},"userinfo":{"email":null}}"#)
             ),
             Some((Some("2".to_string()), false))
+        );
+    }
+
+    #[test]
+    fn an_acr_claim_value_holding_whitespace_is_refused() {
+        assert_eq!(
+            requested_acr(
+                None,
+                Some(r#"{"id_token":{"acr":{"essential":true,"values":["2 1"]}}}"#)
+            ),
+            None
+        );
+        assert_eq!(
+            requested_acr(None, Some(r#"{"id_token":{"acr":{"value":""}}}"#)),
+            None
         );
     }
 

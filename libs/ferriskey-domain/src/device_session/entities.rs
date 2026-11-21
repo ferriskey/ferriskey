@@ -2,6 +2,7 @@ use chrono::{DateTime, Duration, Utc};
 use thiserror::Error;
 use uuid::Uuid;
 
+use crate::authentication::assurance::AcrRequest;
 use crate::realm::RealmId;
 use crate::realm::scope::RealmOwned;
 use crate::session::entities::SessionState;
@@ -9,6 +10,19 @@ use crate::user::entities::User;
 
 const MASKED_RUN: &str = "••••";
 const DEVICE_LIFETIME_CAP_DAYS: i64 = 30;
+
+/// What a session must still meet for a login to resume it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ResumeRequirements {
+    pub max_age: Option<i64>,
+    pub acr: AcrRequest,
+}
+
+impl ResumeRequirements {
+    pub fn new(max_age: Option<i64>, acr: AcrRequest) -> Self {
+        Self { max_age, acr }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceSession {

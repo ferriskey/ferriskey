@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::common::app_errors::CoreError;
 use crate::device_session::entities::{
-    AccountEntry, DeviceSession, DeviceSessionError, SelectedAccount,
+    AccountEntry, DeviceSession, DeviceSessionError, ResumeRequirements, SelectedAccount,
 };
 use crate::realm::scope::{RealmScope, Scoped, Unscoped};
 use crate::session::entities::UserSession;
@@ -44,7 +44,7 @@ pub trait SessionResumptionPort: Send + Sync {
         &self,
         scope: &RealmScope,
         session: Scoped<UserSession>,
-        max_age: Option<i64>,
+        requirements: ResumeRequirements,
         client_id: Uuid,
     ) -> impl Future<Output = Result<(Scoped<UserSession>, User), CoreError>> + Send;
 }
@@ -68,7 +68,7 @@ pub trait AccountChooserService: Send + Sync {
         device_token: Option<&str>,
         scope: &RealmScope,
         active_sso_token: Option<&str>,
-        max_age: Option<i64>,
+        requirements: ResumeRequirements,
         client_id: Uuid,
     ) -> impl Future<Output = Result<Vec<AccountEntry>, CoreError>> + Send;
 
@@ -77,7 +77,7 @@ pub trait AccountChooserService: Send + Sync {
         device_token: Option<&str>,
         scope: &RealmScope,
         session_id: Uuid,
-        max_age: Option<i64>,
+        requirements: ResumeRequirements,
         client_id: Uuid,
     ) -> impl Future<Output = Result<SelectedAccount, CoreError>> + Send;
 
