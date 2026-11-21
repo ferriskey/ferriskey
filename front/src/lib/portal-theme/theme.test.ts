@@ -87,6 +87,53 @@ test('a block with a hand-picked background has its own surface', () => {
   assert.equal(hasOwnSurface(block('container', {}, { md: { backgroundColor: '#fff' } })), true)
 })
 
+test('a fully transparent background is not an own surface', () => {
+  const clear = [
+    'transparent',
+    ' TRANSPARENT ',
+    'initial',
+    'unset',
+    'rgba(0,0,0,0)',
+    'rgba(255, 255, 255, 0)',
+    'rgb(1, 2, 3, 0.0)',
+    'rgb(0 0 0 / 0)',
+    'rgb(0 0 0 / 0%)',
+    'hsla(0, 0%, 0%, 0)',
+    'hsl(0 0% 0% / 0)',
+    'oklch(0.5 0.1 200 / 0)',
+    '#0000',
+    '#fff0',
+    '#00000000',
+    '#FFFFFF00',
+  ]
+  for (const color of clear) {
+    assert.equal(hasOwnSurface(block('card', { backgroundColor: color })), false, color)
+    assert.equal(
+      hasOwnSurface(block('container', {}, { md: { backgroundColor: color } })),
+      false,
+      color
+    )
+  }
+})
+
+test('a visible background stays an own surface', () => {
+  const visible = [
+    '#fff',
+    '#ffff',
+    '#ffffff',
+    '#ffffff80',
+    'white',
+    'rgb(255, 255, 255)',
+    'rgba(255,255,255,0.5)',
+    'rgb(255 255 255 / 50%)',
+    'hsl(0 0% 100%)',
+    'var(--brand)',
+  ]
+  for (const color of visible) {
+    assert.equal(hasOwnSurface(block('card', { backgroundColor: color })), true, color)
+  }
+})
+
 test('a block that follows the widget background has no own surface', () => {
   assert.equal(hasOwnSurface(block('card', {})), false)
   assert.equal(hasOwnSurface(block('card', { backgroundColor: '' })), false)

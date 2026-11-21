@@ -103,17 +103,41 @@ const LIGHT_VAR_PREFIX = '--fk-light-color-'
 // The blocks whose style reads a `backgroundColor` prop.
 const SURFACE_BLOCKS = new Set(['container', 'flex', 'grid', 'div', 'card'])
 
-function picksBackground(props: Record<string, unknown>): boolean {
-  return typeof props.backgroundColor === 'string' && props.backgroundColor !== ''
-}
+const CLEAR_KEYWORDS = new Set(['transparent', 'initial', 'unset'])
+// Hex colour with zero alpha: `#rgb0` or `#rrggbb00`.
+const CLEAR_HEX = /^#(?:[0-9a-f]{3}0|[0-9a-f]{6}00)$/
+// Matches a colour function and captures its arguments.
+const COLOR_FUNCTION = /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\((.*)\)$/
+const LEGACY_PARTS_WITH_ALPHA = 4
 
 function lightVarName(name: string): string {
   return name.replace(COLOR_VAR_PREFIX, LIGHT_VAR_PREFIX)
 }
 
+// The alpha of a colour function, `1` when it has none.
+function alphaOf(color: string): string {
+  const args = color.replace(COLOR_FUNCTION, '$1')
+  if (args.includes('/')) return args.slice(args.lastIndexOf('/') + 1)
+  const parts = args.split(',')
+  if (parts.length !== LEGACY_PARTS_WITH_ALPHA) return '1'
+  const [, , , alpha] = parts
+  return alpha
+}
+
+// An empty or fully transparent colour paints nothing.
+function isSurfaceColor(color: unknown): boolean {
+  if (typeof color !== 'string') return false
+  const text = color.trim().toLowerCase()
+  const isClearWord = text === '' || CLEAR_KEYWORDS.has(text)
+  if (isClearWord || CLEAR_HEX.test(text)) return false
+  if (!COLOR_FUNCTION.test(text)) return true
+  const alpha = Number.parseFloat(alphaOf(text))
+  return Number.isNaN(alpha) || alpha > 0
+}
+
 /**
- * True when the author picked a block's background colour.
- * A breakpoint can pick it too.
+ * True for a block with its own visible background.
+ * A breakpoint can give it too.
  *
  * @example
  * hasOwnSurface({ type: 'card', props: { backgroundColor: '#fff' }, … }) // true
@@ -121,7 +145,7 @@ function lightVarName(name: string): string {
 export function hasOwnSurface(node: BuilderNode): boolean {
   if (!SURFACE_BLOCKS.has(node.type)) return false
   const overrides = node.breakpoints ? Object.values(node.breakpoints) : []
-  return [node.props, ...overrides].some(picksBackground)
+  return [node.props, ...overrides].some((props) => isSurfaceColor(props.backgroundColor))
 }
 
 /**
