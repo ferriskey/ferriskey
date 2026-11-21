@@ -36,7 +36,30 @@ impl<R> CachedRealmRepository<R> {
         }
     }
 
+    pub fn caches(&self) -> RealmCaches {
+        RealmCaches {
+            by_name: Arc::clone(&self.by_name),
+            by_id: Arc::clone(&self.by_id),
+            settings: Arc::clone(&self.settings),
+        }
+    }
+
     fn invalidate(&self) {
+        self.by_name.clear();
+        self.by_id.clear();
+        self.settings.clear();
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RealmCaches {
+    by_name: Arc<TtlCache<String, Option<Realm>>>,
+    by_id: Arc<TtlCache<Uuid, Option<Realm>>>,
+    settings: Arc<TtlCache<Uuid, Option<RealmSetting>>>,
+}
+
+impl RealmCaches {
+    pub fn clear(&self) {
         self.by_name.clear();
         self.by_id.clear();
         self.settings.clear();

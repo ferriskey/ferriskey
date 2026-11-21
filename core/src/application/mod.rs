@@ -230,6 +230,7 @@ pub use services::ApplicationService;
 use crate::domain::realm_transfer::services::{
     RealmTransferRepositories, RealmTransferServiceImpl,
 };
+use crate::infrastructure::realm_transfer::caches::ConfigCaches;
 use crate::infrastructure::realm_transfer::postgres_archive::PostgresRealmArchiveRepository;
 use crate::infrastructure::secrets_backfill::seal_existing_secrets;
 use ferriskey_security::crypto::secret_cipher::SecretCipher;
@@ -295,19 +296,23 @@ pub async fn create_service_with_secrets(
             token_state_feed,
         );
     }
+    let cached_realm = CachedRealmRepository::new(
+        PostgresRealmRepository::new(postgres.get_db()),
+        config_cache_ttl,
+    );
+    let realm_caches = cached_realm.caches();
     let realm = Arc::new(InvalidatingRealmRepository::new(
-        CachedRealmRepository::new(
-            PostgresRealmRepository::new(postgres.get_db()),
-            config_cache_ttl,
-        ),
+        cached_realm,
         token_state.clone(),
     ));
     let authz = Arc::new(PostgresAuthzRepository::new(postgres.get_db()));
+    let cached_client = CachedClientRepository::new(
+        PostgresClientRepository::with_cipher(postgres.get_db(), secret_cipher.clone()),
+        config_cache_ttl,
+    );
+    let client_caches = cached_client.caches();
     let client = Arc::new(InvalidatingClientRepository::new(
-        CachedClientRepository::new(
-            PostgresClientRepository::with_cipher(postgres.get_db(), secret_cipher.clone()),
-            config_cache_ttl,
-        ),
+        cached_client,
         token_state.clone(),
     ));
     let user = Arc::new(CachedUserRepository::new(
@@ -466,7 +471,7 @@ pub async fn create_service_with_secrets(
     ));
     let scope_mapping = Arc::new(CachedScopeMappingRepository::new(
         PostgresScopeMappingRepository::new(postgres.get_db()),
-        aegis_cache,
+        Arc::clone(&aegis_cache),
     ));
     let compass_flow = Arc::new(PostgresCompassFlowRepository::new(postgres.get_db()));
     let compass_flow_step = Arc::new(PostgresCompassFlowStepRepository::new(postgres.get_db()));
@@ -803,7 +808,12 @@ pub async fn create_service_with_secrets(
                         postgres.get_db().get_postgres_connection_pool().clone(),
                         secret_cipher.clone(),
                     )
-                    .announcing_changes(token_state.clone()),
+                    .announcing_changes(token_state.clone())
+                    .clearing(ConfigCaches {
+                        realm: realm_caches,
+                        client: client_caches,
+                        aegis: aegis_cache,
+                    }),
                 ),
             },
             policy.clone(),

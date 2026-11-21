@@ -1,6 +1,12 @@
+use crate::infrastructure::abyss::federation::repository::BIND_PASSWORD_PURPOSE;
+use crate::infrastructure::client::repositories::client_postgres_repository::{
+    CLIENT_PREVIOUS_SECRET_PURPOSE, CLIENT_SECRET_PURPOSE,
+};
+use crate::infrastructure::identity_provider::repositories::identity_provider_postgres_repository::IDENTITY_PROVIDER_SECRET_PURPOSE;
 use crate::infrastructure::realm::repositories::smtp_config_postgres_repository::SMTP_PASSWORD_PURPOSE;
 use crate::infrastructure::repositories::credential_repository::OTP_SECRET_PURPOSE;
 use crate::infrastructure::repositories::keystore_repository::PRIVATE_KEY_PURPOSE;
+use crate::infrastructure::webhook::repositories::webhook_repository::WEBHOOK_SECRET_PURPOSE;
 
 pub(super) const ALIAS: &str = "{a}";
 pub(super) const REALM: &str = "{realm}";
@@ -273,29 +279,64 @@ pub(super) const NOT_EXPORTED: &[&str] = &[
 pub(super) struct SealedColumn {
     pub table: &'static str,
     pub column: &'static str,
+    pub path: &'static [&'static str],
     pub purpose: &'static str,
     pub only_when: Option<(&'static str, &'static str)>,
 }
 
+impl SealedColumn {
+    const fn new(table: &'static str, column: &'static str, purpose: &'static str) -> Self {
+        Self {
+            table,
+            column,
+            path: &[],
+            purpose,
+            only_when: None,
+        }
+    }
+
+    const fn at(mut self, path: &'static [&'static str]) -> Self {
+        self.path = path;
+        self
+    }
+
+    const fn only_when(mut self, column: &'static str, value: &'static str) -> Self {
+        self.only_when = Some((column, value));
+        self
+    }
+
+    pub fn label(&self) -> String {
+        std::iter::once(self.column)
+            .chain(self.path.iter().copied())
+            .collect::<Vec<_>>()
+            .join(".")
+    }
+
+    #[cfg(test)]
+    fn expression(&self) -> String {
+        if self.path.is_empty() {
+            return self.column.to_owned();
+        }
+        format!("{} #>> '{{{}}}'", self.column, self.path.join(","))
+    }
+}
+
 pub(super) const SEALED_COLUMNS: &[SealedColumn] = &[
-    SealedColumn {
-        table: "jwt_keys",
-        column: "private_key",
-        purpose: PRIVATE_KEY_PURPOSE,
-        only_when: None,
-    },
-    SealedColumn {
-        table: "credentials",
-        column: "secret_data",
-        purpose: OTP_SECRET_PURPOSE,
-        only_when: Some(("credential_type", "otp")),
-    },
-    SealedColumn {
-        table: "smtp_configs",
-        column: "password",
-        purpose: SMTP_PASSWORD_PURPOSE,
-        only_when: None,
-    },
+    SealedColumn::new("jwt_keys", "private_key", PRIVATE_KEY_PURPOSE),
+    SealedColumn::new("credentials", "secret_data", OTP_SECRET_PURPOSE)
+        .only_when("credential_type", "otp"),
+    SealedColumn::new("smtp_configs", "password", SMTP_PASSWORD_PURPOSE),
+    SealedColumn::new("clients", "secret", CLIENT_SECRET_PURPOSE),
+    SealedColumn::new("clients", "previous_secret", CLIENT_PREVIOUS_SECRET_PURPOSE),
+    SealedColumn::new(
+        "identity_providers",
+        "config",
+        IDENTITY_PROVIDER_SECRET_PURPOSE,
+    )
+    .at(&["client_secret"]),
+    SealedColumn::new("user_federation_providers", "config", BIND_PASSWORD_PURPOSE)
+        .at(&["bind", "bind_password_encrypted"]),
+    SealedColumn::new("webhooks", "secret", WEBHOOK_SECRET_PURPOSE),
 ];
 
 pub(super) fn spec_of(table: &str) -> Option<&'static TableSpec> {
@@ -332,7 +373,7 @@ mod tests {
 
     #[test]
     fn every_secret_the_backfill_seals_in_an_exported_table_is_opened_at_export() {
-        for (table, column) in sealed_columns() {
+        for (table, value) in sealed_columns() {
             if spec_of(table).is_none() {
                 assert!(NOT_EXPORTED.contains(&table), "{table}");
                 continue;
@@ -340,8 +381,8 @@ mod tests {
             assert!(
                 SEALED_COLUMNS
                     .iter()
-                    .any(|sealed| sealed.table == table && sealed.column == column),
-                "{table}.{column}"
+                    .any(|sealed| sealed.table == table && sealed.expression() == value),
+                "{table}: {value}"
             );
         }
     }

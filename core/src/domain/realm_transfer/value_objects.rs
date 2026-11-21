@@ -10,6 +10,12 @@ use uuid::Uuid;
 
 use crate::domain::common::entities::app_errors::CoreError;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportMode {
+    Create,
+    Update,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct ImportReport {
     pub realm_id: Uuid,

@@ -4,7 +4,7 @@ use crate::domain::authentication::value_objects::Identity;
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::realm_transfer::bundle::{BundleHeader, BundlePassphrase, BundleRow};
-use crate::domain::realm_transfer::value_objects::{ImportReport, RealmBundleStream};
+use crate::domain::realm_transfer::value_objects::{ImportMode, ImportReport, RealmBundleStream};
 
 pub trait RowSink: Send {
     fn accept(&mut self, row: BundleRow) -> impl Future<Output = Result<(), CoreError>> + Send;
@@ -17,6 +17,11 @@ pub trait RowSource: Send {
 pub trait RealmArchiveRepository: Send + Sync + 'static {
     fn schema_version(&self) -> impl Future<Output = Result<i64, CoreError>> + Send;
 
+    fn ensure_exportable(
+        &self,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
     fn export_rows<K: RowSink>(
         &self,
         realm_id: RealmId,
@@ -26,6 +31,7 @@ pub trait RealmArchiveRepository: Send + Sync + 'static {
     fn import_rows<S: RowSource>(
         &self,
         header: &BundleHeader,
+        mode: ImportMode,
         source: &mut S,
     ) -> impl Future<Output = Result<ImportReport, CoreError>> + Send;
 }

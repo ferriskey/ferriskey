@@ -17,7 +17,9 @@ use crate::domain::realm::ports::{RealmPolicy, RealmRepository};
 use crate::domain::realm_transfer::bundle::{BundleHeader, BundlePassphrase, BundleRealm};
 use crate::domain::realm_transfer::codec::{BundleReader, BundleWriter, derive_key};
 use crate::domain::realm_transfer::ports::{RealmArchiveRepository, RealmTransferService};
-use crate::domain::realm_transfer::value_objects::{BundleChunk, ImportReport, RealmBundleStream};
+use crate::domain::realm_transfer::value_objects::{
+    BundleChunk, ImportMode, ImportReport, RealmBundleStream,
+};
 use crate::domain::role::entities::permission::Permissions;
 use crate::domain::role::ports::RoleRepository;
 use crate::domain::role::value_objects::CreateRoleRequest;
@@ -154,15 +156,31 @@ where
         identity: &Identity,
         master: &RealmScope,
         realm_name: &str,
+        mode: ImportMode,
     ) -> Result<(), CoreError> {
         let name = format!("{realm_name}-realm");
-        let client = match self
+        let existing = match self
             .client_repository
             .get_by_client_id(name.clone(), master.id())
             .await
         {
-            Ok(client) => client.across_realms(),
-            Err(CoreError::NotFound) => {
+            Ok(client) => Some(client),
+            Err(CoreError::NotFound) => None,
+            Err(error) => return Err(error),
+        };
+        // Before the realm exists, a client holding its name is an orphan: its
+        // role would hand ManageRealm to whoever held it, as in `create_realm`.
+        let existing = match (existing, mode) {
+            (Some(orphan), ImportMode::Create) => {
+                let orphan = orphan.in_realm(master)?;
+                self.client_repository.delete_by_id(&orphan).await?;
+                None
+            }
+            (existing, _) => existing,
+        };
+        let client = match existing {
+            Some(client) => client.across_realms(),
+            None => {
                 self.client_repository
                     .create_client(CreateClientRequest::create_realm_system_client(
                         master.id(),
@@ -170,7 +188,6 @@ where
                     ))
                     .await?
             }
-            Err(error) => return Err(error),
         };
 
         let existing_role = self
@@ -217,10 +234,10 @@ where
         &self,
         identity: &Identity,
         header: &BundleHeader,
-    ) -> Result<(), CoreError> {
+    ) -> Result<ImportMode, CoreError> {
         let realm = &header.realm;
         let Some(existing) = self.realm_repository.get_by_id(realm.id.into()).await? else {
-            return Ok(());
+            return Ok(ImportMode::Create);
         };
         if existing.name != realm.name {
             return Err(CoreError::RealmBundleConflict(format!(
@@ -231,7 +248,8 @@ where
         ensure_policy(
             self.policy.can_update_realm(identity, &existing).await,
             "insufficient permissions",
-        )
+        )?;
+        Ok(ImportMode::Update)
     }
 }
 
@@ -268,6 +286,7 @@ where
             self.policy.can_update_realm(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
+        self.archive.ensure_exportable(scope.id()).await?;
 
         let header = BundleHeader::new(
             BundleRealm {
@@ -333,13 +352,21 @@ where
         let mut reader = BundleReader::open(passphrase, body).await?;
         let header = reader.header().clone();
         header.check(self.archive.schema_version().await?)?;
-        self.check_import_target(&identity, &header).await?;
+        let mode = self.check_import_target(&identity, &header).await?;
 
-        let mut report = self.archive.import_rows(&header, &mut reader).await?;
+        // A create-only caller cannot re-import to repair a missing management
+        // client, so a new realm gets it before any row is written.
+        if mode == ImportMode::Create {
+            self.ensure_mirror_client(&identity, &master, &header.realm.name, mode)
+                .await?;
+        }
 
-        if let Err(error) = self
-            .ensure_mirror_client(&identity, &master, &header.realm.name)
-            .await
+        let mut report = self.archive.import_rows(&header, mode, &mut reader).await?;
+
+        if mode == ImportMode::Update
+            && let Err(error) = self
+                .ensure_mirror_client(&identity, &master, &header.realm.name, mode)
+                .await
         {
             warn!(%error, "the imported realm has no management client in master yet");
             report.unfinished_steps.push(MIRROR_CLIENT_STEP.to_owned());
