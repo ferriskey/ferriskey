@@ -20,10 +20,11 @@ const LONGEST_RETRY: Duration = Duration::from_secs(30);
 /// Keeps `state` in step with replicas of its schema.
 ///
 /// NOTIFY reaches every session of the database.
-/// Each announcement names its replica and its schema: `<replica>/<schema>`.
-/// The replica comes first.
-/// A schema can start with `ping:`.
-/// So a change never looks like a heartbeat.
+/// An announcement names its replica, then its schema: `<replica>/<schema>`.
+/// A replica on a schema list names no schema.
+/// A schema can start with `ping:`, like a heartbeat.
+/// So the replica comes first.
+/// No change can then look like a heartbeat.
 /// The schema is named as PostgreSQL resolves it.
 /// A replica ignores announcements of another schema.
 pub fn spawn_token_state_sync(
@@ -153,8 +154,9 @@ fn react(payload: &str, origin: &str, state: &TokenState) {
 
     // A replica older than this change announces no schema.
     // So does a replica on a schema list.
-    // Any announcement involving one still empties the caches.
-    // Ignoring it would serve revoked sessions until expiry.
+    // Its announcement still empties the caches of the others.
+    // It empties its own on every announcement it receives.
+    // Ignoring either would serve revoked sessions until expiry.
     if let (Some(theirs), Some(ours)) = (schema_of(payload), schema_of(origin))
         && theirs != ours
     {
@@ -164,9 +166,9 @@ fn react(payload: &str, origin: &str, state: &TokenState) {
     state.changed_elsewhere();
 }
 
-/// A `,` marks a `search_path` list.
-/// The database resolves it, so it names no schema.
-/// Its replica announces none, and every announcement empties its caches.
+/// A comma marks a `search_path` list.
+/// A quoted name holding one counts too, to be safe.
+/// A list names no schema, so its replica announces none.
 fn new_origin(schema: &str) -> String {
     let replica = Uuid::new_v4();
 
@@ -293,18 +295,25 @@ mod tests {
 
     #[test]
     fn a_heartbeat_is_ignored_whatever_the_schema_of_its_replica() {
-        let (state, _feed) = TokenState::new(Duration::from_secs(60));
-        let ours = new_origin("public");
+        let schemas = ["public", "other", "\"ping:tenant\"", "public,public"];
 
-        for schema in ["public", "other", "\"ping:tenant\""] {
-            react(
-                &format!("{HEARTBEAT_PREFIX}{}", new_origin(schema)),
-                &ours,
-                &state,
-            );
-        }
+        let emptied: Vec<_> = schemas
+            .into_iter()
+            .filter(|schema| {
+                let (state, _feed) = TokenState::new(Duration::from_secs(60));
+                react(
+                    &format!("{HEARTBEAT_PREFIX}{}", new_origin(schema)),
+                    &new_origin(schema),
+                    &state,
+                );
+                state.generation() > 0
+            })
+            .collect();
 
-        assert_eq!(state.generation(), 0);
+        assert!(
+            emptied.is_empty(),
+            "a heartbeat emptied the caches: {emptied:?}"
+        );
     }
 
     #[test]
@@ -334,10 +343,10 @@ mod tests {
     }
 
     #[test]
-    fn a_replica_on_a_schema_list_cannot_tell_schemas_apart() {
+    fn a_quoted_name_holding_a_comma_is_taken_for_a_list() {
         let (state, _feed) = TokenState::new(Duration::from_secs(60));
 
-        react(&new_origin("other"), &new_origin("app,public"), &state);
+        react(&new_origin("\"a,b\""), &new_origin("other"), &state);
 
         assert_eq!(state.generation(), 1);
     }
@@ -385,8 +394,9 @@ mod tests {
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn a_change_reaches_a_replica_whose_schema_is_spelled_in_another_case() {
         let pool = pool().await;
-        let first = replica(&pool, "public").await;
-        let second = replica(&pool, "PUBLIC").await;
+        let schema = format!("token_state_{}", Uuid::new_v4().simple());
+        let first = replica(&pool, &schema).await;
+        let second = replica(&pool, &schema.to_uppercase()).await;
         let mut watching = second.subscribe();
         let seen = second.generation();
 
@@ -399,8 +409,9 @@ mod tests {
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn a_change_reaches_a_replica_whose_schema_is_named_like_a_heartbeat() {
         let pool = pool().await;
-        let first = replica(&pool, "\"ping:tenant\"").await;
-        let second = replica(&pool, "\"ping:tenant\"").await;
+        let schema = format!("\"ping:tenant_{}\"", Uuid::new_v4().simple());
+        let first = replica(&pool, &schema).await;
+        let second = replica(&pool, &schema).await;
         let mut watching = second.subscribe();
         let seen = second.generation();
 
@@ -413,8 +424,9 @@ mod tests {
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn a_change_reaches_a_replica_whose_schema_is_a_list() {
         let pool = pool().await;
-        let first = replica(&pool, "public").await;
-        let second = replica(&pool, "public,public").await;
+        let schema = format!("token_state_{}", Uuid::new_v4().simple());
+        let first = replica(&pool, &format!("{schema},{schema}")).await;
+        let second = replica(&pool, &schema).await;
         let mut watching = second.subscribe();
         let seen = second.generation();
 
