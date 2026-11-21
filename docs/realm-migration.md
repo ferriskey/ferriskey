@@ -15,6 +15,12 @@ cookie keeps skipping the login page.
 - The public URL of the realm must not change. Every token carries the issuer
   `https://<public host>/realms/<realm>`; the switch is done at the proxy, not
   in FerrisKey (per-realm public URLs are #1401).
+- The web app URL must not change either. Passkeys are bound to the WebAuthn
+  relying party id and origin, which come from the target's `WEBAPP_URL`, not
+  from the realm issuer. Give the target the same `WEBAPP_URL` as the source,
+  or imported passkeys stop working. With `WEBAPP_URL_FROM_REQUEST`, the
+  target must see the same `Host` and `X-Forwarded-Proto` as the source, and
+  list that host in `WEBAPP_ALLOWED_HOSTS`.
 - The target must run the same FerrisKey version as the source, or a newer
   one. A bundle from a newer schema is refused.
 - The `master` realm cannot be moved.
@@ -42,31 +48,44 @@ cookie keeps skipping the login page.
 3. Import on the target:
 
    ```sh
-   curl -sS --fail-with-body -X POST "https://target.example/realms/import" \
+   status=$(curl -sS -X POST "https://target.example/realms/import" \
      -H "Authorization: Bearer $TARGET_ADMIN_TOKEN" \
      -H "X-Ferriskey-Bundle-Passphrase: $PASSPHRASE" \
      -H "Content-Type: application/vnd.ferriskey.realm-bundle" \
-     --data-binary @acme.fkrb
+     --data-binary @acme.fkrb \
+     -o import-report.json --write-out '%{http_code}')
+   echo "$status"
    ```
 
    `201` means the realm was created, `200` that it existed and was
-   overwritten. The response lists the rows written per table, and the columns
-   the target ignored because a later migration dropped them. Any other status,
-   or a `curl` error, means nothing was imported: stop here and keep serving
-   the realm from the source.
+   overwritten. The report lists the rows written per table, and the columns
+   the target ignored because a later migration dropped them. Any other status
+   is a refusal: nothing was imported, so stop here and keep serving the realm
+   from the source.
+
+   If `curl` fails without a status, the outcome is unknown: the target may
+   have committed the realm before the response was lost. Keep the traffic
+   stopped and run the same import again. It overwrites the realm with the same
+   rows and returns a status you can trust.
 
    `unfinished_steps` lists what failed after the realm was written: the
-   `management_client` in the master realm, or the `security_event` of the
-   import. The realm is on the target either way; import the same bundle again
-   to finish them.
-4. Point the proxy route of the realm at the target.
-5. Once the target serves the realm, delete it on the source and delete the
+   `management_client` in the master realm (only when the realm already
+   existed; for a new realm a failure there refuses the whole import), or the
+   `security_event` of the import. Import the same bundle again to finish them.
+4. Retry the import only while the traffic is still stopped. A re-import
+   writes every row of the bundle again, so after the cut-over it would undo
+   the changes made on the target since.
+5. Point the proxy route of the realm at the target.
+6. Once the target serves the realm, delete it on the source and delete the
    bundle file.
 
 The import is one transaction. A wrong passphrase, a tampered or truncated
 file, a bundle without an active signing key, or a row that clashes with
 another realm of the target (`409`) leaves the target as it was. Running the
-same import again is safe.
+same import again is safe while the target serves no traffic. An administrator
+allowed to create realms but not to manage this one can only import it while
+it does not exist on the target. A realm without an active signing key is not
+exported.
 
 ## What moves
 
@@ -85,7 +104,9 @@ attempts in progress (auth sessions, broker and device sessions), magic links,
 password reset and email verification tokens, enrolments in progress, the
 webhook delivery queue and the Compass traces.
 
-Secrets (signing keys, OTP seeds, SMTP password) are opened with the source
+Secrets (signing keys, OTP seeds, SMTP password, client secrets, identity
+provider client secrets, LDAP bind passwords, webhook secrets) are opened with
+the source
 `SECRETS_ENCRYPTION_KEYS` and sealed again with the target's. The two
 instances do not need to share a key ring.
 
