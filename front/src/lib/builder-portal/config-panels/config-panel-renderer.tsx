@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { findNodePath, useBuilderContext, type BuilderNode } from '../../builder-core'
 import { ConfigSection } from './config-section'
@@ -92,6 +93,29 @@ function ItemSection({ node, onUpdate }: { node: BuilderNode; onUpdate: OnUpdate
         onChange={(v) => onUpdate({ props: { order: v } })}
       />
     </ConfigSection>
+  )
+}
+
+const FILL_PAGE_HEIGHT_OPTIONS = [
+  { label: 'No', value: '' },
+  { label: 'Yes', value: '1' },
+]
+
+/**
+ * "Fill page height" switch of the Div block.
+ * The Div then takes the height its siblings leave.
+ */
+function FillPageHeightField({ node, onUpdate }: { node: BuilderNode; onUpdate: OnUpdate }): ReactNode {
+  const grow = node.props.flexGrow
+  const setGrow = useCallback((v: string) => onUpdate({ props: { flexGrow: v } }), [onUpdate])
+  return (
+    <SelectField
+      label='Fill page height'
+      value={typeof grow === 'string' ? grow : ''}
+      options={FILL_PAGE_HEIGHT_OPTIONS}
+      onChange={setGrow}
+      allowEmpty={false}
+    />
   )
 }
 
@@ -407,6 +431,7 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
               value={node.props.maxHeight as string}
               onChange={(v) => updateProp('maxHeight', v)}
             />
+            <FillPageHeightField node={node} onUpdate={onUpdate} />
             <SelectField
               label='Overflow'
               value={node.props.overflow as string}
