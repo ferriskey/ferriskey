@@ -8,6 +8,7 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::authentication::assurance::AcrLoaMap;
 use crate::common::locale::Locale;
 use crate::{generate_timestamp, generate_uuid_v7};
 
@@ -253,6 +254,7 @@ pub struct RealmSetting {
     /// Whether every client of the realm must push its authorization
     /// requests (RFC 9126 §5).
     pub require_pushed_authorization_requests: bool,
+    pub acr_loa_map: AcrLoaMap,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -306,6 +308,7 @@ impl RealmSetting {
             account_chooser_enabled: false,
             account_chooser_show_email: false,
             require_pushed_authorization_requests: false,
+            acr_loa_map: AcrLoaMap::default(),
         }
     }
 }

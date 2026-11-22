@@ -6,7 +6,10 @@ mod tests {
     use axum_test::{TestResponse, TestServer};
     use serde_json::{Value, json};
 
-    use crate::common::{CALLBACK, ClientSpec, SeededClient, TestApp, app, authorize, rt};
+    use crate::common::{
+        CALLBACK, ClientSpec, SeededClient, TestApp, app, authorize, decode_unverified,
+        exchange_code, query_param, rt,
+    };
 
     const PASSWORD: &str = "Registration-Passw0rd!";
 
@@ -25,13 +28,18 @@ mod tests {
         app: &TestApp,
         client: &SeededClient,
     ) -> Cookie<'static> {
-        let authorized = authorize(
-            server,
-            app,
-            &client.client_id,
-            &[("prompt", "create"), ("state", "s-resume")],
-        )
-        .await;
+        open_the_flow_with(server, app, client, &[]).await
+    }
+
+    async fn open_the_flow_with(
+        server: &TestServer,
+        app: &TestApp,
+        client: &SeededClient,
+        extra: &[(&str, &str)],
+    ) -> Cookie<'static> {
+        let mut params = vec![("prompt", "create"), ("state", "s-resume")];
+        params.extend_from_slice(extra);
+        let authorized = authorize(server, app, &client.client_id, &params).await;
         assert_eq!(authorized.status_code(), 302, "{}", authorized.text());
         authorized.cookie("FERRISKEY_SESSION")
     }
@@ -189,6 +197,59 @@ mod tests {
                 signed_in.maybe_cookie("FERRISKEY_LOGIN_ACTION").is_some(),
                 "the sign-in must hand over the step token that finishes the enrollment"
             );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_registration_for_a_multi_factor_request_does_not_resume_the_flow() {
+        rt().block_on(async {
+            let _settings = REALM_SETTINGS.lock().await;
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::public()).await;
+            app.set_user_registration(true).await;
+
+            let session = open_the_flow_with(&server, app, &client, &[("acr_values", "2")]).await;
+            let registered = register_in(&server, app, &session, &fresh_email()).await;
+
+            assert_eq!(registered.status_code(), 201, "{}", registered.text());
+            let body: Value = registered.json();
+            assert_eq!(body["status"], "pending_action", "{body}");
+            assert!(!body.to_string().contains("code="), "{body}");
+            assert!(registered.maybe_cookie("FERRISKEY_SSO").is_none());
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_registration_answers_an_essential_single_factor_acr() {
+        rt().block_on(async {
+            let _settings = REALM_SETTINGS.lock().await;
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::confidential()).await;
+            app.set_user_registration(true).await;
+            let claims = r#"{"id_token":{"acr":{"essential":true,"values":["1"]}}}"#;
+
+            let session = open_the_flow_with(&server, app, &client, &[("claims", claims)]).await;
+            let registered = register_in(&server, app, &session, &fresh_email()).await;
+            assert_eq!(registered.status_code(), 201, "{}", registered.text());
+            let body: Value = registered.json();
+            assert_eq!(body["status"], "redirect", "{body}");
+            let url = body["data"]["url"].as_str().expect("a redirect url");
+            let code = query_param(url, "code").expect("an authorization code");
+
+            let token = exchange_code(&server, app, &client, &code, &[]).await;
+            assert_eq!(token.status_code(), 200, "{}", token.text());
+            let id_token = decode_unverified(
+                token.json::<Value>()["id_token"]
+                    .as_str()
+                    .expect("an id token"),
+            );
+
+            assert_eq!(id_token["acr"], "1", "{id_token}");
+            assert_eq!(id_token["amr"], json!(["pwd"]), "{id_token}");
         });
     }
 }

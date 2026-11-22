@@ -1,3 +1,4 @@
+pub mod assurance;
 pub mod client_credential;
 pub mod entities;
 pub mod ports;

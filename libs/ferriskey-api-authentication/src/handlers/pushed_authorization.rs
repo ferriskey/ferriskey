@@ -42,6 +42,9 @@ pub struct PushedAuthorizationRequestForm {
     pub prompt: Option<String>,
     pub max_age: Option<i64>,
     pub resource: Option<String>,
+    pub acr_values: Option<String>,
+    /// OIDC `claims`, as JSON.
+    pub claims: Option<String>,
     /// Refused: a pushed request cannot point at another one.
     pub request_uri: Option<String>,
     /// Refused: request objects (RFC 9101) are not supported.
@@ -109,6 +112,8 @@ fn authorization_parameters(
         prompt: form.prompt,
         max_age: form.max_age,
         resource: form.resource,
+        acr_values: form.acr_values,
+        claims: form.claims,
     })
 }
 

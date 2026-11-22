@@ -11,7 +11,7 @@ use crate::domain::authentication::ports::{
 };
 use crate::domain::client::ports::ClientRepository;
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::device_session::entities::AccountEntry;
+use crate::domain::device_session::entities::{AccountEntry, ResumeRequirements};
 use crate::domain::device_session::ports::AccountChooserService;
 use crate::domain::realm::entities::RealmScope;
 use crate::domain::seawatch::{
@@ -82,23 +82,31 @@ impl ApplicationService {
             return Ok(Vec::new());
         };
 
-        let stored_max_age = match input.session_code {
+        let login = match input.session_code {
             Some(session_code) => self
                 .auth_service
                 .open_selection_auth_session(scope, session_code)
                 .await
                 .ok()
-                .filter(|auth_session| auth_session.client_id == client_id)
-                .and_then(|auth_session| auth_session.max_age),
+                .filter(|auth_session| auth_session.client_id == client_id),
             None => None,
         };
+        let requirements = ResumeRequirements::new(
+            stricter_max_age(
+                login.as_ref().and_then(|auth_session| auth_session.max_age),
+                input.max_age,
+            ),
+            login
+                .map(|auth_session| auth_session.acr_request())
+                .unwrap_or_default(),
+        );
 
         self.account_chooser_service
             .list_entries(
                 input.device_token.as_deref(),
                 scope,
                 input.active_sso_token.as_deref(),
-                stricter_max_age(stored_max_age, input.max_age),
+                requirements,
                 client_id,
             )
             .await
@@ -170,7 +178,10 @@ impl AccountSelectionService for ApplicationService {
                 input.device_token.as_deref(),
                 &scope,
                 input.session_id,
-                stricter_max_age(auth_session.max_age, input.max_age),
+                ResumeRequirements::new(
+                    stricter_max_age(auth_session.max_age, input.max_age),
+                    auth_session.acr_request(),
+                ),
                 auth_session.client_id,
             )
             .await
