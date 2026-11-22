@@ -900,7 +900,7 @@ mod tests {
             "{verify_sql}"
         );
         assert!(
-            verify_sql.contains(r#"LOWER("users"."email") = 'octocat@github.com'"#),
+            verify_sql.contains(r#"LOWER("email") = 'octocat@github.com'"#),
             "{verify_sql}"
         );
         assert!(!verify_sql.contains("enabled"), "{verify_sql}");
