@@ -1051,7 +1051,11 @@ fn plan_linked_email_update(
     idp: &IdentityProvider,
     user_info: &BrokeredUserInfo,
 ) -> Option<LinkedEmailUpdate> {
-    let upstream_verified = user_info.email_verified.unwrap_or(false) && idp.trust_email;
+    if !idp.trust_email {
+        return None;
+    }
+
+    let upstream_verified = user_info.email_verified.unwrap_or(false);
     match (&user.email, &user_info.email) {
         (Some(local_email), Some(upstream_email))
             if !user.email_verified
@@ -2075,6 +2079,10 @@ mod tests {
                 verified: true,
             })
         );
+        assert_eq!(
+            plan_linked_email_update(&user, untrusted.get(), &verified_info),
+            None
+        );
     }
 
     #[tokio::test]
@@ -2196,6 +2204,19 @@ mod tests {
         )
         .await
         .unwrap();
+        assert!(!reconciled.email_verified);
+
+        let mut missing_email_user = user.clone();
+        missing_email_user.email = None;
+        let reconciled = reconcile_linked_user_email(
+            &users,
+            &untrusted_idp,
+            Unscoped::new(missing_email_user).in_realm(&scope).unwrap(),
+            &same_email_info,
+        )
+        .await
+        .unwrap();
+        assert!(reconciled.email.is_none());
         assert!(!reconciled.email_verified);
 
         let different_email_info = BrokeredUserInfo {
