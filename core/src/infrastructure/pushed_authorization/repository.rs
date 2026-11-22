@@ -38,7 +38,7 @@ impl PushedAuthorizationRequestRepository for PostgresPushedAuthorizationRequest
         let realm_id: Uuid = request.realm_id.into();
 
         self.db
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 "INSERT INTO pushed_authorization_requests
                     (request_uri_hash, realm_id, client_id, parameters, expires_at)
@@ -69,7 +69,7 @@ impl PushedAuthorizationRequestRepository for PostgresPushedAuthorizationRequest
         let realm_id: Uuid = realm_id.into();
         let row = self
             .db
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 "DELETE FROM pushed_authorization_requests
                  WHERE request_uri_hash = $1
@@ -108,7 +108,7 @@ impl PushedAuthorizationRequestRepository for PostgresPushedAuthorizationRequest
     async fn delete_expired(&self, before: DateTime<Utc>, limit: u64) -> Result<u64, CoreError> {
         let result = self
             .db
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 "DELETE FROM pushed_authorization_requests
                  WHERE request_uri_hash IN (
@@ -178,7 +178,9 @@ mod db_tests {
             .await
             .expect("connect admin pool");
         admin_pool
-            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{schema}""#)))
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                r#"CREATE SCHEMA "{schema}""#
+            ))))
             .await
             .expect("create test schema");
 

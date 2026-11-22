@@ -134,7 +134,7 @@ async fn seal_column(
 
     loop {
         let rows = db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 &select,
                 [pattern.clone().into(), after.into()],
@@ -161,7 +161,7 @@ async fn seal_column(
             };
 
             let result = db
-                .execute(Statement::from_sql_and_values(
+                .execute_raw(Statement::from_sql_and_values(
                     DbBackend::Postgres,
                     &update,
                     [resealed.into(), id.into(), value.into()],
@@ -243,11 +243,18 @@ mod tests {
             .await
             .expect("connect admin pool");
         admin_pool
-            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                r#"CREATE SCHEMA "{}""#,
+                schema
+            ))))
             .await
             .expect("create test schema");
 
-        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let separator = if str::contains(base_url.as_str(), '?') {
+            '&'
+        } else {
+            '?'
+        };
         let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
         let pool = sqlx::PgPool::connect(&schema_url)
             .await
@@ -332,11 +339,13 @@ mod tests {
     }
 
     async fn stored(pool: &sqlx::PgPool, table: &str, column: &str, id: Uuid) -> String {
-        sqlx::query_scalar(&format!("SELECT {column} FROM {table} WHERE id = $1"))
-            .bind(id)
-            .fetch_one(pool)
-            .await
-            .expect("read the stored value")
+        sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+            "SELECT {column} FROM {table} WHERE id = $1"
+        )))
+        .bind(id)
+        .fetch_one(pool)
+        .await
+        .expect("read the stored value")
     }
 
     #[tokio::test]

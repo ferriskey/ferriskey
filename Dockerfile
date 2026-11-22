@@ -3,7 +3,7 @@ FROM rust:1.99.1-trixie@sha256:09027f873d45b8ecd1dc86f1fa13b7a62b875c961f017a0e3
 WORKDIR /usr/local/src/ferriskey
 
 RUN cargo install cargo-chef --version 0.1.77 --locked && \
-    cargo install sqlx-cli --version 0.8.6 --no-default-features --features postgres --locked
+    cargo install sqlx-cli --version 0.9.0 --no-default-features --features postgres
 
 # ── Planner: analyse the workspace and produce recipe.json ────────────────────
 FROM chef AS planner

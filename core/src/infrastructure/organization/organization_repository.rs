@@ -231,7 +231,6 @@ impl OrganizationRepository for PostgresOrganizationRepository {
         }
 
         let model = OrganizationEntity::update(active_model)
-            .filter(OrganizationColumn::Id.eq(id.as_uuid()))
             .exec(&self.db)
             .await
             .map_err(|e| {
@@ -289,8 +288,14 @@ mod listing_tests {
     #[test]
     fn an_unbounded_created_range_adds_no_predicate() {
         let sql = sql(&OrganizationFilter::default());
-        assert!(!sql.contains(r#""organizations"."created_at" >"#), "{sql}");
-        assert!(!sql.contains(r#""organizations"."created_at" <"#), "{sql}");
+        assert!(
+            !str::contains(&sql, r#""organizations"."created_at" >"#),
+            "{sql}"
+        );
+        assert!(
+            !str::contains(&sql, r#""organizations"."created_at" <"#),
+            "{sql}"
+        );
     }
 
     #[test]
@@ -303,11 +308,17 @@ mod listing_tests {
             ..OrganizationFilter::default()
         });
         assert!(
-            sql.contains(r#""organizations"."created_at" >= '2026-01-01 00:00:00.000000 +00:00'"#),
+            str::contains(
+                &sql,
+                r#""organizations"."created_at" >= '2026-01-01 00:00:00.000000 +00:00'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""organizations"."created_at" < '2026-02-01 00:00:00.000000 +00:00'"#),
+            str::contains(
+                &sql,
+                r#""organizations"."created_at" < '2026-02-01 00:00:00.000000 +00:00'"#
+            ),
             "{sql}"
         );
     }
@@ -319,7 +330,7 @@ mod listing_tests {
             ..OrganizationFilter::default()
         });
         assert!(
-            sql.contains(r#""organizations"."description" ILIKE E'%d\\%%'"#),
+            str::contains(&sql, r#""organizations"."description" ILIKE E'%d\\%%'"#),
             "{sql}"
         );
     }
@@ -334,7 +345,10 @@ mod listing_tests {
     fn listing_is_always_bound_to_the_realm() {
         let sql = sql(&OrganizationFilter::default());
         assert!(
-            sql.contains(r#""organizations"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            str::contains(
+                &sql,
+                r#""organizations"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
             "{sql}"
         );
     }
@@ -348,15 +362,15 @@ mod listing_tests {
             ..OrganizationFilter::default()
         });
         assert!(
-            sql.contains(r#""organizations"."name" ILIKE E'%a\\%%'"#),
+            str::contains(&sql, r#""organizations"."name" ILIKE E'%a\\%%'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""organizations"."alias" ILIKE '%b%'"#),
+            str::contains(&sql, r#""organizations"."alias" ILIKE '%b%'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""organizations"."domain" ILIKE E'%c\\_%'"#),
+            str::contains(&sql, r#""organizations"."domain" ILIKE E'%c\\_%'"#),
             "{sql}"
         );
     }
@@ -368,7 +382,8 @@ mod listing_tests {
             ..OrganizationFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#"(("organizations"."name" ILIKE '%acme%') OR ("organizations"."alias" ILIKE '%acme%') OR ("organizations"."domain" ILIKE '%acme%') OR ("organizations"."description" ILIKE '%acme%'))"#
             ),
             "{sql}"
@@ -382,7 +397,7 @@ mod listing_tests {
             ..OrganizationFilter::default()
         });
         assert!(
-            sql.contains(r#""organizations"."enabled" = FALSE"#),
+            str::contains(&sql, r#""organizations"."enabled" = FALSE"#),
             "{sql}"
         );
     }
@@ -415,9 +430,12 @@ mod listing_tests {
             ..OrganizationFilter::default()
         });
         assert!(
-            sql.contains(&format!(
-                r#""organizations"."id" NOT IN (SELECT "organization_members"."organization_id" FROM "organization_members" WHERE "organization_members"."user_id" = '{user_id}')"#
-            )),
+            str::contains(
+                &sql,
+                &format!(
+                    r#""organizations"."id" NOT IN (SELECT "organization_members"."organization_id" FROM "organization_members" WHERE "organization_members"."user_id" = '{user_id}')"#
+                )
+            ),
             "{sql}"
         );
     }
@@ -431,9 +449,10 @@ mod listing_tests {
             ..OrganizationFilter::default()
         });
         assert!(
-            sql.contains(&format!(
-                r#""organizations"."id" IN ('{first}', '{second}')"#
-            )),
+            str::contains(
+                &sql,
+                &format!(r#""organizations"."id" IN ('{first}', '{second}')"#)
+            ),
             "{sql}"
         );
     }

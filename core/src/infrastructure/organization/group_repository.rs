@@ -286,11 +286,11 @@ mod listing_tests {
     fn an_unbounded_created_range_adds_no_predicate() {
         let sql = sql(&GroupFilter::default());
         assert!(
-            !sql.contains(r#""organization_groups"."created_at" >"#),
+            !str::contains(&sql, r#""organization_groups"."created_at" >"#),
             "{sql}"
         );
         assert!(
-            !sql.contains(r#""organization_groups"."created_at" <"#),
+            !str::contains(&sql, r#""organization_groups"."created_at" <"#),
             "{sql}"
         );
     }
@@ -305,13 +305,15 @@ mod listing_tests {
             ..GroupFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""organization_groups"."created_at" >= '2026-01-01 00:00:00.000000 +00:00'"#
             ),
             "{sql}"
         );
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""organization_groups"."created_at" < '2026-02-01 00:00:00.000000 +00:00'"#
             ),
             "{sql}"
@@ -325,7 +327,8 @@ mod listing_tests {
             ..GroupFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#"(("organization_groups"."name" ILIKE E'%a\\%%') OR ("organization_groups"."description" ILIKE E'%a\\%%'))"#
             ),
             "{sql}"
@@ -342,7 +345,8 @@ mod listing_tests {
     fn listing_is_always_bound_to_the_organization() {
         let sql = sql(&GroupFilter::default());
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""organization_groups"."organization_id" = '00000000-0000-0000-0000-000000000000'"#
             ),
             "{sql}"
@@ -357,11 +361,14 @@ mod listing_tests {
             ..GroupFilter::default()
         });
         assert!(
-            sql.contains(r#""organization_groups"."name" ILIKE E'%a\\%%'"#),
+            str::contains(&sql, r#""organization_groups"."name" ILIKE E'%a\\%%'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""organization_groups"."description" ILIKE E'%b\\_%'"#),
+            str::contains(
+                &sql,
+                r#""organization_groups"."description" ILIKE E'%b\\_%'"#
+            ),
             "{sql}"
         );
     }
@@ -374,9 +381,10 @@ mod listing_tests {
             ..GroupFilter::default()
         });
         assert!(
-            sql.contains(&format!(
-                r#""organization_groups"."parent_group_id" = '{parent}'"#
-            )),
+            str::contains(
+                &sql,
+                &format!(r#""organization_groups"."parent_group_id" = '{parent}'"#)
+            ),
             "{sql}"
         );
     }
@@ -409,23 +417,28 @@ mod listing_tests {
             .build(DbBackend::Postgres)
             .to_string();
         assert!(
-            sql.contains(r#"COUNT("organization_groups"."id") AS "child_count""#),
+            str::contains(
+                &sql,
+                r#"COUNT("organization_groups"."id") AS "child_count""#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#""organization_groups"."organization_id" = '00000000-0000-0000-0000-000000000000'"#
             ),
             "{sql}"
         );
         assert!(
-            sql.contains(&format!(
-                r#""organization_groups"."parent_group_id" IN ('{first}', '{second}')"#
-            )),
+            str::contains(
+                &sql,
+                &format!(r#""organization_groups"."parent_group_id" IN ('{first}', '{second}')"#)
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#"GROUP BY "organization_groups"."parent_group_id""#),
+            str::contains(&sql, r#"GROUP BY "organization_groups"."parent_group_id""#),
             "{sql}"
         );
     }
@@ -439,9 +452,10 @@ mod listing_tests {
             ..GroupFilter::default()
         });
         assert!(
-            sql.contains(&format!(
-                r#""organization_groups"."id" IN ('{first}', '{second}')"#
-            )),
+            str::contains(
+                &sql,
+                &format!(r#""organization_groups"."id" IN ('{first}', '{second}')"#)
+            ),
             "{sql}"
         );
     }

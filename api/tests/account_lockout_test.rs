@@ -105,10 +105,10 @@ mod tests {
             .await
             .expect("connect admin pool");
         admin_pool
-            .execute(sqlx::query(&format!(
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
                 "CREATE SCHEMA IF NOT EXISTS \"{}\"",
                 schema
-            )))
+            ))))
             .await
             .expect("create schema");
 
@@ -170,10 +170,10 @@ mod tests {
 
         // Lower the lockout threshold for the whole realm so a few failed
         // attempts trip the lock. Constants (not user input) → safe to inline.
-        pool.execute(sqlx::query(&format!(
+        pool.execute(sqlx::query(sqlx::AssertSqlSafe(format!(
             "UPDATE realm_settings SET lockout_threshold = {}, lockout_duration_seconds = {}",
             LOCKOUT_THRESHOLD, LOCKOUT_DURATION_SECONDS
-        )))
+        ))))
         .await
         .expect("configure lockout threshold");
 
@@ -439,10 +439,10 @@ mod tests {
 
             // Rewind the lock into the past to simulate an elapsed window.
             let uid = Uuid::parse_str(&user_id).expect("victim id is a uuid");
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "UPDATE users SET locked_until = now() - interval '1 minute' WHERE id = '{}'",
                 uid
-            ))
+            )))
             .execute(&shared_ctx().pool)
             .await
             .expect("rewind locked_until");

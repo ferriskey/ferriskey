@@ -263,7 +263,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
 
         let row = self
             .issued_db
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 ROTATE_SQL,
                 [
@@ -303,7 +303,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
 
         let row = self
             .issued_db
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 CONSUME_AND_ROTATE_SQL,
                 [
@@ -482,11 +482,17 @@ mod tests {
             .await
             .expect("connect admin pool");
         admin_pool
-            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{schema}""#)))
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                r#"CREATE SCHEMA "{schema}""#
+            ))))
             .await
             .expect("create test schema");
 
-        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let separator = if str::contains(base_url.as_str(), '?') {
+            '&'
+        } else {
+            '?'
+        };
         let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
         let pool = sqlx::PgPool::connect(&schema_url)
             .await

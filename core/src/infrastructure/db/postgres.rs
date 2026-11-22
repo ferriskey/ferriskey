@@ -96,7 +96,10 @@ mod tests {
     fn an_idle_connection_is_released_within_a_minute() {
         let options = connect_options(&config(20, 2));
 
-        assert_eq!(options.get_idle_timeout(), Some(Duration::from_secs(60)));
+        assert_eq!(
+            options.get_idle_timeout(),
+            Some(Some(Duration::from_secs(60)))
+        );
     }
 
     #[tokio::test]
@@ -189,7 +192,7 @@ mod tests {
     async fn synchronous_commit(db: &DatabaseConnection) -> String {
         use sea_orm::{ConnectionTrait, Statement};
 
-        db.query_one(Statement::from_string(
+        db.query_one_raw(Statement::from_string(
             db.get_database_backend(),
             "SHOW synchronous_commit",
         ))

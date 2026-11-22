@@ -1,10 +1,11 @@
+use sea_orm::ExprTrait;
 use sea_orm::{
     ActiveModelTrait,
     ActiveValue::Set,
     ColumnTrait, Condition, DatabaseConnection, EntityTrait, JoinType, QueryFilter, QuerySelect,
     RelationTrait,
     prelude::Expr,
-    sea_query::{DynIden, IntoCondition, Query, SimpleExpr},
+    sea_query::{DynIden, Query, SimpleExpr},
 };
 use tracing::{error, instrument};
 use uuid::Uuid;
@@ -125,8 +126,7 @@ impl PostgresUserRoleRepository {
                     .def()
                     .rev()
                     .on_condition(move |_left, right| {
-                        user_matches((right, crate::entity::user_role::Column::UserId))
-                            .into_condition()
+                        user_matches((right, crate::entity::user_role::Column::UserId)).into()
                     }),
             )
             .join(

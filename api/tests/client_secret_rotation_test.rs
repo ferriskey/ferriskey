@@ -141,12 +141,13 @@ fn both_secrets_work_during_the_grace_period_and_only_the_new_one_after_a_revoca
         assert!(shown["expires_at"].is_string(), "{listed}");
 
         for column in ["secret", "previous_secret"] {
-            let at_rest: String =
-                sqlx::query_scalar(&format!("SELECT {column} FROM clients WHERE id = $1"))
-                    .bind(id)
-                    .fetch_one(&app.pool)
-                    .await
-                    .expect("read the stored value");
+            let at_rest: String = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+                "SELECT {column} FROM clients WHERE id = $1"
+            )))
+            .bind(id)
+            .fetch_one(&app.pool)
+            .await
+            .expect("read the stored value");
             assert!(at_rest.starts_with("fk1:kid-a:"), "{column}: {at_rest}");
         }
 

@@ -8,7 +8,7 @@ use sea_orm::entity::prelude::*;
 pub struct Entity;
 
 impl EntityName for Entity {
-    fn table_name(&self) -> &str {
+    fn table_name(&self) -> &'static str {
         "refresh_tokens"
     }
 }

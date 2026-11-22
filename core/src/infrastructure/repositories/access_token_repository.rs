@@ -63,7 +63,7 @@ impl AccessTokenRepository for PostgresAccessTokenRepository {
         issuer: String,
     ) -> Result<(), JwtError> {
         self.issued_db
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 "INSERT INTO session_participants (session_id, realm_id, client_id, issuer) \
                  SELECT $1, $2, $3, $4 WHERE EXISTS (SELECT 1 FROM user_sessions WHERE id = $1) \
@@ -109,7 +109,7 @@ impl AccessTokenRepository for PostgresAccessTokenRepository {
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
 
         self.db
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 "INSERT INTO session_token_revocations (session_id, revoked_before) \
                  SELECT $1, date_trunc('second', now() AT TIME ZONE 'UTC') + interval '1 second' \
@@ -152,7 +152,7 @@ impl AccessTokenRepository for PostgresAccessTokenRepository {
 
         // Tokens that were never stored (client credentials) are caught by date instead.
         self.db
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 "INSERT INTO user_token_revocations (user_id, revoked_before) \
                  VALUES ($1, date_trunc('second', now() AT TIME ZONE 'UTC')) \
@@ -174,7 +174,7 @@ impl AccessTokenRepository for PostgresAccessTokenRepository {
     ) -> Result<bool, JwtError> {
         let row = self
             .db
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 "SELECT EXISTS (SELECT 1 FROM access_tokens WHERE token_hash = $1 AND revoked) \
                      OR EXISTS (SELECT 1 FROM user_token_revocations \
@@ -258,11 +258,17 @@ mod tests {
             .await
             .expect("connect admin pool");
         admin_pool
-            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{schema}""#)))
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                r#"CREATE SCHEMA "{schema}""#
+            ))))
             .await
             .expect("create test schema");
 
-        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let separator = if str::contains(base_url.as_str(), '?') {
+            '&'
+        } else {
+            '?'
+        };
         let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
         let pool = sqlx::PgPool::connect(&schema_url)
             .await

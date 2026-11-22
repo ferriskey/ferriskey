@@ -26,7 +26,9 @@ pub async fn migrated_schema(prefix: &str) -> TestSchema {
         .await
         .expect("connect admin pool");
     admin_pool
-        .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{schema}""#)))
+        .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+            r#"CREATE SCHEMA "{schema}""#
+        ))))
         .await
         .expect("create test schema");
 
@@ -65,9 +67,11 @@ pub async fn migrated_schema(prefix: &str) -> TestSchema {
 }
 
 pub async fn stored(pool: &sqlx::PgPool, table: &str, value: &str, id: Uuid) -> Option<String> {
-    sqlx::query_scalar(&format!("SELECT {value} FROM {table} WHERE id = $1"))
-        .bind(id)
-        .fetch_one(pool)
-        .await
-        .expect("read the stored value")
+    sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT {value} FROM {table} WHERE id = $1"
+    )))
+    .bind(id)
+    .fetch_one(pool)
+    .await
+    .expect("read the stored value")
 }

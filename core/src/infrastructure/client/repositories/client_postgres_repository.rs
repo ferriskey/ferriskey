@@ -1,3 +1,4 @@
+use sea_orm::ExprTrait;
 use std::collections::HashMap;
 
 use crate::{
@@ -55,9 +56,8 @@ fn device_grant() -> Expr {
         Expr::col((
             clients::Entity,
             clients::Column::OauthDeviceCodeGrantEnabled,
-        ))
-        .into(),
-        Expr::val(false).into(),
+        )),
+        Expr::val(false),
     ]))
 }
 
@@ -620,7 +620,7 @@ impl ClientRepository for PostgresClientRepository {
     ) -> Result<Vec<ExpiredClientSecret>, CoreError> {
         let rows = self
             .db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 "WITH due AS (\
                      SELECT id, realm_id, previous_secret_expires_at AS expired_at FROM clients \
@@ -689,8 +689,8 @@ mod tests {
     #[test]
     fn an_unbounded_created_range_adds_no_predicate() {
         let sql = sql(&ClientFilter::default());
-        assert!(!sql.contains(r#""clients"."created_at" >"#), "{sql}");
-        assert!(!sql.contains(r#""clients"."created_at" <"#), "{sql}");
+        assert!(!str::contains(&sql, r#""clients"."created_at" >"#), "{sql}");
+        assert!(!str::contains(&sql, r#""clients"."created_at" <"#), "{sql}");
     }
 
     #[test]
@@ -703,11 +703,17 @@ mod tests {
             ..ClientFilter::default()
         });
         assert!(
-            sql.contains(r#""clients"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""clients"."created_at" >= '2026-01-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""clients"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""clients"."created_at" < '2026-02-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
     }
@@ -716,7 +722,10 @@ mod tests {
     fn listing_is_always_bound_to_the_realm() {
         let sql = sql(&ClientFilter::default());
         assert!(
-            sql.contains(r#""clients"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            str::contains(
+                &sql,
+                r#""clients"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
             "{sql}"
         );
     }
@@ -728,9 +737,12 @@ mod tests {
             client_id: Some("b".to_string()),
             ..ClientFilter::default()
         });
-        assert!(sql.contains(r#""clients"."name" ILIKE E'%a\\%%'"#), "{sql}");
         assert!(
-            sql.contains(r#""clients"."client_id" ILIKE '%b%'"#),
+            str::contains(&sql, r#""clients"."name" ILIKE E'%a\\%%'"#),
+            "{sql}"
+        );
+        assert!(
+            str::contains(&sql, r#""clients"."client_id" ILIKE '%b%'"#),
             "{sql}"
         );
     }
@@ -741,8 +753,11 @@ mod tests {
             client_id_exact: Some("App_%".to_string()),
             ..ClientFilter::default()
         });
-        assert!(sql.contains(r#""clients"."client_id" = 'App_%'"#), "{sql}");
-        assert!(!sql.contains("ILIKE"), "{sql}");
+        assert!(
+            str::contains(&sql, r#""clients"."client_id" = 'App_%'"#),
+            "{sql}"
+        );
+        assert!(!str::contains(&sql, "ILIKE"), "{sql}");
     }
 
     #[test]
@@ -755,18 +770,24 @@ mod tests {
             client_type: Some(ClientType::System),
             ..ClientFilter::default()
         });
-        assert!(sql.contains(r#""clients"."enabled" = TRUE"#), "{sql}");
         assert!(
-            sql.contains(r#""clients"."public_client" = FALSE"#),
+            str::contains(&sql, r#""clients"."enabled" = TRUE"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""clients"."service_account_enabled" = TRUE"#),
+            str::contains(&sql, r#""clients"."public_client" = FALSE"#),
             "{sql}"
         );
-        assert!(sql.contains(r#""clients"."protocol" = 'saml'"#), "{sql}");
         assert!(
-            sql.contains(r#""clients"."client_type" = 'system'"#),
+            str::contains(&sql, r#""clients"."service_account_enabled" = TRUE"#),
+            "{sql}"
+        );
+        assert!(
+            str::contains(&sql, r#""clients"."protocol" = 'saml'"#),
+            "{sql}"
+        );
+        assert!(
+            str::contains(&sql, r#""clients"."client_type" = 'system'"#),
             "{sql}"
         );
     }
@@ -824,7 +845,10 @@ mod tests {
             ..ClientFilter::default()
         });
         assert!(
-            sql.contains(&format!(r#""clients"."id" IN ('{first}', '{second}')"#)),
+            str::contains(
+                &sql,
+                &format!(r#""clients"."id" IN ('{first}', '{second}')"#)
+            ),
             "{sql}"
         );
     }
@@ -845,7 +869,8 @@ mod tests {
             ..ClientFilter::default()
         });
         assert!(
-            sql.contains(
+            str::contains(
+                &sql,
                 r#"(("clients"."name" ILIKE E'%a\\%%') OR ("clients"."client_id" ILIKE E'%a\\%%'))"#
             ),
             "{sql}"
@@ -876,19 +901,20 @@ mod tests {
     fn m2m_applications_hold_a_service_account() {
         let sql = application(ApplicationType::M2m);
         assert!(
-            sql.contains(r#""clients"."service_account_enabled" = TRUE"#),
+            str::contains(&sql, r#""clients"."service_account_enabled" = TRUE"#),
             "{sql}"
         );
-        assert!(!sql.contains("COALESCE"), "{sql}");
+        assert!(!str::contains(&sql, "COALESCE"), "{sql}");
     }
 
     #[test]
     fn device_applications_use_the_device_grant_without_redirect() {
         let sql = application(ApplicationType::Device);
         assert!(
-            sql.contains(&format!(
-                r#""clients"."service_account_enabled" = FALSE AND ({DEVICE})"#
-            )),
+            str::contains(
+                &sql,
+                &format!(r#""clients"."service_account_enabled" = FALSE AND ({DEVICE})"#)
+            ),
             "{sql}"
         );
     }
@@ -897,9 +923,12 @@ mod tests {
     fn spa_applications_are_public_and_public_clients() {
         let sql = application(ApplicationType::Spa);
         assert!(
-            sql.contains(&format!(
-                r#""clients"."service_account_enabled" = FALSE AND (NOT ({DEVICE})) AND "clients"."client_type" = 'public' AND "clients"."public_client" = TRUE"#
-            )),
+            str::contains(
+                &sql,
+                &format!(
+                    r#""clients"."service_account_enabled" = FALSE AND (NOT ({DEVICE})) AND "clients"."client_type" = 'public' AND "clients"."public_client" = TRUE"#
+                )
+            ),
             "{sql}"
         );
     }
@@ -908,9 +937,12 @@ mod tests {
     fn native_applications_are_public_without_public_client() {
         let sql = application(ApplicationType::Native);
         assert!(
-            sql.contains(&format!(
-                r#""clients"."service_account_enabled" = FALSE AND (NOT ({DEVICE})) AND "clients"."client_type" = 'public' AND "clients"."public_client" = FALSE"#
-            )),
+            str::contains(
+                &sql,
+                &format!(
+                    r#""clients"."service_account_enabled" = FALSE AND (NOT ({DEVICE})) AND "clients"."client_type" = 'public' AND "clients"."public_client" = FALSE"#
+                )
+            ),
             "{sql}"
         );
     }
@@ -919,9 +951,12 @@ mod tests {
     fn web_applications_are_every_other_client_type() {
         let sql = application(ApplicationType::Web);
         assert!(
-            sql.contains(&format!(
-                r#""clients"."service_account_enabled" = FALSE AND (NOT ({DEVICE})) AND "clients"."client_type" <> 'public'"#
-            )),
+            str::contains(
+                &sql,
+                &format!(
+                    r#""clients"."service_account_enabled" = FALSE AND (NOT ({DEVICE})) AND "clients"."client_type" <> 'public'"#
+                )
+            ),
             "{sql}"
         );
     }

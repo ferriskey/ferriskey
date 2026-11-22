@@ -40,7 +40,7 @@ impl SessionParticipantRepository for PostgresSessionParticipantRepository {
         let realm: Uuid = realm_id.into();
         let rows = self
             .db
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Postgres,
                 PARTICIPANTS_SQL,
                 [realm.into(), session_id.into()],

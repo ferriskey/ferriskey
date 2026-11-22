@@ -1,3 +1,4 @@
+use sea_orm::ExprTrait;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -383,11 +384,18 @@ mod tests {
             .await
             .expect("connect admin pool");
         admin_pool
-            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+            .execute(sqlx::query(sqlx::AssertSqlSafe(format!(
+                r#"CREATE SCHEMA "{}""#,
+                schema
+            ))))
             .await
             .expect("create test schema");
 
-        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let separator = if str::contains(base_url.as_str(), '?') {
+            '&'
+        } else {
+            '?'
+        };
         let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
         let pool = sqlx::PgPool::connect(&schema_url)
             .await
@@ -1107,13 +1115,17 @@ mod listing_tests {
     fn listing_is_always_bound_to_the_realm_and_the_webhook() {
         let sql = sql(&WebhookDeliveryFilter::default());
         assert!(
-            sql.contains(&format!(r#""webhook_deliveries"."realm_id" = '{REALM}'"#)),
+            str::contains(
+                &sql,
+                &format!(r#""webhook_deliveries"."realm_id" = '{REALM}'"#)
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(&format!(
-                r#""webhook_deliveries"."webhook_id" = '{WEBHOOK}'"#
-            )),
+            str::contains(
+                &sql,
+                &format!(r#""webhook_deliveries"."webhook_id" = '{WEBHOOK}'"#)
+            ),
             "{sql}"
         );
     }
@@ -1122,11 +1134,11 @@ mod listing_tests {
     fn an_unbounded_created_range_adds_no_predicate() {
         let sql = sql(&WebhookDeliveryFilter::default());
         assert!(
-            !sql.contains(r#""webhook_deliveries"."created_at" >"#),
+            !str::contains(&sql, r#""webhook_deliveries"."created_at" >"#),
             "{sql}"
         );
         assert!(
-            !sql.contains(r#""webhook_deliveries"."created_at" <"#),
+            !str::contains(&sql, r#""webhook_deliveries"."created_at" <"#),
             "{sql}"
         );
     }
@@ -1141,11 +1153,17 @@ mod listing_tests {
             ..WebhookDeliveryFilter::default()
         });
         assert!(
-            sql.contains(r#""webhook_deliveries"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""webhook_deliveries"."created_at" >= '2026-01-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""webhook_deliveries"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            str::contains(
+                &sql,
+                r#""webhook_deliveries"."created_at" < '2026-02-01 00:00:00.000000'"#
+            ),
             "{sql}"
         );
     }
@@ -1160,20 +1178,21 @@ mod listing_tests {
             ..WebhookDeliveryFilter::default()
         });
         assert!(
-            sql.contains(r#""webhook_deliveries"."event" = 'user.created'"#),
+            str::contains(&sql, r#""webhook_deliveries"."event" = 'user.created'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(r#""webhook_deliveries"."status" = 'failed'"#),
+            str::contains(&sql, r#""webhook_deliveries"."status" = 'failed'"#),
             "{sql}"
         );
         assert!(
-            sql.contains(&format!(
-                r#""webhook_deliveries"."resource_id" = '{resource}'"#
-            )),
+            str::contains(
+                &sql,
+                &format!(r#""webhook_deliveries"."resource_id" = '{resource}'"#)
+            ),
             "{sql}"
         );
-        assert!(!sql.contains("LIKE"), "{sql}");
+        assert!(!str::contains(&sql, "LIKE"), "{sql}");
     }
 
     #[test]
@@ -1183,7 +1202,10 @@ mod listing_tests {
             ..WebhookDeliveryFilter::default()
         });
         assert!(
-            sql.contains(r#"CAST("webhook_deliveries"."resource_id" AS text) ILIKE E'%a\\%b%'"#),
+            str::contains(
+                &sql,
+                r#"CAST("webhook_deliveries"."resource_id" AS text) ILIKE E'%a\\%b%'"#
+            ),
             "{sql}"
         );
     }
