@@ -25,3 +25,9 @@ pub struct UpdateUserRequest {
     pub enabled: bool,
     pub required_actions: Option<Vec<String>>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EmailReconciliation {
+    VerifyMatching { email: String },
+    BackfillMissing { email: String, verified: bool },
+}

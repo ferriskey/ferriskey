@@ -21,7 +21,7 @@ use crate::user::commands::{
 use crate::user::entities::{
     RequiredAction, RequiredActionError, User, UserAttribute, UserFilter, UserSortField,
 };
-use crate::user::value_objects::{CreateUserRequest, UpdateUserRequest};
+use crate::user::value_objects::{CreateUserRequest, EmailReconciliation, UpdateUserRequest};
 
 pub trait UserService: Send + Sync {
     fn delete_user(
@@ -205,6 +205,12 @@ pub trait UserRepository: Send + Sync {
         &self,
         user: &Scoped<User>,
         locale: Option<String>,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+
+    fn reconcile_email(
+        &self,
+        user: &Scoped<User>,
+        reconciliation: EmailReconciliation,
     ) -> impl Future<Output = Result<User, CoreError>> + Send;
 
     fn increment_failed_login_attempts(

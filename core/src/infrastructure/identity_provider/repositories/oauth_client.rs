@@ -4,8 +4,9 @@ use std::time::Duration;
 use reqwest::header::ACCEPT;
 use reqwest::redirect;
 use reqwest::{Client, Url};
+use serde::Deserialize;
 use tokio::net::lookup_host;
-use tracing::instrument;
+use tracing::{instrument, warn};
 
 use ferriskey_webhook::endpoint::{PrivateEndpoints, allows_cleartext, is_forbidden_address};
 
@@ -111,6 +112,115 @@ impl ReqwestOAuthClient {
                 CoreError::InvalidProviderUrl
             })
     }
+
+    async fn fetch_github_emails(
+        &self,
+        emails_url: &str,
+        access_token: &str,
+    ) -> Option<Vec<GitHubEmail>> {
+        let client = self
+            .secured_client(emails_url)
+            .await
+            .inspect_err(|error| warn!(%emails_url, %error, "github_emails_client_rejected"))
+            .ok()?;
+
+        let response = client
+            .get(emails_url)
+            .header(ACCEPT, "application/json")
+            .bearer_auth(access_token)
+            .send()
+            .await
+            .inspect_err(|error| warn!(%emails_url, %error, "github_emails_request_failed"))
+            .ok()?;
+
+        if !response.status().is_success() {
+            warn!(%emails_url, status = %response.status(), "github_emails_bad_status");
+            return None;
+        }
+
+        response
+            .json::<Vec<GitHubEmail>>()
+            .await
+            .inspect_err(|error| warn!(%emails_url, %error, "github_emails_parse_failed"))
+            .ok()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+struct GitHubEmail {
+    email: String,
+    #[serde(default)]
+    verified: bool,
+    #[serde(default)]
+    primary: bool,
+}
+
+fn github_emails_url(userinfo_url: &str, provider_id: Option<&str>) -> Option<String> {
+    let mut url = Url::parse(userinfo_url).ok()?;
+    let is_github = provider_id.is_some_and(|id| id.eq_ignore_ascii_case("github"))
+        || url
+            .host_str()
+            .is_some_and(|host| host.eq_ignore_ascii_case("api.github.com"));
+
+    if !is_github {
+        return None;
+    }
+
+    let trimmed_path = url.path().trim_end_matches('/');
+    if !trimmed_path.ends_with("/user") {
+        return None;
+    }
+
+    let emails_path = format!("{trimmed_path}/emails");
+    url.set_path(&emails_path);
+    url.set_query(None);
+    Some(url.to_string())
+}
+
+fn is_github_noreply(email: &str) -> bool {
+    email
+        .rsplit_once('@')
+        .is_some_and(|(_, domain)| domain.eq_ignore_ascii_case("users.noreply.github.com"))
+}
+
+fn select_github_email(emails: Vec<GitHubEmail>) -> Option<GitHubEmail> {
+    let mut non_empty: Vec<GitHubEmail> = emails
+        .into_iter()
+        .filter(|entry| !entry.email.trim().is_empty())
+        .collect();
+
+    let pos = non_empty
+        .iter()
+        .position(|entry| entry.primary && entry.verified)
+        .or_else(|| non_empty.iter().position(|entry| entry.primary))
+        .or_else(|| {
+            non_empty
+                .iter()
+                .position(|entry| entry.verified && !is_github_noreply(&entry.email))
+        })
+        .or_else(|| non_empty.iter().position(|entry| entry.verified))
+        .or((!non_empty.is_empty()).then_some(0))?;
+
+    Some(non_empty.swap_remove(pos))
+}
+
+fn resolve_github_email(
+    profile_email: Option<String>,
+    emails: Vec<GitHubEmail>,
+) -> (Option<String>, Option<bool>) {
+    if let Some(current) = profile_email.filter(|e| !e.trim().is_empty()) {
+        let verified = emails
+            .iter()
+            .filter(|entry| !entry.email.trim().is_empty())
+            .find(|entry| entry.email.eq_ignore_ascii_case(&current))
+            .map(|entry| entry.verified);
+        return (Some(current), verified);
+    }
+
+    match select_github_email(emails) {
+        Some(entry) => (Some(entry.email), Some(entry.verified)),
+        None => (None, None),
+    }
 }
 
 impl Default for ReqwestOAuthClient {
@@ -198,11 +308,13 @@ impl OAuthClient for ReqwestOAuthClient {
         &self,
         userinfo_url: &str,
         access_token: &str,
+        provider_id: Option<&str>,
     ) -> Result<BrokeredUserInfo, CoreError> {
         let client = self.secured_client(userinfo_url).await?;
 
         let response = client
             .get(userinfo_url)
+            .header(ACCEPT, "application/json")
             .bearer_auth(access_token)
             .send()
             .await
@@ -224,7 +336,7 @@ impl OAuthClient for ReqwestOAuthClient {
             CoreError::IdpUserInfoFailed("upstream request failed".to_string())
         })?;
 
-        let user_info = BrokeredUserInfo {
+        let mut user_info = BrokeredUserInfo {
             subject: json["sub"]
                 .as_str()
                 .map(|s| s.to_string())
@@ -235,7 +347,10 @@ impl OAuthClient for ReqwestOAuthClient {
                     _ => None,
                 })
                 .ok_or_else(|| CoreError::IdpUserInfoFailed("Missing subject claim".to_string()))?,
-            email: json["email"].as_str().map(|s| s.to_string()),
+            email: json["email"]
+                .as_str()
+                .filter(|s| !s.trim().is_empty())
+                .map(|s| s.to_string()),
             email_verified: json["email_verified"].as_bool(),
             name: json["name"].as_str().map(|s| s.to_string()),
             given_name: json["given_name"]
@@ -256,6 +371,15 @@ impl OAuthClient for ReqwestOAuthClient {
                 .or_else(|| json["avatar_url"].as_str())
                 .map(|s| s.to_string()),
         };
+
+        if user_info.email_verified.is_none()
+            && let Some(emails_url) = github_emails_url(userinfo_url, provider_id)
+            && let Some(emails) = self.fetch_github_emails(&emails_url, access_token).await
+        {
+            let (email, email_verified) = resolve_github_email(user_info.email, emails);
+            user_info.email = email;
+            user_info.email_verified = email_verified;
+        }
 
         Ok(user_info)
     }
@@ -368,7 +492,7 @@ mod tests {
         let client = ReqwestOAuthClient::new(PrivateEndpoints::from_allowed(false));
 
         let error = client
-            .fetch_userinfo("http://127.0.0.1:1/userinfo", "unused-access-token")
+            .fetch_userinfo("http://127.0.0.1:1/userinfo", "unused-access-token", None)
             .await
             .expect_err("a userinfo endpoint on loopback must be refused");
 
@@ -393,5 +517,175 @@ mod tests {
             .expect_err("a token endpoint on loopback must be refused");
 
         assert!(matches!(error, CoreError::InvalidProviderUrl));
+    }
+
+    #[test]
+    fn github_emails_url_resolves_for_github_com_and_enterprise_only() {
+        assert_eq!(
+            github_emails_url("https://api.github.com/user", Some("github")).as_deref(),
+            Some("https://api.github.com/user/emails")
+        );
+        assert_eq!(
+            github_emails_url("https://api.github.com/user/", None).as_deref(),
+            Some("https://api.github.com/user/emails")
+        );
+        assert_eq!(
+            github_emails_url("https://ghe.example.com/api/v3/user", Some("github")).as_deref(),
+            Some("https://ghe.example.com/api/v3/user/emails")
+        );
+        assert_eq!(
+            github_emails_url("https://gitlab.com/api/v4/user", Some("gitlab")),
+            None
+        );
+        assert_eq!(
+            github_emails_url(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                Some("google")
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn resolve_github_email_marks_matching_public_email_as_verified() {
+        let emails = vec![
+            GitHubEmail {
+                email: "primary@example.com".to_string(),
+                verified: true,
+                primary: true,
+            },
+            GitHubEmail {
+                email: "public@example.com".to_string(),
+                verified: true,
+                primary: false,
+            },
+        ];
+
+        let (email, verified) =
+            resolve_github_email(Some("Public@Example.com".to_string()), emails);
+
+        assert_eq!(email.as_deref(), Some("Public@Example.com"));
+        assert_eq!(verified, Some(true));
+    }
+
+    #[test]
+    fn resolve_github_email_selects_primary_verified_when_profile_email_is_private() {
+        let emails = vec![
+            GitHubEmail {
+                email: "12345+octocat@users.noreply.github.com".to_string(),
+                verified: true,
+                primary: false,
+            },
+            GitHubEmail {
+                email: "octocat@github.com".to_string(),
+                verified: true,
+                primary: true,
+            },
+        ];
+
+        let (email, verified) = resolve_github_email(None, emails);
+
+        assert_eq!(email.as_deref(), Some("octocat@github.com"));
+        assert_eq!(verified, Some(true));
+    }
+
+    #[test]
+    fn resolve_github_email_keeps_unverified_primary_instead_of_picking_noreply() {
+        let emails = vec![
+            GitHubEmail {
+                email: "12345+octocat@users.noreply.github.com".to_string(),
+                verified: true,
+                primary: false,
+            },
+            GitHubEmail {
+                email: "unverified@example.com".to_string(),
+                verified: false,
+                primary: true,
+            },
+        ];
+
+        let (email, verified) = resolve_github_email(None, emails);
+
+        assert_eq!(email.as_deref(), Some("unverified@example.com"));
+        assert_eq!(verified, Some(false));
+    }
+
+    async fn spawn_mock_github_server(
+        user_body: &'static str,
+        emails_status: &'static str,
+        emails_body: &'static str,
+    ) -> SocketAddr {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        use tokio::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        tokio::spawn(async move {
+            for _ in 0..2 {
+                let Ok((mut stream, _)) = listener.accept().await else {
+                    break;
+                };
+                let mut buf = [0u8; 4096];
+                let n = stream.read(&mut buf).await.unwrap_or(0);
+                let request = String::from_utf8_lossy(&buf[..n]);
+                let first_line = request.lines().next().unwrap_or_default();
+
+                let (status, body) = if first_line.starts_with("GET /user/emails ") {
+                    (emails_status, emails_body)
+                } else {
+                    ("200 OK", user_body)
+                };
+
+                let response = format!(
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = stream.write_all(response.as_bytes()).await;
+            }
+        });
+
+        addr
+    }
+
+    #[tokio::test]
+    async fn fetch_userinfo_populates_verified_email_from_github_emails_endpoint() {
+        let addr = spawn_mock_github_server(
+            r#"{"id":42,"login":"octocat","email":null,"name":"Monalisa Octocat"}"#,
+            "200 OK",
+            r#"[{"email":"octocat@github.com","primary":true,"verified":true,"visibility":"private"}]"#,
+        )
+        .await;
+
+        let client = ReqwestOAuthClient::new(PrivateEndpoints::from_allowed(true));
+        let user_info = client
+            .fetch_userinfo(&format!("http://{addr}/user"), "gh-token", Some("github"))
+            .await
+            .unwrap();
+
+        assert_eq!(user_info.subject, "42");
+        assert_eq!(user_info.preferred_username.as_deref(), Some("octocat"));
+        assert_eq!(user_info.email.as_deref(), Some("octocat@github.com"));
+        assert_eq!(user_info.email_verified, Some(true));
+    }
+
+    #[tokio::test]
+    async fn fetch_userinfo_gracefully_falls_back_when_github_emails_endpoint_fails() {
+        let addr = spawn_mock_github_server(
+            r#"{"id":42,"login":"octocat","email":"octocat@github.com"}"#,
+            "403 Forbidden",
+            r#"{"message":"Resource not accessible by integration"}"#,
+        )
+        .await;
+
+        let client = ReqwestOAuthClient::new(PrivateEndpoints::from_allowed(true));
+        let user_info = client
+            .fetch_userinfo(&format!("http://{addr}/user"), "gh-token", Some("github"))
+            .await
+            .unwrap();
+
+        assert_eq!(user_info.subject, "42");
+        assert_eq!(user_info.email.as_deref(), Some("octocat@github.com"));
+        assert_eq!(user_info.email_verified, None);
     }
 }
