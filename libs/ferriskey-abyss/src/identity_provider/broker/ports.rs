@@ -113,6 +113,7 @@ pub trait OAuthClient: Send + Sync {
         &self,
         userinfo_url: &str,
         access_token: &str,
+        provider_id: Option<&str>,
     ) -> impl Future<Output = Result<BrokeredUserInfo, CoreError>> + Send;
 
     fn fetch_jwks(

@@ -34,7 +34,7 @@ use crate::domain::realm::entities::{RealmScope, Scoped, UnscopedOption};
 use crate::domain::realm::ports::RealmRepository;
 use crate::domain::user::entities::User;
 use crate::domain::user::ports::UserRepository;
-use crate::domain::user::value_objects::CreateUserRequest;
+use crate::domain::user::value_objects::{CreateUserRequest, UpdateUserRequest};
 
 const ID_TOKEN_ALGORITHMS: &[jsonwebtoken::Algorithm] = &[
     jsonwebtoken::Algorithm::RS256,
@@ -237,13 +237,12 @@ where
         {
             // get_by_id returns Result<User>, not Result<Option<User>>
             // If user doesn't exist, it returns an error
-            let user = self
+            let scoped_user = self
                 .user_repository
                 .get_by_id(link.user_id)
                 .await
                 .map_err(|_| CoreError::UserNotFound)?
-                .in_realm(scope)?
-                .into_inner();
+                .in_realm(scope)?;
 
             // Update token if store_token is enabled
             if idp.get().store_token
@@ -253,6 +252,14 @@ where
                     .update_token(idp, link.id, Some(token.to_string()))
                     .await?;
             }
+
+            let user = reconcile_linked_user_email(
+                self.user_repository.as_ref(),
+                idp,
+                scoped_user,
+                user_info,
+            )
+            .await?;
 
             return Ok((user, false));
         }
@@ -806,7 +813,8 @@ where
             .in_realm(&scope)?
             .into_inner();
 
-        let oauth_config: OAuthProviderConfig = idp.get().config.clone().try_into()?;
+        let mut oauth_config: OAuthProviderConfig = idp.get().config.clone().try_into()?;
+        oauth_config.provider_id = Some(idp.get().provider_id.clone());
 
         // Start compass flow for broker authentication
         let flow_id = self.flow_recorder.start_flow(
@@ -1018,13 +1026,95 @@ where
         if let Some(userinfo_url) = &config.userinfo_url {
             return self
                 .oauth_client
-                .fetch_userinfo(userinfo_url, &token_response.access_token)
+                .fetch_userinfo(
+                    userinfo_url,
+                    &token_response.access_token,
+                    config.provider_id.as_deref(),
+                )
                 .await;
         }
 
         Err(CoreError::IdpUserInfoFailed(
             "No ID token and no userinfo endpoint configured".to_string(),
         ))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum LinkedEmailUpdate {
+    VerifyExisting(String),
+    Backfill { email: String, verified: bool },
+}
+
+fn plan_linked_email_update(
+    user: &User,
+    idp: &IdentityProvider,
+    user_info: &BrokeredUserInfo,
+) -> Option<LinkedEmailUpdate> {
+    let upstream_verified = user_info.email_verified.unwrap_or(false) && idp.trust_email;
+    match (&user.email, &user_info.email) {
+        (Some(local_email), Some(upstream_email))
+            if !user.email_verified
+                && upstream_verified
+                && local_email.eq_ignore_ascii_case(upstream_email) =>
+        {
+            Some(LinkedEmailUpdate::VerifyExisting(local_email.clone()))
+        }
+        (None, Some(upstream_email)) => Some(LinkedEmailUpdate::Backfill {
+            email: upstream_email.clone(),
+            verified: upstream_verified,
+        }),
+        _ => None,
+    }
+}
+
+async fn reconcile_linked_user_email<UR>(
+    users: &UR,
+    idp: &Scoped<IdentityProvider>,
+    scoped_user: Scoped<User>,
+    user_info: &BrokeredUserInfo,
+) -> Result<User, CoreError>
+where
+    UR: UserRepository,
+{
+    let Some(plan) = plan_linked_email_update(scoped_user.get(), idp.get(), user_info) else {
+        return Ok(scoped_user.into_inner());
+    };
+
+    let (email, email_verified, is_backfill) = match plan {
+        LinkedEmailUpdate::VerifyExisting(email) => (Some(email), true, false),
+        LinkedEmailUpdate::Backfill { email, verified } => {
+            if users
+                .get_by_email(&email, scoped_user.get().realm_id)
+                .await?
+                .is_some()
+            {
+                return Ok(scoped_user.into_inner());
+            }
+            (Some(email), verified, true)
+        }
+    };
+
+    let current = scoped_user.get();
+    let request = UpdateUserRequest {
+        username: None,
+        firstname: current.firstname.clone(),
+        lastname: current.lastname.clone(),
+        email,
+        email_verified,
+        enabled: current.enabled,
+        required_actions: None,
+    };
+
+    match users.update_user(&scoped_user, request).await {
+        Ok(mut updated) => {
+            let previous = scoped_user.into_inner();
+            updated.required_actions = previous.required_actions;
+            updated.realm = previous.realm;
+            Ok(updated)
+        }
+        Err(CoreError::EmailAlreadyExists) if is_backfill => Ok(scoped_user.into_inner()),
+        Err(error) => Err(error),
     }
 }
 
@@ -1905,5 +1995,224 @@ mod tests {
             broker_session_expiry(None, now),
             now + Duration::minutes(10)
         );
+    }
+
+    enum EmailTrust {
+        Trusted,
+        Untrusted,
+    }
+
+    fn trusted_github_idp(scope: &RealmScope) -> Scoped<IdentityProvider> {
+        build_github_idp(scope, EmailTrust::Trusted)
+    }
+
+    fn untrusted_github_idp(scope: &RealmScope) -> Scoped<IdentityProvider> {
+        build_github_idp(scope, EmailTrust::Untrusted)
+    }
+
+    fn build_github_idp(scope: &RealmScope, trust: EmailTrust) -> Scoped<IdentityProvider> {
+        use crate::domain::abyss::identity_provider::{
+            IdentityProviderConfig, IdentityProviderCreationConfig,
+        };
+
+        let provider = IdentityProvider::new(IdentityProviderCreationConfig {
+            realm_id: scope.id(),
+            alias: "github".to_string(),
+            provider_id: "github".to_string(),
+            enabled: true,
+            display_name: Some("GitHub".to_string()),
+            first_broker_login_flow_alias: None,
+            post_broker_login_flow_alias: None,
+            store_token: false,
+            add_read_token_role_on_create: false,
+            trust_email: matches!(trust, EmailTrust::Trusted),
+            link_only: false,
+            config: IdentityProviderConfig {
+                client_id: Some("gh-client".to_string()),
+                client_secret: None,
+                extra: serde_json::json!({}),
+            },
+        });
+
+        Unscoped::new(provider).in_realm(scope).unwrap()
+    }
+
+    #[test]
+    fn plan_linked_email_update_decisions() {
+        use crate::domain::common::services::tests::create_test_user_with_realm;
+
+        let (scope, _) = scope_and_session();
+        let trusted = trusted_github_idp(&scope);
+        let untrusted = untrusted_github_idp(&scope);
+
+        let mut user = create_test_user_with_realm(scope.realm());
+        user.email = Some("octocat@github.com".to_string());
+        user.email_verified = false;
+
+        let verified_info = BrokeredUserInfo {
+            subject: "42".to_string(),
+            email: Some("Octocat@GitHub.com".to_string()),
+            email_verified: Some(true),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            plan_linked_email_update(&user, trusted.get(), &verified_info),
+            Some(LinkedEmailUpdate::VerifyExisting(
+                "octocat@github.com".to_string()
+            ))
+        );
+        assert_eq!(
+            plan_linked_email_update(&user, untrusted.get(), &verified_info),
+            None
+        );
+
+        user.email = None;
+        assert_eq!(
+            plan_linked_email_update(&user, trusted.get(), &verified_info),
+            Some(LinkedEmailUpdate::Backfill {
+                email: "Octocat@GitHub.com".to_string(),
+                verified: true,
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn a_linked_user_with_matching_unverified_email_is_marked_verified_when_idp_vouches() {
+        use crate::domain::common::services::tests::create_test_user_with_realm;
+        use crate::domain::user::ports::MockUserRepository;
+
+        let (scope, _) = scope_and_session();
+        let idp = trusted_github_idp(&scope);
+        let mut user = create_test_user_with_realm(scope.realm());
+        user.email = Some("octocat@github.com".to_string());
+        user.email_verified = false;
+        let scoped_user = Unscoped::new(user).in_realm(&scope).unwrap();
+
+        let mut users = MockUserRepository::new();
+        users
+            .expect_update_user()
+            .withf(|_, req| {
+                req.email.as_deref() == Some("octocat@github.com") && req.email_verified
+            })
+            .times(1)
+            .returning(|target, req| {
+                let mut updated = target.get().clone();
+                updated.email = req.email;
+                updated.email_verified = req.email_verified;
+                Box::pin(async move { Ok(updated) })
+            });
+
+        let info = BrokeredUserInfo {
+            subject: "42".to_string(),
+            email: Some("Octocat@GitHub.com".to_string()),
+            email_verified: Some(true),
+            ..Default::default()
+        };
+
+        let reconciled = reconcile_linked_user_email(&users, &idp, scoped_user, &info)
+            .await
+            .unwrap();
+
+        assert!(reconciled.email_verified);
+        assert_eq!(reconciled.email.as_deref(), Some("octocat@github.com"));
+    }
+
+    #[tokio::test]
+    async fn a_linked_user_missing_email_receives_verified_upstream_email_when_unclaimed() {
+        use crate::domain::common::services::tests::create_test_user_with_realm;
+        use crate::domain::user::ports::MockUserRepository;
+
+        let (scope, _) = scope_and_session();
+        let idp = trusted_github_idp(&scope);
+        let mut user = create_test_user_with_realm(scope.realm());
+        user.email = None;
+        user.email_verified = false;
+        let scoped_user = Unscoped::new(user).in_realm(&scope).unwrap();
+
+        let mut users = MockUserRepository::new();
+        users
+            .expect_get_by_email()
+            .withf(|email, _| email == "octocat@github.com")
+            .times(1)
+            .returning(|_, _| Box::pin(async { Ok(None) }));
+        users
+            .expect_update_user()
+            .withf(|_, req| {
+                req.email.as_deref() == Some("octocat@github.com") && req.email_verified
+            })
+            .times(1)
+            .returning(|target, req| {
+                let mut updated = target.get().clone();
+                updated.email = req.email;
+                updated.email_verified = req.email_verified;
+                Box::pin(async move { Ok(updated) })
+            });
+
+        let info = BrokeredUserInfo {
+            subject: "42".to_string(),
+            email: Some("octocat@github.com".to_string()),
+            email_verified: Some(true),
+            ..Default::default()
+        };
+
+        let reconciled = reconcile_linked_user_email(&users, &idp, scoped_user, &info)
+            .await
+            .unwrap();
+
+        assert!(reconciled.email_verified);
+        assert_eq!(reconciled.email.as_deref(), Some("octocat@github.com"));
+    }
+
+    #[tokio::test]
+    async fn a_linked_user_is_untouched_when_provider_does_not_trust_email_or_email_differs() {
+        use crate::domain::common::services::tests::create_test_user_with_realm;
+        use crate::domain::user::ports::MockUserRepository;
+
+        let (scope, _) = scope_and_session();
+        let untrusted_idp = untrusted_github_idp(&scope);
+        let trusted_idp = trusted_github_idp(&scope);
+
+        let mut user = create_test_user_with_realm(scope.realm());
+        user.email = Some("octocat@github.com".to_string());
+        user.email_verified = false;
+
+        let mut users = MockUserRepository::new();
+        users.expect_update_user().never();
+        users.expect_get_by_email().never();
+
+        let same_email_info = BrokeredUserInfo {
+            subject: "42".to_string(),
+            email: Some("octocat@github.com".to_string()),
+            email_verified: Some(true),
+            ..Default::default()
+        };
+
+        let reconciled = reconcile_linked_user_email(
+            &users,
+            &untrusted_idp,
+            Unscoped::new(user.clone()).in_realm(&scope).unwrap(),
+            &same_email_info,
+        )
+        .await
+        .unwrap();
+        assert!(!reconciled.email_verified);
+
+        let different_email_info = BrokeredUserInfo {
+            subject: "42".to_string(),
+            email: Some("other@github.com".to_string()),
+            email_verified: Some(true),
+            ..Default::default()
+        };
+
+        let reconciled = reconcile_linked_user_email(
+            &users,
+            &trusted_idp,
+            Unscoped::new(user).in_realm(&scope).unwrap(),
+            &different_email_info,
+        )
+        .await
+        .unwrap();
+        assert!(!reconciled.email_verified);
     }
 }

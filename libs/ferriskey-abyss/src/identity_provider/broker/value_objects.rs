@@ -38,6 +38,9 @@ pub struct OAuthProviderConfig {
 
     /// Expected issuer for ID token validation
     pub issuer: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_id: Option<String>,
 }
 
 fn deserialize_scopes<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
