@@ -34,7 +34,7 @@ use crate::domain::realm::entities::{RealmScope, Scoped, UnscopedOption};
 use crate::domain::realm::ports::RealmRepository;
 use crate::domain::user::entities::User;
 use crate::domain::user::ports::UserRepository;
-use crate::domain::user::value_objects::{CreateUserRequest, UpdateUserRequest};
+use crate::domain::user::value_objects::{CreateUserRequest, EmailReconciliation};
 
 const ID_TOKEN_ALGORITHMS: &[jsonwebtoken::Algorithm] = &[
     jsonwebtoken::Algorithm::RS256,
@@ -1040,17 +1040,11 @@ where
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-enum LinkedEmailUpdate {
-    VerifyExisting(String),
-    Backfill { email: String, verified: bool },
-}
-
 fn plan_linked_email_update(
     user: &User,
     idp: &IdentityProvider,
     user_info: &BrokeredUserInfo,
-) -> Option<LinkedEmailUpdate> {
+) -> Option<EmailReconciliation> {
     if !idp.trust_email {
         return None;
     }
@@ -1062,9 +1056,11 @@ fn plan_linked_email_update(
                 && upstream_verified
                 && local_email.eq_ignore_ascii_case(upstream_email) =>
         {
-            Some(LinkedEmailUpdate::VerifyExisting(local_email.clone()))
+            Some(EmailReconciliation::VerifyMatching {
+                email: local_email.clone(),
+            })
         }
-        (None, Some(upstream_email)) => Some(LinkedEmailUpdate::Backfill {
+        (None, Some(upstream_email)) => Some(EmailReconciliation::BackfillMissing {
             email: upstream_email.clone(),
             verified: upstream_verified,
         }),
@@ -1085,32 +1081,21 @@ where
         return Ok(scoped_user.into_inner());
     };
 
-    let (email, email_verified, is_backfill) = match plan {
-        LinkedEmailUpdate::VerifyExisting(email) => (Some(email), true, false),
-        LinkedEmailUpdate::Backfill { email, verified } => {
+    let is_backfill = match &plan {
+        EmailReconciliation::VerifyMatching { .. } => false,
+        EmailReconciliation::BackfillMissing { email, .. } => {
             if users
-                .get_by_email(&email, scoped_user.get().realm_id)
+                .get_by_email(email, scoped_user.get().realm_id)
                 .await?
                 .is_some()
             {
                 return Ok(scoped_user.into_inner());
             }
-            (Some(email), verified, true)
+            true
         }
     };
 
-    let current = scoped_user.get();
-    let request = UpdateUserRequest {
-        username: None,
-        firstname: current.firstname.clone(),
-        lastname: current.lastname.clone(),
-        email,
-        email_verified,
-        enabled: current.enabled,
-        required_actions: None,
-    };
-
-    match users.update_user(&scoped_user, request).await {
+    match users.reconcile_email(&scoped_user, plan).await {
         Ok(mut updated) => {
             let previous = scoped_user.into_inner();
             updated.required_actions = previous.required_actions;
@@ -2062,9 +2047,9 @@ mod tests {
 
         assert_eq!(
             plan_linked_email_update(&user, trusted.get(), &verified_info),
-            Some(LinkedEmailUpdate::VerifyExisting(
-                "octocat@github.com".to_string()
-            ))
+            Some(EmailReconciliation::VerifyMatching {
+                email: "octocat@github.com".to_string(),
+            })
         );
         assert_eq!(
             plan_linked_email_update(&user, untrusted.get(), &verified_info),
@@ -2074,7 +2059,7 @@ mod tests {
         user.email = None;
         assert_eq!(
             plan_linked_email_update(&user, trusted.get(), &verified_info),
-            Some(LinkedEmailUpdate::Backfill {
+            Some(EmailReconciliation::BackfillMissing {
                 email: "Octocat@GitHub.com".to_string(),
                 verified: true,
             })
@@ -2095,20 +2080,28 @@ mod tests {
         let mut user = create_test_user_with_realm(scope.realm());
         user.email = Some("octocat@github.com".to_string());
         user.email_verified = false;
+        user.enabled = true;
+        user.firstname = Some("Stale".to_string());
+        user.lastname = Some("Snapshot".to_string());
         let scoped_user = Unscoped::new(user).in_realm(&scope).unwrap();
 
         let mut users = MockUserRepository::new();
+        users.expect_update_user().never();
         users
-            .expect_update_user()
+            .expect_reconcile_email()
             .withf(|_, req| {
-                req.email.as_deref() == Some("octocat@github.com") && req.email_verified
+                *req == EmailReconciliation::VerifyMatching {
+                    email: "octocat@github.com".to_string(),
+                }
             })
             .times(1)
-            .returning(|target, req| {
-                let mut updated = target.get().clone();
-                updated.email = req.email;
-                updated.email_verified = req.email_verified;
-                Box::pin(async move { Ok(updated) })
+            .returning(|target, _| {
+                let mut live = target.get().clone();
+                live.email_verified = true;
+                live.enabled = false;
+                live.firstname = Some("Concurrent".to_string());
+                live.lastname = Some("Edit".to_string());
+                Box::pin(async move { Ok(live) })
             });
 
         let info = BrokeredUserInfo {
@@ -2124,6 +2117,9 @@ mod tests {
 
         assert!(reconciled.email_verified);
         assert_eq!(reconciled.email.as_deref(), Some("octocat@github.com"));
+        assert!(!reconciled.enabled);
+        assert_eq!(reconciled.firstname.as_deref(), Some("Concurrent"));
+        assert_eq!(reconciled.lastname.as_deref(), Some("Edit"));
     }
 
     #[tokio::test]
@@ -2139,21 +2135,25 @@ mod tests {
         let scoped_user = Unscoped::new(user).in_realm(&scope).unwrap();
 
         let mut users = MockUserRepository::new();
+        users.expect_update_user().never();
         users
             .expect_get_by_email()
             .withf(|email, _| email == "octocat@github.com")
             .times(1)
             .returning(|_, _| Box::pin(async { Ok(None) }));
         users
-            .expect_update_user()
+            .expect_reconcile_email()
             .withf(|_, req| {
-                req.email.as_deref() == Some("octocat@github.com") && req.email_verified
+                *req == EmailReconciliation::BackfillMissing {
+                    email: "octocat@github.com".to_string(),
+                    verified: true,
+                }
             })
             .times(1)
-            .returning(|target, req| {
+            .returning(|target, _| {
                 let mut updated = target.get().clone();
-                updated.email = req.email;
-                updated.email_verified = req.email_verified;
+                updated.email = Some("octocat@github.com".to_string());
+                updated.email_verified = true;
                 Box::pin(async move { Ok(updated) })
             });
 
@@ -2187,6 +2187,7 @@ mod tests {
 
         let mut users = MockUserRepository::new();
         users.expect_update_user().never();
+        users.expect_reconcile_email().never();
         users.expect_get_by_email().never();
 
         let same_email_info = BrokeredUserInfo {

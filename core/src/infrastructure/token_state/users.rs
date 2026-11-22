@@ -13,7 +13,9 @@ use ferriskey_domain::user::entities::{
 use ferriskey_domain::user::ports::{
     UserAttributeRepository, UserRepository, UserRequiredActionRepository, UserRoleRepository,
 };
-use ferriskey_domain::user::value_objects::{CreateUserRequest, UpdateUserRequest};
+use ferriskey_domain::user::value_objects::{
+    CreateUserRequest, EmailReconciliation, UpdateUserRequest,
+};
 use uuid::Uuid;
 
 use super::state::TokenState;
@@ -124,6 +126,16 @@ impl<R: UserRepository> UserRepository for CachedUserRepository<R> {
         locale: Option<String>,
     ) -> Result<User, CoreError> {
         let updated = self.inner.update_locale(user, locale).await;
+        self.state.changed();
+        updated
+    }
+
+    async fn reconcile_email(
+        &self,
+        user: &Scoped<User>,
+        reconciliation: EmailReconciliation,
+    ) -> Result<User, CoreError> {
+        let updated = self.inner.reconcile_email(user, reconciliation).await;
         self.state.changed();
         updated
     }
@@ -406,6 +418,34 @@ mod tests {
             .update_locale(&scoped(stored.clone()), Some("fr".to_string()))
             .await
             .expect("update locale");
+
+        read_both(&repository, stored.id).await;
+    }
+
+    #[tokio::test]
+    async fn reconciling_an_email_makes_the_next_read_go_to_the_store() {
+        let stored = user();
+        let mut inner = finding_user(&stored, 2);
+        let updated = stored.clone();
+        inner
+            .expect_reconcile_email()
+            .times(1)
+            .returning(move |_, _| {
+                let updated = updated.clone();
+                Box::pin(async move { Ok(updated) })
+            });
+        let repository = CachedUserRepository::new(Arc::new(inner), synced_state());
+        read_both(&repository, stored.id).await;
+
+        repository
+            .reconcile_email(
+                &scoped(stored.clone()),
+                EmailReconciliation::VerifyMatching {
+                    email: "alice@example.com".to_string(),
+                },
+            )
+            .await
+            .unwrap();
 
         read_both(&repository, stored.id).await;
     }

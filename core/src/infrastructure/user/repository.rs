@@ -1,8 +1,10 @@
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, ConnectionTrait,
-    DatabaseConnection, DbBackend, DbErr, EntityTrait, ModelTrait, QueryFilter, QuerySelect,
-    QueryTrait, Select, SqlErr, Statement, UpdateMany, sea_query::Expr,
+    ActiveModelTrait,
+    ActiveValue::Set,
+    ColumnTrait, Condition, ConnectionTrait, DatabaseConnection, DbBackend, DbErr, EntityTrait,
+    ModelTrait, QueryFilter, QuerySelect, QueryTrait, Select, SqlErr, Statement, UpdateMany,
+    sea_query::{Expr, Func},
 };
 use tracing::{error, instrument};
 use uuid::Uuid;
@@ -16,7 +18,7 @@ use crate::domain::{
     user::{
         entities::{RequiredAction, User, UserConfig, UserFilter, UserSortField},
         ports::UserRepository,
-        value_objects::{CreateUserRequest, UpdateUserRequest},
+        value_objects::{CreateUserRequest, EmailReconciliation, UpdateUserRequest},
     },
 };
 use crate::entity::{organization_group_members, organization_members, user_role, users};
@@ -164,6 +166,29 @@ fn reset_lockout_update(user_id: Uuid) -> UpdateMany<users::Entity> {
                 .add(users::Column::FailedLoginAttempts.ne(0))
                 .add(users::Column::LockedUntil.is_not_null()),
         )
+}
+
+fn reconcile_email_update(
+    user_id: Uuid,
+    reconciliation: &EmailReconciliation,
+    now: NaiveDateTime,
+) -> UpdateMany<users::Entity> {
+    match reconciliation {
+        EmailReconciliation::VerifyMatching { email } => users::Entity::update_many()
+            .col_expr(users::Column::EmailVerified, Expr::value(true))
+            .col_expr(users::Column::UpdatedAt, Expr::value(now))
+            .filter(users::Column::Id.eq(user_id))
+            .filter(users::Column::EmailVerified.eq(false))
+            .filter(
+                Expr::expr(Func::lower(Expr::col(users::Column::Email))).eq(email.to_lowercase()),
+            ),
+        EmailReconciliation::BackfillMissing { email, verified } => users::Entity::update_many()
+            .col_expr(users::Column::Email, Expr::value(Some(email.clone())))
+            .col_expr(users::Column::EmailVerified, Expr::value(*verified))
+            .col_expr(users::Column::UpdatedAt, Expr::value(now))
+            .filter(users::Column::Id.eq(user_id))
+            .filter(users::Column::Email.is_null()),
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -498,6 +523,43 @@ impl UserRepository for PostgresUserRepository {
     }
 
     #[instrument(skip(self), err)]
+    async fn reconcile_email(
+        &self,
+        user: &Scoped<User>,
+        reconciliation: EmailReconciliation,
+    ) -> Result<User, CoreError> {
+        let user_id = user.get().id;
+        let updated = reconcile_email_update(user_id, &reconciliation, Utc::now().naive_utc())
+            .exec_with_returning(&self.db)
+            .await
+            .map_err(|e| match classify_user_unique_violation(&e) {
+                Some(UserUniqueViolation::Email) => CoreError::EmailAlreadyExists,
+                Some(UserUniqueViolation::Username) => CoreError::UsernameAlreadyExists,
+                None => {
+                    error!("error reconciling user email: {:?}", e);
+                    CoreError::InternalServerError
+                }
+            })?
+            .into_iter()
+            .next();
+
+        if let Some(model) = updated {
+            return Ok(model.into());
+        }
+
+        let current = users::Entity::find_by_id(user_id)
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("error finding user after email reconciliation: {:?}", e);
+                CoreError::InternalServerError
+            })?
+            .ok_or(CoreError::NotFound)?;
+
+        Ok(current.into())
+    }
+
+    #[instrument(skip(self), err)]
     async fn increment_failed_login_attempts(
         &self,
         user_id: Uuid,
@@ -577,8 +639,8 @@ mod tests {
     use chrono::{TimeZone, Utc};
 
     use super::{
-        UserUniqueViolation, classify_user_unique_violation_message, listing_select,
-        reset_lockout_update,
+        EmailReconciliation, UserUniqueViolation, classify_user_unique_violation_message,
+        listing_select, reconcile_email_update, reset_lockout_update,
     };
     use crate::domain::common::pagination::DateRange;
     use crate::domain::user::entities::UserFilter;
@@ -807,6 +869,70 @@ mod tests {
             sql.contains(r#""failed_login_attempts" <> 0 OR "users"."locked_until" IS NOT NULL"#),
             "{sql}"
         );
+    }
+
+    #[test]
+    fn reconcile_email_updates_only_email_fields_with_conditional_guards() {
+        let now = Utc
+            .with_ymd_and_hms(2026, 11, 22, 12, 0, 0)
+            .unwrap()
+            .naive_utc();
+        let verify_sql = reconcile_email_update(
+            Uuid::nil(),
+            &EmailReconciliation::VerifyMatching {
+                email: "Octocat@GitHub.com".to_string(),
+            },
+            now,
+        )
+        .build(DbBackend::Postgres)
+        .to_string();
+
+        assert!(
+            verify_sql.starts_with(r#"UPDATE "users" SET"#),
+            "{verify_sql}"
+        );
+        assert!(
+            verify_sql.contains(r#""email_verified" = TRUE"#),
+            "{verify_sql}"
+        );
+        assert!(
+            verify_sql.contains(r#""email_verified" = FALSE"#),
+            "{verify_sql}"
+        );
+        assert!(
+            verify_sql.contains(r#"LOWER("users"."email") = 'octocat@github.com'"#),
+            "{verify_sql}"
+        );
+        assert!(!verify_sql.contains("enabled"), "{verify_sql}");
+        assert!(!verify_sql.contains("firstname"), "{verify_sql}");
+        assert!(!verify_sql.contains("lastname"), "{verify_sql}");
+
+        let backfill_sql = reconcile_email_update(
+            Uuid::nil(),
+            &EmailReconciliation::BackfillMissing {
+                email: "octocat@github.com".to_string(),
+                verified: true,
+            },
+            now,
+        )
+        .build(DbBackend::Postgres)
+        .to_string();
+
+        assert!(
+            backfill_sql.starts_with(r#"UPDATE "users" SET"#),
+            "{backfill_sql}"
+        );
+        assert!(
+            backfill_sql.contains(r#""email" = 'octocat@github.com'"#),
+            "{backfill_sql}"
+        );
+        assert!(
+            backfill_sql.contains(r#""users"."email" IS NULL"#),
+            "{backfill_sql}"
+        );
+        assert!(!backfill_sql.contains("enabled"), "{backfill_sql}");
+        assert!(!backfill_sql.contains("firstname"), "{backfill_sql}");
+        assert!(!backfill_sql.contains("lastname"), "{backfill_sql}");
     }
 
     mod postgres {
