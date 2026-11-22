@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
+use ferriskey_domain::client::commands::{ExpiredClientSecret, SecretRotation};
 use ferriskey_domain::client::entities::{
     Client, ClientFilter, ClientRegistrationSource, ClientSortField,
 };
@@ -150,6 +152,28 @@ impl<R: ClientRepository> ClientRepository for InvalidatingClientRepository<R> {
     ) -> Result<u64, CoreError> {
         self.inner.count_by_source(realm_id, source).await
     }
+
+    async fn rotate_secret(
+        &self,
+        client: &Scoped<Client>,
+        new_secret: String,
+        grace_period: Option<chrono::Duration>,
+    ) -> Result<SecretRotation, CoreError> {
+        self.inner
+            .rotate_secret(client, new_secret, grace_period)
+            .await
+    }
+
+    async fn revoke_previous_secret(&self, client: &Scoped<Client>) -> Result<bool, CoreError> {
+        self.inner.revoke_previous_secret(client).await
+    }
+
+    async fn expire_previous_secrets(
+        &self,
+        now: DateTime<Utc>,
+    ) -> Result<Vec<ExpiredClientSecret>, CoreError> {
+        self.inner.expire_previous_secrets(now).await
+    }
 }
 
 #[cfg(test)]
@@ -192,6 +216,7 @@ mod tests {
             oauth_device_code_grant_enabled: None,
             token_exchange_enabled: None,
             require_pkce: None,
+            require_pushed_authorization_requests: None,
             backchannel_logout_uri: None,
             backchannel_logout_session_required: None,
             access_token_lifetime: None,
@@ -202,6 +227,9 @@ mod tests {
             maintenance_reason: None,
             maintenance_session_strategy: None,
             consent_required: None,
+            token_endpoint_auth_method: None,
+            jwks: None,
+            jwks_uri: None,
         }
     }
 

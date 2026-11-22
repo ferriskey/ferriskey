@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import type { BaseQuery } from '.'
 import { preloadNamespaces, translate } from '@/lib/i18n'
 import type { Endpoints, Schemas } from './api.client'
+import { queryKeyFactory } from './api.tanstack'
 import { portalLayoutsKey } from './portal-layouts.api'
 import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
@@ -399,7 +400,9 @@ export const useGetPortalPageRequirements = ({ realm = 'master' }: BaseQuery) =>
  * partially, so omitting the page type expires every cached page type at once.
  */
 function activeThemeQueryKey(realmName: string) {
-  return [{ _id: '/realms/{realm_name}/portal/active', path: { realm_name: realmName } }]
+  return queryKeyFactory.endpoint('/realms/{realm_name}/portal/active', {
+    path: { realm_name: realmName },
+  })
 }
 
 async function invalidateThemeQueries(

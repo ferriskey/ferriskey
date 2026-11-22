@@ -20,7 +20,7 @@ import { securityEventColumnFilters } from '@/pages/iam/seawatch/event-filter-fi
 import type { EventJournal } from '../feature/use-event-journal'
 import { JournalSection } from './journal-section'
 
-type SecurityEvent = Schemas.SecurityEvent
+type SecurityEvent = Schemas.Paginated_SecurityEvent['data'][number]
 type Webhook = Schemas.Webhook
 
 const CONSOLE_NAMESPACES = ['console', 'seawatch'] as const

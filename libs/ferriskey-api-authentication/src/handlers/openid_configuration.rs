@@ -1,12 +1,14 @@
 use super::authorization_server_metadata::{
     realm_issuer, supported_grant_types, supported_token_endpoint_auth_methods,
 };
+use super::pushed_authorization::PUSHED_AUTHORIZATION_REQUEST_PATH;
 use axum::extract::{Path, State};
 use ferriskey_api_core::{
     api_entities::{api_error::ApiError, response::Response},
     app_state::AppState,
     url::FullUrl,
 };
+use ferriskey_core::domain::authentication::client_assertion::entities::assertion_signing_algorithms;
 use ferriskey_core::domain::realm::ports::RealmService;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -27,6 +29,7 @@ pub struct GetOpenIdConfigurationResponse {
     pub subject_types_supported: Vec<String>,
     pub id_token_signing_alg_values_supported: Vec<String>,
     pub token_endpoint_auth_methods_supported: Vec<String>,
+    pub token_endpoint_auth_signing_alg_values_supported: Vec<String>,
     pub code_challenge_methods_supported: Vec<String>,
     pub prompt_values_supported: Vec<String>,
     /// OIDC Back-Channel Logout 1.0: clients may register a
@@ -40,6 +43,9 @@ pub struct GetOpenIdConfigurationResponse {
     pub registration_endpoint: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub client_id_metadata_document_supported: Option<bool>,
+    /// RFC 9126 §5.
+    pub pushed_authorization_request_endpoint: String,
+    pub require_pushed_authorization_requests: bool,
 }
 
 #[utoipa::path(
@@ -90,6 +96,7 @@ pub async fn get_openid_configuration(
         subject_types_supported: vec!["public".to_string()],
         id_token_signing_alg_values_supported: vec!["RS256".to_string()],
         token_endpoint_auth_methods_supported: supported_token_endpoint_auth_methods(),
+        token_endpoint_auth_signing_alg_values_supported: assertion_signing_algorithms(),
         code_challenge_methods_supported: vec!["S256".to_string()],
         prompt_values_supported: ["none", "login", "consent", "create"]
             .map(String::from)
@@ -102,6 +109,10 @@ pub async fn get_openid_configuration(
             .dcr_enabled
             .then(|| format!("{issuer}/clients/register")),
         client_id_metadata_document_supported: settings.cimd_enabled.then_some(true),
+        pushed_authorization_request_endpoint: format!(
+            "{issuer}{PUSHED_AUTHORIZATION_REQUEST_PATH}"
+        ),
+        require_pushed_authorization_requests: settings.require_pushed_authorization_requests,
         issuer,
     }))
 }

@@ -16,6 +16,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use super::auth::root_scoped_base_url;
+use ferriskey_api_core::device_cookie::{attach_login, device_token};
 use ferriskey_api_core::request_context::RequestContext;
 use ferriskey_api_core::url::{FullUrl, WebappUrl};
 use ferriskey_api_core::{
@@ -147,6 +148,8 @@ pub async fn registration_handler(
         )
         .await?;
 
+    let device = device_token(&cookie);
+
     match output {
         RegisterUserOutput::Authenticated(token) => Ok((
             HeaderMap::new(),
@@ -156,13 +159,19 @@ pub async fn registration_handler(
             let mut headers = HeaderMap::new();
 
             if let Some(cookie) = sso_cookie {
+                let is_secure = base_url.starts_with("https");
+                attach_login(
+                    &state,
+                    &realm_name,
+                    device,
+                    &cookie.secret,
+                    is_secure,
+                    &mut headers,
+                )
+                .await;
                 headers.append(
                     SET_COOKIE,
-                    crate::sso_cookie::set(
-                        cookie.secret,
-                        cookie.max_age_secs,
-                        base_url.starts_with("https"),
-                    )?,
+                    crate::sso_cookie::set(cookie.secret, cookie.max_age_secs, is_secure)?,
                 );
             }
 

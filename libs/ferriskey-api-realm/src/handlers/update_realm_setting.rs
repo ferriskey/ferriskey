@@ -196,6 +196,10 @@ pub async fn update_realm_setting(
                 dcr_enabled: payload.dcr_enabled,
                 cimd_allowed_hosts: payload.cimd_allowed_hosts,
                 allowed_resources: payload.allowed_resources,
+                account_chooser_enabled: payload.account_chooser_enabled,
+                account_chooser_show_email: payload.account_chooser_show_email,
+                require_pushed_authorization_requests: payload
+                    .require_pushed_authorization_requests,
             },
         )
         .await

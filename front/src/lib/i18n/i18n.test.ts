@@ -15,6 +15,7 @@ function readCatalog(locale: string, namespace: string) {
 const resources = {
   en: { common: readCatalog('en', 'common') },
   'zh-CN': { common: readCatalog('zh-CN', 'common') },
+  fr: { common: readCatalog('fr', 'common') },
 }
 
 async function instanceFor(lng: string) {
@@ -76,4 +77,25 @@ test('a key missing everywhere renders readable text and never the raw key', asy
 test('humanize turns a key into readable text', () => {
   assert.equal(humanizeKey('client:detail.settings.client_id'), 'Client id')
   assert.equal(humanizeKey('list.emptyState'), 'Empty state')
+})
+
+test('french declares one, many and other and interpolates every form', async () => {
+  const i18n = await instanceFor('fr')
+
+  assert.deepEqual(
+    new Intl.PluralRules('fr').resolvedOptions().pluralCategories.sort(),
+    ['many', 'one', 'other']
+  )
+  assert.equal(i18n.t('relative_time.minutes', { count: 1 }), 'il y a 1 min')
+  assert.equal(i18n.t('relative_time.minutes', { count: 5 }), 'il y a 5 min')
+})
+
+test('the portal labels that used to be hard-coded are catalogued in every locale', () => {
+  for (const locale of ['en', 'zh-CN', 'fr']) {
+    const common = readCatalog(locale, 'common')
+
+    assert.equal(typeof common.portal_input?.show_password, 'string', `${locale} show_password`)
+    assert.equal(typeof common.portal_input?.hide_password, 'string', `${locale} hide_password`)
+    assert.equal(typeof common.toaster?.label, 'string', `${locale} toaster.label`)
+  }
 })

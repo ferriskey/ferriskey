@@ -1,0 +1,299 @@
+# Catalogue français des écrans de fédération d'utilisateurs.
+#
+# STATUS : traduit, en attente de relecture native.
+
+# Ordre d'interrogation d'un fournisseur de fédération. La console dérive la clé du score numérique
+# stocké par l'API : traduisez le libellé et l'indication, jamais la clé.
+priority:
+  primary:
+    label: Principal
+    hint: Interrogé en premier.
+  secondary:
+    label: Secondaire
+    hint: Interrogé lorsque le principal ne répond pas.
+  development:
+    label: Développement
+    hint: Environnement de travail.
+  legacy:
+    label: Ancien
+    hint: Conservé pendant la durée d'une migration.
+
+# Latence d'un test de connexion et durée d'une synchronisation, toutes deux abrégées car
+# elles tiennent dans un emplacement étroit à côté d'une pastille de statut.
+duration:
+  milliseconds: '{{value}} ms'
+  seconds: '{{value}} s'
+
+# Types proposés par la boîte de dialogue « ajouter un fournisseur ».
+kind:
+  ldap:
+    label: LDAP
+    description: Un annuaire interrogé pour authentifier les comptes et les importer.
+  kerberos:
+    label: Kerberos
+    description: Authentification réseau par tickets.
+    disabled_reason: Le serveur stocke un fournisseur Kerberos mais ne le synchronise ni ne le teste.
+
+list:
+  title: Fédération d'utilisateurs
+  description: Annuaires externes dont les comptes sont importés dans ce realm.
+  create: Ajouter un fournisseur
+  search_placeholder: Rechercher par nom…
+  count_one: '{{count}} fournisseur'
+  count_many: '{{count}} de fournisseurs'
+  count_other: '{{count}} fournisseurs'
+  no_endpoint: aucun point de terminaison
+  never_synced: jamais synchronisé
+  columns:
+    name: Fournisseur
+    endpoint: Point de terminaison
+    type: Type
+    sync_mode: Mode de synchronisation
+    schedule: Planification
+    last_sync: Dernière synchronisation
+    status: Statut
+    priority: Priorité
+    created: Créé
+    updated: Mis à jour
+  schedule:
+    # « minutes » abrégé — affiché dans une cellule de tableau étroite, à garder court.
+    interval_one: toutes les {{count}} min
+    interval_many: toutes les {{count}} min
+    interval_other: toutes les {{count}} min
+    on_demand: à la demande uniquement
+  status:
+    enabled: Activé
+    disabled: Désactivé
+  metrics:
+    total:
+      label: Fournisseurs
+      hint: configurés
+    enabled:
+      label: Activés
+      # Compte brut des fournisseurs qui ne sont pas interrogés ; « désactivés » le suit sans s'accorder.
+      hint: '{{total}} désactivés'
+      empty_hint: tous interrogés
+    scheduled:
+      label: Synchronisation planifiée
+      hint: s'exécutent sans être sollicités
+    stale:
+      label: Jamais synchronisés
+      hint: aucun compte importé
+      empty_hint: tous se sont exécutés une fois
+  alerts:
+    stale:
+      title_one: '{{count}} fournisseur ne s''est jamais synchronisé'
+      title_many: '{{count}} de fournisseurs ne se sont jamais synchronisés'
+      title_other: '{{count}} fournisseurs ne se sont jamais synchronisés'
+      # « names » est la liste des fournisseurs qui ne se sont jamais exécutés, déjà jointe.
+      detail: '{{names}} — aucun compte importé jusqu''à présent.'
+      action: Vérifier
+  filter_fields:
+    provider_type: Type
+    provider_family: Famille
+    provider_family_values:
+      ldap: LDAP (dont Active Directory)
+      kerberos: Kerberos
+    enabled: Activé
+    sync_enabled: Synchronisation planifiée
+    synced: Synchronisé au moins une fois
+    sync_mode: Mode de synchronisation
+    created: Créé
+  aggregates:
+    # Total en pied de tableau, jamais accordé — se lit toujours comme un compte brut de fournisseurs activés.
+    status: '{{total}} activés'
+  card:
+    status:
+      enabled: activé
+      disabled: désactivé
+    flags:
+      queried: Interrogé pour l'authentification
+      scheduled: Synchronisation planifiée
+      synced: Déjà synchronisé
+  empty:
+    label: Aucun fournisseur de fédération
+    hint: Connectez un annuaire pour authentifier ses comptes et les importer dans ce realm.
+  picker:
+    title: Type de fournisseur
+    description: 'Il détermine la configuration à renseigner : un annuaire LDAP et un domaine Kerberos ne partagent aucun paramètre.'
+
+# Champs partagés par l'écran de création et l'onglet des paramètres d'un fournisseur existant.
+form:
+  basic:
+    title: Paramètres de base
+    description: Qui est le fournisseur, et sa place dans l'ordre d'interrogation.
+  name:
+    label: Nom du fournisseur
+    description: Nomme le fournisseur dans cette console ; il doit être unique dans le realm.
+  priority:
+    label: Priorité
+    description: Ordre dans lequel les fournisseurs sont interrogés lors de la recherche d'un compte.
+  enabled:
+    label: Activé
+    description: Un fournisseur désactivé n'est plus interrogé et ne se synchronise plus.
+    # Libellé pour lecteur d'écran du sélecteur d'état à deux cartes.
+    picker_label: État du fournisseur
+    choices:
+      enabled:
+        label: Activé
+        description: Le fournisseur participe à l'authentification.
+      disabled:
+        label: Désactivé
+        description: Ignoré, mais les comptes déjà importés restent liés.
+  connection:
+    title: Paramètres de connexion
+    description: Comment l'annuaire est joint, et le compte de service utilisé pour le lire.
+  connection_url:
+    label: URL de connexion
+    description: 'Sans schéma, ldaps:// est supposé lorsque TLS est activé, ldap:// sinon.'
+  base_dn:
+    label: Base DN
+    description: Racine sous laquelle les comptes sont recherchés.
+  bind_dn:
+    label: Bind DN
+    description: 'Facultatif : laissé vide, l''annuaire est lu de façon anonyme.'
+  bind_password:
+    label: Identifiant de liaison
+    description:
+      stored: Stocké chiffré et jamais renvoyé. Saisissez-en un nouveau pour le remplacer.
+      empty: Stocké chiffré et jamais renvoyé une fois enregistré.
+    # « mask » est la rangée d'astérisques que l'API renvoie à la place de l'identifiant stocké.
+    stored_hint: '{{mask}} · enregistré, illisible'
+    reveal: Afficher l'identifiant
+    hide: Masquer l'identifiant
+    required: Modifier la connexion réécrit toute la configuration, et l'identifiant enregistré ne peut pas être relu — saisissez-le à nouveau pour enregistrer.
+  use_tls:
+    label: Utiliser TLS
+    description: Chiffre la connexion à l'annuaire.
+  search:
+    title: Paramètres de recherche des utilisateurs
+    description: Comment un compte est retrouvé dans l'annuaire.
+  search_filter:
+    label: Filtre de recherche des utilisateurs
+    description: Filtre LDAP appliqué à la recherche.
+  sync:
+    title: Paramètres de synchronisation
+    description: Quand l'annuaire est parcouru à nouveau, et ce qu'il fait aux comptes.
+    scheduled:
+      label: Synchronisation planifiée
+      description: Désactivée, le fournisseur ne se synchronise que lorsqu'on le demande depuis cette page.
+    mode:
+      label: Mode de synchronisation
+      description: Ce qu'une exécution planifiée fait des comptes qu'elle rencontre. Une exécution lancée à la main importe toujours.
+      # Libellé pour lecteur d'écran du sélecteur de mode à trois cartes.
+      picker_label: Mode de synchronisation
+      choices:
+        import:
+          label: Importer
+          description: Crée les comptes manquants et met à jour les comptes existants.
+        force:
+          label: Forcer
+          description: Désactive aussi les comptes locaux que l'annuaire ne renvoie plus.
+        link_only:
+          label: Lier uniquement
+          description: Lie les comptes déjà présents, sans jamais en créer.
+    interval:
+      label: Intervalle de synchronisation
+      description: Durée entre deux exécutions. Le serveur conserve des minutes entières, 60 secondes au minimum.
+      # Espace réservé du champ de durée, affiché tant qu'aucune valeur n'est saisie.
+      input_label: Intervalle
+
+create:
+  back: Fédération d'utilisateurs
+  title: Nouveau fournisseur
+  # Lien en ligne qui ramène l'administrateur à la boîte de dialogue du type de fournisseur.
+  change_type: changer de type
+  save:
+    title: Créer le fournisseur
+    description: Une fois créé, le fournisseur peut être testé et synchronisé depuis sa page.
+    action: Créer le fournisseur
+  toast:
+    created: Fournisseur créé
+    failed: Le fournisseur n'a pas pu être créé
+
+detail:
+  back: Fédération d'utilisateurs
+  not_found:
+    title: Fournisseur introuvable
+    description: Il a peut-être été supprimé, ou il appartient à un autre realm.
+  status:
+    enabled: activé
+    disabled: désactivé
+  actions:
+    test: Tester la connexion
+    testing: Test en cours…
+    test_unavailable: Le serveur ne teste que les fournisseurs LDAP et Active Directory.
+    sync: Synchroniser
+    syncing: Synchronisation en cours…
+    sync_unavailable: Le serveur ne synchronise que les fournisseurs LDAP et Active Directory.
+    sync_disabled: Un fournisseur désactivé n'est pas interrogé.
+  test:
+    reachable: joignable
+    unreachable: injoignable
+  disabled_notice: 'Ce fournisseur est désactivé : il n''est plus interrogé et sa synchronisation ne s''exécute pas. Les comptes déjà importés restent liés.'
+  tabs:
+    settings: Paramètres
+    sync: Synchronisation
+  save:
+    title_one: '{{count}} modification non enregistrée'
+    title_many: '{{count}} de modifications non enregistrées'
+    title_other: '{{count}} modifications non enregistrées'
+    description: Relisez le fournisseur avant d'appliquer les modifications.
+    blocked: Un champ bloque encore l'enregistrement — voir le message sous celui-ci.
+    cancel: Abandonner
+    action: Enregistrer les modifications
+  settings:
+    type:
+      label: Type
+      description: 'Fixé à la création : il commande la forme de la configuration ci-dessous, que le changement de type viderait.'
+    config:
+      title: Configuration
+      description: Renvoyée telle que l'API la stocke. Ce type n'a pas de formulaire dans la console, et les secrets ne sortent jamais en clair.
+      empty: Aucune configuration enregistrée.
+    danger:
+      label: Supprimer ce fournisseur
+      description: Les comptes déjà importés perdent leur lien avec l'annuaire. Cette action est irréversible.
+      button: Supprimer le fournisseur
+      confirm_title: Supprimer le fournisseur
+      confirm_description: 'Cela supprimera définitivement le fournisseur « {{name}} » et chaque lien qu''il détient avec l''annuaire.'
+  sync:
+    last:
+      title: Dernière synchronisation
+      started: Démarrée le {{date}}.
+      never_started: Jamais démarrée.
+      unknown_outcome: résultat inconnu
+      finished: terminée {{date}}
+      hint: Exécutez ce fournisseur depuis l'en-tête pour voir ce qu'un passage crée, met à jour et sur quoi il échoue.
+      empty: Ce fournisseur ne s'est jamais synchronisé — aucun compte n'a été importé jusqu'à présent.
+    stats:
+      processed: Traités
+      created: Créés
+      updated: Mis à jour
+      disabled: Désactivés
+      failed: En échec
+  toast:
+    updated: Fournisseur mis à jour
+    update_failed: Échec de la mise à jour du fournisseur
+    test_success: Test de connexion réussi
+    test_failed: Échec du test de connexion
+    test_error: Échec du test de la connexion
+    sync_completed: Synchronisation terminée
+    sync_failed: Échec de la synchronisation des comptes
+    sync_processed_one: '{{count}} compte traité'
+    sync_processed_many: '{{count}} de comptes traités'
+    sync_processed_other: '{{count}} comptes traités'
+    # Segments joints par une virgule pour résumer ce qu'une exécution a fait. Chaque chiffre est suivi
+    # d'un participe passé qui ne s'accorde jamais.
+    stats:
+      created: '{{total}} créés'
+      updated: '{{total}} mis à jour'
+      disabled: '{{total}} désactivés'
+      failed: '{{total}} en échec'
+    deleted: Fournisseur supprimé
+    delete_failed: Échec de la suppression du fournisseur
+
+validation:
+  name_required: Le nom du fournisseur est requis
+  connection_url_required: L'URL de connexion est requise
+  base_dn_required: Le Base DN est requis
+  connection_url_invalid: Cette URL ne peut pas être lue comme un point de terminaison LDAP.

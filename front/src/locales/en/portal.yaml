@@ -61,6 +61,9 @@ page_type:
   consent:
     label: Consent
     description: Asks the user to approve the optional scopes a client is requesting.
+  account_chooser:
+    label: Account chooser
+    description: Lists the accounts remembered in this browser so the user can pick one to continue with.
 
 # Device preview toggles in both editors. The width and the Tailwind breakpoint are technical
 # facts the administrator matches against their own CSS — keep the numbers and the `sm`/`md`/`xl`

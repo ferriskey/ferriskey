@@ -21,6 +21,7 @@ use ferriskey_api_core::{
         response::Response,
     },
     app_state::AppState,
+    device_cookie::{attach_login, device_token},
     sso_cookie,
     url::FullUrl,
 };
@@ -105,7 +106,7 @@ pub async fn passkey_authenticate(
     let output = state
         .service
         .passkey_authenticate(PasskeyAuthenticateInput {
-            realm_name,
+            realm_name: realm_name.clone(),
             session_code,
             webapp_base_url: webapp_url.clone(),
             rp_info,
@@ -115,8 +116,22 @@ pub async fn passkey_authenticate(
         .await
         .map_err(ApiError::from)?;
 
+    let is_secure = base_url.starts_with("https");
+    let mut headers = sso_cookie::headers(output.sso_session.clone(), is_secure)?;
+    if let Some(session) = &output.sso_session {
+        attach_login(
+            &state,
+            &realm_name,
+            device_token(&cookie),
+            &session.cookie,
+            is_secure,
+            &mut headers,
+        )
+        .await;
+    }
+
     Ok((
-        sso_cookie::headers(output.sso_session, base_url.starts_with("https"))?,
+        headers,
         Response::OK(PasskeyAuthenticateResponse {
             login_url: output.login_url,
             status: "Success".to_string(),

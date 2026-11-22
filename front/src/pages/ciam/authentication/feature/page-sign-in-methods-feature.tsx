@@ -24,6 +24,8 @@ const DEFAULT_DRAFT: SignInDraft = {
   emailVerification: false,
   forgotPassword: false,
   rememberMe: false,
+  accountChooser: false,
+  accountChooserShowEmail: false,
   lockoutThreshold: 0,
   lockoutDuration: 0,
 }
@@ -53,6 +55,8 @@ export default function PageSignInMethodsFeature() {
         emailVerification: settings.email_verification_enabled,
         forgotPassword: settings.forgot_password_enabled,
         rememberMe: settings.remember_me_enabled,
+        accountChooser: settings.account_chooser_enabled,
+        accountChooserShowEmail: settings.account_chooser_show_email,
         lockoutThreshold: settings.lockout_threshold,
         lockoutDuration: settings.lockout_duration_seconds,
       }
@@ -102,6 +106,8 @@ export default function PageSignInMethodsFeature() {
           email_verification_enabled: value.emailVerification,
           forgot_password_enabled: value.forgotPassword,
           remember_me_enabled: value.rememberMe,
+          account_chooser_enabled: value.accountChooser,
+          account_chooser_show_email: value.accountChooserShowEmail,
           lockout_threshold: value.lockoutThreshold,
           lockout_duration_seconds: value.lockoutDuration,
         },

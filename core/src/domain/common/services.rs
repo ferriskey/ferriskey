@@ -234,6 +234,7 @@ where
                         consent_required: false,
                         registration_source:
                             crate::domain::client::entities::ClientRegistrationSource::Admin,
+                        auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -279,6 +280,7 @@ where
                         consent_required: false,
                         registration_source:
                             crate::domain::client::entities::ClientRegistrationSource::Admin,
+                        auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(false),
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -317,6 +319,7 @@ where
                         consent_required: false,
                         registration_source:
                             crate::domain::client::entities::ClientRegistrationSource::Admin,
+                        auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -502,6 +505,7 @@ where
                             consent_required: false,
                             registration_source:
                                 crate::domain::client::entities::ClientRegistrationSource::Admin,
+                            auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
                         })
                         .await
                     {
@@ -748,6 +752,7 @@ pub mod tests {
             id: Uuid::new_v4(),
             client_id: "test-client".to_string(),
             secret: Some(maskass::Masked::new("secret".to_string())),
+            previous_secret: None,
             name: "Test Client".to_string(),
             realm_id,
             enabled: true,
@@ -756,6 +761,7 @@ pub mod tests {
             oauth_device_code_grant_enabled: false,
             token_exchange_enabled: false,
             require_pkce: false,
+            require_pushed_authorization_requests: false,
             service_account_enabled: true,
             client_type: ClientType::Confidential,
             protocol: AuthProtocol::OpenIdConnect,
@@ -773,6 +779,9 @@ pub mod tests {
             backchannel_logout_session_required: true,
             consent_required: false,
             registration_source: crate::domain::client::entities::ClientRegistrationSource::Admin,
+            token_endpoint_auth_method: crate::domain::client::entities::auth_method::TokenEndpointAuthMethod::ClientSecretBasic,
+            jwks: None,
+            jwks_uri: None,
         };
 
         Identity::Client(client)

@@ -57,6 +57,12 @@ pub trait AccountChooserService: Send + Sync {
         user_session_id: Uuid,
     ) -> impl Future<Output = Result<(DeviceSession, Option<String>), CoreError>> + Send;
 
+    fn device_session_id(
+        &self,
+        device_token: Option<&str>,
+        scope: &RealmScope,
+    ) -> impl Future<Output = Result<Option<Uuid>, CoreError>> + Send;
+
     fn list_entries(
         &self,
         device_token: Option<&str>,

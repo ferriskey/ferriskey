@@ -10,6 +10,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { AlertTriangle, Monitor, Smartphone, Tablet } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { collectRenderedTypes } from '@/lib/builder-portal/rendered-types'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   BuilderProvider,
@@ -93,18 +94,6 @@ function parseTree(tree: unknown): BuilderNode[] {
   return []
 }
 
-function collectTypes(value: unknown, acc: Set<string>) {
-  if (Array.isArray(value)) {
-    value.forEach((v) => collectTypes(v, acc))
-    return
-  }
-  if (value && typeof value === 'object') {
-    const obj = value as Record<string, unknown>
-    if (typeof obj.type === 'string') acc.add(obj.type)
-    Object.values(obj).forEach((v) => collectTypes(v, acc))
-  }
-}
-
 export default function PageTreeEditor({
   realm,
   pageType,
@@ -136,7 +125,7 @@ export default function PageTreeEditor({
 
   const presentTypes = useMemo(() => {
     const acc = new Set<string>()
-    collectTypes(tree, acc)
+    collectRenderedTypes(tree, acc)
     return acc
   }, [tree])
 

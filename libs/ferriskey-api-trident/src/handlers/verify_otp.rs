@@ -1,15 +1,12 @@
 use crate::validators::OtpVerifyRequest;
-use axum::{
-    Extension,
-    extract::{Path, State},
-    response::IntoResponse,
-};
+use axum::{Extension, extract::State, response::IntoResponse};
 use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse, ValidateJson},
         response::Response,
     },
     app_state::AppState,
+    device_cookie::LoginDevice,
     login_step::{LoginActionStep, LoginStepReply},
     url::{FullUrl, WebappUrl},
 };
@@ -50,19 +47,23 @@ pub struct VerifyOtpResponse {
 )]
 pub async fn verify_otp(
     State(state): State<AppState>,
-    Path(realm_name): Path<String>,
     Extension(identity): Extension<Identity>,
     FullUrl(_, base_url): FullUrl,
     WebappUrl(webapp_url): WebappUrl,
     Extension(step): Extension<LoginActionStep>,
+    device: LoginDevice,
     ValidateJson(payload): ValidateJson<OtpVerifyRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    let LoginDevice {
+        realm_name,
+        token: device,
+    } = device;
     let result = state
         .service
         .verify_otp(
             identity,
             VerifyOtpInput {
-                realm_name,
+                realm_name: realm_name.clone(),
                 session_code: step.auth_session_id.to_string(),
                 second_factor_verified: step.second_factor_verified,
                 webapp_base_url: webapp_url,
@@ -73,7 +74,10 @@ pub async fn verify_otp(
         .await
         .map_err(ApiError::from)?;
 
-    let reply = LoginStepReply::new(result.progress, base_url.starts_with("https"))?;
+    let mut reply = LoginStepReply::new(result.progress, base_url.starts_with("https"))?;
+    reply
+        .attach_device(&state, &realm_name, device, base_url.starts_with("https"))
+        .await;
 
     Ok((
         reply.headers,

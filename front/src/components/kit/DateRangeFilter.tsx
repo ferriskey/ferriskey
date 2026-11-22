@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { enUS, zhCN } from 'react-day-picker/locale'
+import { enUS, fr, zhCN } from 'react-day-picker/locale'
 import { Calendar } from '@/components/ui/calendar'
 import { getActiveLocale } from '@/lib/i18n'
 import type { SupportedLocale } from '@/lib/i18n/locales'
@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { boundsFromCalendarRange, calendarRangeFromBounds } from './date-range-bounds'
 import type { PagedListing } from './use-paged-listing'
 
-const CALENDAR_LOCALES = { en: enUS, 'zh-CN': zhCN } satisfies Record<SupportedLocale, unknown>
+const CALENDAR_LOCALES = { en: enUS, 'zh-CN': zhCN, fr } satisfies Record<SupportedLocale, unknown>
 
 const MONDAY = 1
 

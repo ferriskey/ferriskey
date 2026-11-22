@@ -103,6 +103,10 @@ pub struct UpdateRealmSettingValidator {
     pub cimd_allowed_hosts: Option<Vec<String>>,
     #[validate(custom(function = "validate_allowed_resources"))]
     pub allowed_resources: Option<Vec<String>>,
+    pub account_chooser_enabled: Option<bool>,
+    pub account_chooser_show_email: Option<bool>,
+    /// Refuse `/auth` requests that were not pushed first (RFC 9126 §5).
+    pub require_pushed_authorization_requests: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -289,6 +293,33 @@ mod update_realm_setting_validator_tests {
 }
 
 #[cfg(test)]
+mod account_chooser_validator_tests {
+    use super::UpdateRealmSettingValidator;
+    use serde_json::json;
+    use validator::Validate;
+
+    #[test]
+    fn absent_flags_are_none() {
+        let v: UpdateRealmSettingValidator =
+            serde_json::from_value(json!({})).expect("deserializes");
+        assert!(v.validate().is_ok());
+        assert_eq!(v.account_chooser_enabled, None);
+        assert_eq!(v.account_chooser_show_email, None);
+    }
+
+    #[test]
+    fn true_and_false_are_carried() {
+        let v: UpdateRealmSettingValidator = serde_json::from_value(json!({
+            "account_chooser_enabled": true,
+            "account_chooser_show_email": false
+        }))
+        .expect("deserializes");
+        assert_eq!(v.account_chooser_enabled, Some(true));
+        assert_eq!(v.account_chooser_show_email, Some(false));
+    }
+}
+
+#[cfg(test)]
 mod mcp_settings_validator_tests {
     use super::{UpdateRealmSettingValidator, is_bare_host, is_valid_resource_indicator};
     use serde_json::json;
@@ -350,11 +381,13 @@ mod mcp_settings_validator_tests {
             "cimd_enabled": true,
             "dcr_enabled": false,
             "allowed_resources": ["https://mcp.example.com"],
-            "cimd_allowed_hosts": ["example.com"]
+            "cimd_allowed_hosts": ["example.com"],
+            "require_pushed_authorization_requests": true
         }))
         .expect("deserializes");
         assert!(ok.validate().is_ok());
         assert_eq!(ok.cimd_enabled, Some(true));
+        assert_eq!(ok.require_pushed_authorization_requests, Some(true));
 
         let empty: UpdateRealmSettingValidator =
             serde_json::from_value(json!({})).expect("deserializes");

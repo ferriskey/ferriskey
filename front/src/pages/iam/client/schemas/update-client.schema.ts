@@ -9,6 +9,7 @@ export const updateClientSchema = z.object({
   oauthDeviceCodeGrantEnabled: z.boolean().optional(),
   tokenExchangeEnabled: z.boolean().optional(),
   requirePkce: z.boolean().optional(),
+  requirePushedAuthorizationRequests: z.boolean().optional(),
   accessTokenLifetime: z.number().nullable().optional(),
   refreshTokenLifetime: z.number().nullable().optional(),
   idTokenLifetime: z.number().nullable().optional(),

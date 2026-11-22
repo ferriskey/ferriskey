@@ -6,6 +6,7 @@ use std::thread;
 
 use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
 use chrono::{DateTime, Duration, TimeZone, Utc};
+use ferriskey_domain::device_session::entities::SelectedAccount;
 use ferriskey_security::crypto::password_check::verify_password_credential;
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
@@ -32,7 +33,10 @@ use ferriskey_organization::{
     OrganizationMemberRepository, OrganizationRepository,
 };
 
-use crate::domain::authentication::client_authentication::{ClientGrant, authenticate_client};
+use crate::domain::authentication::client_assertion::ports::ClientAssertionVerifier;
+use crate::domain::authentication::client_authentication::{
+    ClientGrant, ClientProof, authenticate_client, authorize_client,
+};
 use crate::domain::authentication::login_context::{LoginContext, VerifiedLogin};
 use crate::domain::authentication::mapper_engine::{
     ClaimSources, ContextGroup, ContextOrganization,
@@ -58,6 +62,7 @@ use crate::domain::{
         ports::{
             AdmitLoginInput, AuthService, AuthSessionRepository, ConsentRedirect, LoginActionGrant,
             LoginActionToken, LoginActionTokenRepository, LoginAdmission, LoginAdmissionPort,
+            SessionOrigin,
         },
         value_objects::{
             AuthenticationResult, CodeChallengeMethod, EndSessionInput, EndSessionOutput,
@@ -147,6 +152,18 @@ fn consent_error_redirect(
     }
 
     with_issuer(location, issuer)
+}
+
+fn max_age_exceeded(
+    authenticated_at: DateTime<Utc>,
+    now: DateTime<Utc>,
+    max_age: Option<i64>,
+) -> bool {
+    match max_age {
+        None => false,
+        Some(0) => true,
+        Some(max_age) => (now - authenticated_at).num_seconds() > max_age,
+    }
 }
 
 fn resource_is_allowed(allowed_resources: &[String], resource: &str) -> bool {
@@ -339,19 +356,50 @@ fn validate_session_binding(
 /// Open the SSO session a login completes into, or re-authenticate into the
 /// live session the browser still held when it was sent to the login page, so
 /// signing in again does not leave a second session behind.
+struct Finalization {
+    binding: SsoSessionBinding,
+    origin: SessionOrigin,
+}
+
+impl From<SsoSessionBinding> for Finalization {
+    fn from(binding: SsoSessionBinding) -> Self {
+        Self {
+            binding,
+            origin: SessionOrigin::default(),
+        }
+    }
+}
+
+struct ResumedSession {
+    user_id: Uuid,
+    session: Scoped<UserSession>,
+    cookie: String,
+}
+
+pub(crate) struct NewSession<'a> {
+    pub(crate) lifetime_seconds: i64,
+    pub(crate) persistent: bool,
+    pub(crate) origin: &'a SessionOrigin,
+}
+
 pub(crate) async fn open_or_reauthenticate_session<S, E>(
     sessions: &S,
     events: &E,
     reauth_session_id: Option<Uuid>,
     user_id: Uuid,
     scope: &RealmScope,
-    session_lifetime_seconds: i64,
-    persistent: bool,
+    new_session: NewSession<'_>,
 ) -> Result<(UserSession, String), CoreError>
 where
     S: UserSessionRepository,
     E: SecurityEventRepository,
 {
+    let NewSession {
+        lifetime_seconds: session_lifetime_seconds,
+        persistent,
+        origin,
+    } = new_session;
+
     if let Some(candidate) = reauth_session_id
         && let Some(reauthenticated) = reauthenticate_session(
             sessions,
@@ -374,6 +422,7 @@ where
         scope.id(),
         session_lifetime_seconds,
         persistent,
+        origin,
     )
     .await
 }
@@ -576,8 +625,9 @@ where
 /// which their session is alive. A dedicated realm-level SSO session lifetime
 /// would be a better fit and is left for follow-up.
 ///
-/// `user_agent` and `ip_address` are left unset: recording the browser's values
-/// means carrying them from the `/auth` request through `auth_sessions`.
+/// `origin` carries the browser's `user_agent` and `ip_address` when the caller
+/// has them; the logins that complete outside the credential request leave
+/// them unset.
 pub(crate) async fn open_user_session<S, E>(
     sessions: &S,
     events: &E,
@@ -585,6 +635,7 @@ pub(crate) async fn open_user_session<S, E>(
     realm_id: RealmId,
     session_lifetime_seconds: i64,
     persistent: bool,
+    origin: &SessionOrigin,
 ) -> Result<(UserSession, String), CoreError>
 where
     S: UserSessionRepository,
@@ -601,8 +652,14 @@ where
         CoreError::SessionCreateError
     })?;
 
-    let mut session =
-        UserSession::new(user_id, realm_id.into(), None, None, session_duration, None);
+    let mut session = UserSession::new(
+        user_id,
+        realm_id.into(),
+        origin.user_agent.clone(),
+        origin.ip_address.clone(),
+        session_duration,
+        None,
+    );
 
     let sso_token = generate_random_token();
     session.sso_token_hash = Some(sso_token_hash(&sso_token));
@@ -808,7 +865,7 @@ fn validate_authorization_code_request(
     client: &Client,
     request_realm_id: RealmId,
     request_redirect_uri: Option<&str>,
-    request_client_secret: Option<&str>,
+    client_proof: ClientProof,
     now: DateTime<Utc>,
 ) -> Result<(), CoreError> {
     if auth_session.protocol != AuthProtocol::OpenIdConnect {
@@ -820,11 +877,7 @@ fn validate_authorization_code_request(
         return Err(CoreError::InvalidAuthorizationCode);
     }
 
-    authenticate_client(
-        client,
-        request_client_secret,
-        ClientGrant::AuthorizationCode,
-    )?;
+    authorize_client(client, client_proof, ClientGrant::AuthorizationCode)?;
 
     // The code belongs to one client. Without this, any client_id in the realm
     // could redeem another client's code and receive tokens minted under its own
@@ -889,6 +942,15 @@ fn pkce_verify(code_verifier: &str, code_challenge: &str, method: &CodeChallenge
             .ct_eq(code_challenge.as_bytes())
             .into(),
     }
+}
+
+/// A request sent straight to `/auth` is refused when the client or its
+/// realm requires pushed authorization requests (RFC 9126 §5, §6).
+fn unpushed_request_allowed(client: &Client, realm: &RealmSetting) -> Result<(), CoreError> {
+    if client.require_pushed_authorization_requests || realm.require_pushed_authorization_requests {
+        return Err(CoreError::PushedAuthorizationRequired);
+    }
+    Ok(())
 }
 
 /// Enforce the PKCE policy of an authorization request (RFC 7636 §4.3).
@@ -1074,6 +1136,7 @@ pub struct AuthServiceImpl<
     LAT,
     CO,
     CM,
+    CAV,
 > where
     R: RealmRepository,
     C: ClientRepository,
@@ -1105,6 +1168,7 @@ pub struct AuthServiceImpl<
     LAT: LoginActionTokenRepository,
     CO: ConsentDecisionRepository,
     CM: ClientMetadataResolver,
+    CAV: ClientAssertionVerifier,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -1140,6 +1204,7 @@ pub struct AuthServiceImpl<
     pub(crate) consent_service: Arc<ConsentServiceImpl<CO>>,
     pub(crate) client_metadata_resolver: Arc<CM>,
     pub(crate) service_account_cache: Arc<ServiceAccountCache>,
+    pub(crate) client_assertion_verifier: Arc<CAV>,
     pub(crate) refresh_token_format: RefreshTokenFormat,
 }
 
@@ -1174,6 +1239,7 @@ impl<
     LAT,
     CO,
     CM,
+    CAV,
 >
     AuthServiceImpl<
         R,
@@ -1206,6 +1272,7 @@ impl<
         LAT,
         CO,
         CM,
+        CAV,
     >
 where
     R: RealmRepository,
@@ -1238,6 +1305,7 @@ where
     LAT: LoginActionTokenRepository,
     CO: ConsentDecisionRepository,
     CM: ClientMetadataResolver,
+    CAV: ClientAssertionVerifier,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -1274,6 +1342,7 @@ where
         consent_service: Arc<ConsentServiceImpl<CO>>,
         client_metadata_resolver: Arc<CM>,
         service_account_cache: Arc<ServiceAccountCache>,
+        client_assertion_verifier: Arc<CAV>,
     ) -> Self {
         Self {
             realm_repository,
@@ -1310,6 +1379,7 @@ where
             consent_service,
             client_metadata_resolver,
             service_account_cache,
+            client_assertion_verifier,
             refresh_token_format: RefreshTokenFormat::default(),
         }
     }
@@ -1352,6 +1422,7 @@ impl<
     LAT,
     CO,
     CM,
+    CAV,
 >
     AuthServiceImpl<
         R,
@@ -1384,6 +1455,7 @@ impl<
         LAT,
         CO,
         CM,
+        CAV,
     >
 where
     R: RealmRepository,
@@ -1416,7 +1488,116 @@ where
     LAT: LoginActionTokenRepository,
     CO: ConsentDecisionRepository,
     CM: ClientMetadataResolver,
+    CAV: ClientAssertionVerifier,
 {
+    /// Everything `/auth` checks before it opens a login session. The PAR
+    /// endpoint runs the same checks before it stores a request.
+    pub(crate) async fn resolve_metadata_client(
+        &self,
+        scope: &RealmScope,
+        client_id: &str,
+        redirect_uri: &str,
+        ip_address: Option<&str>,
+    ) -> Result<(), CoreError> {
+        let source_ip = ip_address.and_then(|raw| raw.parse::<IpAddr>().ok());
+
+        self.client_metadata_resolver
+            .resolve(scope, client_id, redirect_uri, source_ip)
+            .await?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn validate_authorization_request(
+        &self,
+        scope: &RealmScope,
+        input: &AuthInput,
+    ) -> Result<Client, CoreError> {
+        self.resolve_metadata_client(
+            scope,
+            &input.client_id,
+            &input.redirect_uri,
+            input.ip_address.as_deref(),
+        )
+        .await?;
+
+        let client = self
+            .client_repository
+            .get_by_client_id(input.client_id.clone(), scope.id())
+            .await?
+            .in_realm(scope)?
+            .into_inner();
+
+        let cimd_enabled = scope
+            .realm()
+            .settings
+            .as_ref()
+            .is_some_and(|settings| settings.cimd_enabled);
+        if client.registration_source == ClientRegistrationSource::MetadataDocument && !cimd_enabled
+        {
+            warn!(
+                client_id = %input.client_id,
+                "rejecting a metadata document client: the realm has turned the feature off"
+            );
+
+            return Err(CoreError::InvalidClient);
+        }
+
+        let protocol = client.protocol;
+
+        if protocol != AuthProtocol::OpenIdConnect {
+            warn!(
+                client_id = %input.client_id,
+                %protocol,
+                "rejecting an authorization request: this endpoint only serves openid-connect clients"
+            );
+
+            return Err(CoreError::InvalidClient);
+        }
+
+        let client_redirect_uris = self
+            .redirect_uri_repository
+            .get_enabled_by_client_id(client.id)
+            .await?;
+
+        if !redirect_uri_matches_any(
+            client_redirect_uris.iter().map(|uri| uri.value.as_str()),
+            &input.redirect_uri,
+        ) {
+            return Err(CoreError::InvalidRedirectUri);
+        }
+
+        if !client.enabled {
+            return Err(CoreError::InvalidClient);
+        }
+
+        if !input.pushed {
+            let realm_settings = self.realm_settings_of(scope).await?;
+            unpushed_request_allowed(&client, &realm_settings)?;
+        }
+
+        pkce_request_allowed(
+            &client,
+            input.code_challenge.as_deref(),
+            input.code_challenge_method.as_ref(),
+        )?;
+
+        if let Some(resource) = input.resource.as_deref() {
+            let allowed_resources = self
+                .realm_repository
+                .get_realm_settings(scope.id())
+                .await?
+                .map(|settings| settings.allowed_resources)
+                .unwrap_or_default();
+
+            if !resource_is_allowed(&allowed_resources, resource) {
+                return Err(CoreError::InvalidTarget);
+            }
+        }
+
+        Ok(client)
+    }
+
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
         if exp <= now { 0 } else { (exp - now) as u32 }
@@ -2125,6 +2306,7 @@ where
             realm_id,
             session_lifetime_seconds,
             persistent,
+            &SessionOrigin::default(),
         )
         .await
     }
@@ -2453,11 +2635,17 @@ where
     async fn verify_token(&self, token: String, realm_id: RealmId) -> Result<JwtClaim, CoreError> {
         let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
 
-        let jwt_key_pair = self
+        let kid = jsonwebtoken::decode_header(&token)
+            .map_err(|e| CoreError::TokenValidationError(format!("{:?}: {}", e.kind(), e)))?
+            .kid;
+        let key_set = self
             .keystore_repository
-            .get_or_generate_key(realm_id)
+            .get_key_set(realm_id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+        let jwt_key_pair = key_set
+            .verification_key(kid.as_deref(), Utc::now())
+            .ok_or_else(|| CoreError::TokenValidationError("unknown signing key".to_string()))?;
 
         validation.validate_aud = false;
         let token_data =
@@ -2718,7 +2906,7 @@ where
             &client,
             params.realm.id(),
             params.redirect_uri.as_deref(),
-            params.client_secret.as_deref(),
+            params.client_proof,
             Utc::now(),
         )?;
 
@@ -2932,11 +3120,7 @@ where
     async fn client_credential(&self, params: GrantTypeParams) -> Result<JwtToken, CoreError> {
         let client = params.client;
 
-        authenticate_client(
-            &client,
-            params.client_secret.as_deref(),
-            ClientGrant::ClientCredentials,
-        )?;
+        authorize_client(&client, params.client_proof, ClientGrant::ClientCredentials)?;
 
         let mut id_token = IdTokenIssuance::Withheld;
         if let Some(ref scope_str) = params.scope {
@@ -3351,11 +3535,7 @@ where
         let password = params.password.ok_or(CoreError::InternalServerError)?;
         let client = params.client;
 
-        authenticate_client(
-            &client,
-            params.client_secret.as_deref(),
-            ClientGrant::Password,
-        )?;
+        authorize_client(&client, params.client_proof, ClientGrant::Password)?;
         let resource = self
             .direct_grant_resource(&params.realm, params.resource.as_deref())
             .await?;
@@ -3493,11 +3673,7 @@ where
     ) -> Result<JwtToken, CoreError> {
         let client = params.client;
 
-        authenticate_client(
-            &client,
-            params.client_secret.as_deref(),
-            ClientGrant::RefreshToken,
-        )?;
+        authorize_client(&client, params.client_proof, ClientGrant::RefreshToken)?;
 
         let settings = self.realm_settings_of(&params.realm).await?;
         let lifetimes = TokenLifetimes::resolve(&settings, &client);
@@ -3657,11 +3833,7 @@ where
 
         let client = params.client;
 
-        authenticate_client(
-            &client,
-            params.client_secret.as_deref(),
-            ClientGrant::RefreshToken,
-        )?;
+        authorize_client(&client, params.client_proof, ClientGrant::RefreshToken)?;
 
         if !stored.status.is_active() {
             warn!(
@@ -3813,6 +3985,7 @@ where
         &self,
         params: CredentialsAuthParams,
         auth_session: AuthSession,
+        origin: &SessionOrigin,
     ) -> Result<AuthenticateOutput, CoreError> {
         let flow_id = auth_session.compass_flow_id.map(FlowId);
         let step_start = Utc::now();
@@ -3860,26 +4033,21 @@ where
             auth_session.remember_me = params.remember_me;
         }
 
-        self.determine_next_step(
-            auth_result,
-            params.session_code,
-            auth_session,
-            &params.realm,
-            &params.webapp_base_url,
-            &client,
-        )
-        .await
+        self.determine_next_step(auth_result, auth_session, &params, &client, origin.clone())
+            .await
     }
 
     async fn determine_next_step(
         &self,
         auth_result: AuthenticationResult,
-        session_code: Uuid,
         auth_session: AuthSession,
-        scope: &RealmScope,
-        webapp_base_url: &str,
+        params: &CredentialsAuthParams,
         client: &Client,
+        origin: SessionOrigin,
     ) -> Result<AuthenticateOutput, CoreError> {
+        let scope = &params.realm;
+        let session_code = params.session_code;
+        let webapp_base_url = params.webapp_base_url.as_str();
         let flow_id = auth_session.compass_flow_id.map(FlowId);
 
         if !auth_result.required_actions.is_empty() {
@@ -3934,7 +4102,10 @@ where
             auth_result.user_id,
             session_code,
             auth_session,
-            SsoSessionBinding::Open,
+            Finalization {
+                binding: SsoSessionBinding::Open,
+                origin,
+            },
             scope,
             client,
         )
@@ -4253,8 +4424,15 @@ where
             None => SsoSessionBinding::Open,
         };
 
-        self.finalize_authentication(user_id, session_code, auth_session, binding, scope, &client)
-            .await
+        self.finalize_authentication(
+            user_id,
+            session_code,
+            auth_session,
+            binding.into(),
+            scope,
+            &client,
+        )
+        .await
     }
 
     async fn finalize_authentication(
@@ -4262,11 +4440,15 @@ where
         user_id: Uuid,
         session_code: Uuid,
         auth_session: AuthSession,
-        sso_session: SsoSessionBinding,
+        finalization: Finalization,
         scope: &RealmScope,
         client: &Client,
     ) -> Result<AuthenticateOutput, CoreError> {
         let authorization_code = generate_random_string();
+        let Finalization {
+            binding: sso_session,
+            origin,
+        } = finalization;
 
         let (sso_session, sso_cookie) = match sso_session {
             SsoSessionBinding::Resume { session, cookie } => {
@@ -4284,8 +4466,11 @@ where
                     auth_session.reauth_session_id,
                     user_id,
                     scope,
-                    lifetimes.refresh_token,
-                    persistent,
+                    NewSession {
+                        lifetime_seconds: lifetimes.refresh_token,
+                        persistent,
+                        origin: &origin,
+                    },
                 )
                 .await?;
                 (session, Some(cookie))
@@ -4457,9 +4642,7 @@ where
 
         let (session, user) = self.live_session_user(session, scope).await?;
 
-        if let Some(max_age) = max_age
-            && (Utc::now() - session.get().authenticated_at).num_seconds() > max_age
-        {
+        if max_age_exceeded(session.get().authenticated_at, Utc::now(), max_age) {
             return Err(CoreError::ReauthenticationRequired);
         }
 
@@ -4553,14 +4736,44 @@ where
             .map_err(|e| warn!("Failed to record an SSO login in the audit log: {e}"))
             .ok();
 
+        self.resume_into_flow(
+            ResumedSession {
+                user_id: user.id,
+                session,
+                cookie,
+            },
+            session_code,
+            auth_session,
+            &scope,
+            &client,
+            webapp_base_url,
+        )
+        .await
+    }
+
+    async fn resume_into_flow(
+        &self,
+        resumed: ResumedSession,
+        session_code: Uuid,
+        auth_session: AuthSession,
+        scope: &RealmScope,
+        client: &Client,
+        webapp_base_url: &str,
+    ) -> Result<AuthenticateOutput, CoreError> {
+        let ResumedSession {
+            user_id,
+            session,
+            cookie,
+        } = resumed;
+
         if let Some(output) = self
             .consent_gate(
-                user.id,
+                user_id,
                 session_code,
                 &auth_session,
-                &scope,
+                scope,
                 webapp_base_url,
-                &client,
+                client,
             )
             .await?
         {
@@ -4576,17 +4789,149 @@ where
         }
 
         self.finalize_authentication(
-            user.id,
+            user_id,
             session_code,
             auth_session,
             SsoSessionBinding::Resume {
                 session: Box::new(session),
                 cookie,
-            },
-            &scope,
-            &client,
+            }
+            .into(),
+            scope,
+            client,
         )
         .await
+    }
+
+    pub(crate) async fn open_selection_auth_session(
+        &self,
+        scope: &RealmScope,
+        session_code: Uuid,
+    ) -> Result<AuthSession, CoreError> {
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|e| {
+                warn!("Failed to get auth session by session code: {:?}", e);
+                CoreError::SessionNotFound
+            })?
+            .in_realm(scope)
+            .map_err(|_| CoreError::InvalidSession)?
+            .into_inner();
+
+        if auth_session.expires_at < Utc::now() {
+            return Err(CoreError::SessionExpired);
+        }
+
+        if auth_session.user_id.is_some() && auth_session.authenticated {
+            return Err(CoreError::InvalidSession);
+        }
+
+        Ok(auth_session)
+    }
+
+    pub(crate) async fn finalize_selected_session(
+        &self,
+        scope: &RealmScope,
+        auth_session: AuthSession,
+        session_code: Uuid,
+        selected: SelectedAccount,
+        webapp_base_url: &str,
+    ) -> Result<AuthenticateOutput, CoreError> {
+        let session = self
+            .find_sso_session(&selected.new_sso_secret, scope)
+            .await?;
+        let client = self.client_of_session(scope, &auth_session).await?;
+        let rotated_secret = selected.new_sso_secret.clone();
+
+        let mut output = self
+            .resume_into_flow(
+                ResumedSession {
+                    user_id: selected.user_id,
+                    session,
+                    cookie: selected.new_sso_secret,
+                },
+                session_code,
+                auth_session,
+                scope,
+                &client,
+                webapp_base_url,
+            )
+            .await?;
+
+        if output.sso_cookie.is_none() {
+            output.sso_cookie = Some(rotated_secret);
+            output.sso_session_max_age_secs = selected.cookie_max_age;
+        }
+
+        Ok(output)
+    }
+
+    pub(crate) async fn remember_reauthentication_into(
+        &self,
+        scope: &RealmScope,
+        session_code: Uuid,
+        session_id: Uuid,
+    ) -> Result<String, CoreError> {
+        let session =
+            find_live_bound_session(self.user_session_repository.as_ref(), session_id, scope)
+                .await
+                .ok_or(CoreError::SessionNotFound)?;
+
+        let user = self
+            .user_repository
+            .get_by_id(session.user_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .in_realm(scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner();
+
+        self.auth_session_repository
+            .set_reauth_session(session_code, session.id)
+            .await
+            .map_err(|e| {
+                warn!(error = ?e, "Failed to remember the session to re-authenticate into");
+                CoreError::InternalServerError
+            })?;
+
+        Ok(user.username)
+    }
+
+    pub(crate) async fn session_in_scope(
+        &self,
+        scope: &RealmScope,
+        session_id: Uuid,
+    ) -> Option<UserSession> {
+        self.user_session_repository
+            .find_by_id(session_id)
+            .await
+            .ok()??
+            .in_realm(scope)
+            .ok()
+            .map(Scoped::into_inner)
+    }
+
+    pub(crate) async fn session_id_of_sso_secret(
+        &self,
+        scope: &RealmScope,
+        secret: &str,
+    ) -> Option<Uuid> {
+        self.find_sso_session(secret, scope)
+            .await
+            .ok()
+            .map(|session| session.get().id)
+    }
+
+    pub(crate) async fn client_uuid_of(&self, scope: &RealmScope, client_id: &str) -> Option<Uuid> {
+        self.client_repository
+            .get_by_client_id(client_id.to_string(), scope.id())
+            .await
+            .ok()?
+            .in_realm(scope)
+            .ok()
+            .map(|client| client.into_inner().id)
     }
 
     fn build_auth_completion(
@@ -4698,11 +5043,17 @@ where
         validation.validate_aud = false;
         validation.validate_exp = false;
 
-        let jwt_key_pair = self
+        let kid = jsonwebtoken::decode_header(id_token_hint)
+            .map_err(|_| CoreError::InvalidToken)?
+            .kid;
+        let key_set = self
             .keystore_repository
-            .get_or_generate_key(realm_id)
+            .get_key_set(realm_id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+        let jwt_key_pair = key_set
+            .verification_key(kid.as_deref(), Utc::now())
+            .ok_or(CoreError::InvalidToken)?;
 
         let token_data = jsonwebtoken::decode::<IdTokenClaims>(
             id_token_hint,
@@ -4763,6 +5114,7 @@ impl<
     LAT,
     CO,
     CM,
+    CAV,
 > LoginAdmissionPort
     for AuthServiceImpl<
         R,
@@ -4795,6 +5147,7 @@ impl<
         LAT,
         CO,
         CM,
+        CAV,
     >
 where
     R: RealmRepository,
@@ -4827,6 +5180,7 @@ where
     LAT: LoginActionTokenRepository,
     CO: ConsentDecisionRepository,
     CM: ClientMetadataResolver,
+    CAV: ClientAssertionVerifier,
 {
     async fn admit(&self, input: AdmitLoginInput) -> Result<LoginAdmission, CoreError> {
         let client = self
@@ -4899,6 +5253,7 @@ impl<
     LAT,
     CO,
     CM,
+    CAV,
 > AuthService
     for AuthServiceImpl<
         R,
@@ -4931,6 +5286,7 @@ impl<
         LAT,
         CO,
         CM,
+        CAV,
     >
 where
     R: RealmRepository,
@@ -4963,89 +5319,13 @@ where
     LAT: LoginActionTokenRepository,
     CO: ConsentDecisionRepository,
     CM: ClientMetadataResolver,
+    CAV: ClientAssertionVerifier,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
-
-        let source_ip = input
-            .ip_address
-            .as_deref()
-            .and_then(|raw| raw.parse::<IpAddr>().ok());
-
-        self.client_metadata_resolver
-            .resolve(&scope, &input.client_id, &input.redirect_uri, source_ip)
-            .await?;
-
-        let client = self
-            .client_repository
-            .get_by_client_id(input.client_id.clone(), scope.id())
-            .await?
-            .in_realm(&scope)?
-            .into_inner();
-
-        let cimd_enabled = scope
-            .realm()
-            .settings
-            .as_ref()
-            .is_some_and(|settings| settings.cimd_enabled);
-        if client.registration_source == ClientRegistrationSource::MetadataDocument && !cimd_enabled
-        {
-            warn!(
-                client_id = %input.client_id,
-                "rejecting a metadata document client: the realm has turned the feature off"
-            );
-
-            return Err(CoreError::InvalidClient);
-        }
-
+        let client = self.validate_authorization_request(&scope, &input).await?;
         let protocol = client.protocol;
-
-        if protocol != AuthProtocol::OpenIdConnect {
-            warn!(
-                client_id = %input.client_id,
-                %protocol,
-                "rejecting an authorization request: this endpoint only serves openid-connect clients"
-            );
-
-            return Err(CoreError::InvalidClient);
-        }
-
         let redirect_uri = input.redirect_uri.clone();
-
-        let client_redirect_uris = self
-            .redirect_uri_repository
-            .get_enabled_by_client_id(client.id)
-            .await?;
-
-        if !redirect_uri_matches_any(
-            client_redirect_uris.iter().map(|uri| uri.value.as_str()),
-            &redirect_uri,
-        ) {
-            return Err(CoreError::InvalidRedirectUri);
-        }
-
-        if !client.enabled {
-            return Err(CoreError::InvalidClient);
-        }
-
-        pkce_request_allowed(
-            &client,
-            input.code_challenge.as_deref(),
-            input.code_challenge_method.as_ref(),
-        )?;
-
-        if let Some(resource) = input.resource.as_deref() {
-            let allowed_resources = self
-                .realm_repository
-                .get_realm_settings(scope.id())
-                .await?
-                .map(|settings| settings.allowed_resources)
-                .unwrap_or_default();
-
-            if !resource_is_allowed(&allowed_resources, resource) {
-                return Err(CoreError::InvalidTarget);
-            }
-        }
 
         let flow_id = self.flow_recorder.start_flow(
             scope.realm(),
@@ -5075,6 +5355,7 @@ where
             prompt_consent: input.prompt_consent,
             issuer: input.issuer,
             resource: input.resource,
+            max_age: input.max_age,
         };
         let session = self
             .auth_session_repository
@@ -5102,17 +5383,19 @@ where
     async fn get_certs(&self, realm_name: String) -> Result<Vec<JwkKey>, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
-        let jwk_keypair = self
+        let key_set = self
             .keystore_repository
-            .get_or_generate_key(scope.id())
+            .get_key_set(scope.id())
             .await
             .map_err(|_| CoreError::RealmKeyNotFound)?;
 
-        let jwk_key = jwk_keypair
-            .to_jwk_key()
-            .map_err(|e| CoreError::InvalidKey(e.to_string()))?;
-
-        Ok(vec![jwk_key])
+        key_set
+            .published_at(Utc::now())
+            .map(|key| {
+                key.to_jwk_key()
+                    .map_err(|e| CoreError::InvalidKey(e.to_string()))
+            })
+            .collect()
     }
 
     #[instrument(
@@ -5121,7 +5404,7 @@ where
             realm_name = %input.realm_name,
             client_id = %input.client_id,
             grant_type = ?input.grant_type,
-            has_client_secret = input.client_secret.is_some(),
+            has_client_credential = input.client_credential.is_present(),
             has_username = input.username.is_some(),
             has_password = input.password.is_some(),
             has_code = input.code.is_some(),
@@ -5156,11 +5439,13 @@ where
             .map_err(|_| CoreError::ClientAuthenticationFailed)?
             .into_inner();
 
-        authenticate_client(
+        let client_proof = authenticate_client(
+            self.client_assertion_verifier.as_ref(),
             &client,
-            input.client_secret.as_deref(),
+            &input.client_credential,
             ClientGrant::for_token_grant(&grant_type)?,
-        )?;
+        )
+        .await?;
 
         // The code grant continues the flow the authorize step already opened.
         // The refresh grant stays untraced for now: it fires on every token
@@ -5187,7 +5472,7 @@ where
             client,
             base_url: input.base_url,
             client_id: input.client_id,
-            client_secret: input.client_secret,
+            client_proof,
             code: input.code,
             username: input.username,
             password: input.password,
@@ -5479,6 +5764,15 @@ where
         &self,
         input: super::entities::AuthenticateInput,
     ) -> Result<super::entities::AuthenticateOutput, CoreError> {
+        self.authenticate_from(input, SessionOrigin::default())
+            .await
+    }
+
+    async fn authenticate_from(
+        &self,
+        input: super::entities::AuthenticateInput,
+        origin: SessionOrigin,
+    ) -> Result<super::entities::AuthenticateOutput, CoreError> {
         let auth_session = self
             .auth_session_repository
             .get_by_session_code(input.session_code)
@@ -5530,7 +5824,7 @@ where
                     remember_me,
                 };
 
-                self.handle_user_credentials_authentication(params, auth_session)
+                self.handle_user_credentials_authentication(params, auth_session, &origin)
                     .await
                     .map_err(|_| CoreError::InvalidCredentials)
             }
@@ -5728,7 +6022,7 @@ where
                         user.id,
                         session_code,
                         auth_session,
-                        SsoSessionBinding::Open,
+                        SsoSessionBinding::Open.into(),
                         &scope,
                         &client,
                     )
@@ -5837,10 +6131,12 @@ where
             .into_inner();
 
         authenticate_client(
+            self.client_assertion_verifier.as_ref(),
             &client,
-            Some(input.client_secret.as_str()),
+            &input.client_credential,
             ClientGrant::Introspection,
-        )?;
+        )
+        .await?;
 
         let token = input.token;
 
@@ -5934,10 +6230,12 @@ where
             .into_inner();
 
         authenticate_client(
+            self.client_assertion_verifier.as_ref(),
             &client,
-            input.client_secret.as_deref(),
+            &input.client_credential,
             ClientGrant::Revocation,
-        )?;
+        )
+        .await?;
 
         match PresentedRefreshToken::parse(&input.token) {
             Ok(PresentedRefreshToken::Opaque(opaque)) => {
@@ -6066,9 +6364,12 @@ where
             None => None,
         };
 
+        let mut ended_session_id = None;
+
         if let Some((session, user_id)) = hinted_session {
             self.revoke_session_cascade(&session, scope.id(), user_id)
                 .await?;
+            ended_session_id = Some(session.get().id);
         } else if let Some(cookie) = input.sso_cookie.as_deref() {
             let session = self
                 .user_session_repository
@@ -6084,6 +6385,7 @@ where
                 let user_id = session.get().user_id;
                 self.revoke_session_cascade(&session, scope.id(), user_id)
                     .await?;
+                ended_session_id = Some(session.get().id);
             }
         }
 
@@ -6123,10 +6425,14 @@ where
                     &post_logout_redirect_uri,
                     input.state.as_deref(),
                 )),
+                ended_session_id,
             });
         }
 
-        Ok(EndSessionOutput { redirect_uri: None })
+        Ok(EndSessionOutput {
+            redirect_uri: None,
+            ended_session_id,
+        })
     }
 
     async fn remember_reauthentication(
@@ -6427,6 +6733,28 @@ fn token_generation_error(error: impl ToString) -> CoreError {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn a_zero_max_age_always_demands_a_new_authentication() {
+        let now = chrono::Utc::now();
+
+        assert!(super::max_age_exceeded(now, now, Some(0)));
+        assert!(super::max_age_exceeded(
+            now + chrono::Duration::seconds(5),
+            now,
+            Some(0)
+        ));
+    }
+
+    #[test]
+    fn a_positive_max_age_compares_whole_seconds() {
+        let now = chrono::Utc::now();
+        let authenticated_at = now - chrono::Duration::seconds(100);
+
+        assert!(!super::max_age_exceeded(authenticated_at, now, None));
+        assert!(!super::max_age_exceeded(authenticated_at, now, Some(100)));
+        assert!(super::max_age_exceeded(authenticated_at, now, Some(99)));
+    }
+
+    #[test]
     fn sso_token_hash_is_lowercase_sha256_hex() {
         assert_eq!(
             super::sso_token_hash("abc"),
@@ -6485,7 +6813,7 @@ mod tests {
             Uuid::new_v4(),
         )
         .expect("key pair");
-        let capacity = super::SIGNING_PERMITS.available_permits();
+        let capacity = std::thread::available_parallelism().map_or(1, usize::from);
         let signing = (0..capacity * 4).map(|n| {
             let key = key.clone();
             tokio::spawn(async move {
@@ -6503,7 +6831,14 @@ mod tests {
                 .expect("the signature verifies");
         }
 
-        assert_eq!(super::SIGNING_PERMITS.available_permits(), capacity);
+        let every_permit = u32::try_from(capacity).expect("the capacity fits in a u32");
+        let _every_permit = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            super::SIGNING_PERMITS.acquire_many(every_permit),
+        )
+        .await
+        .expect("every permit comes back")
+        .expect("the semaphore stays open");
     }
 
     #[test]
@@ -6587,6 +6922,7 @@ mod tests {
             prompt_consent: false,
             issuer: None,
             resource: None,
+            max_age: None,
         }
     }
 
@@ -6955,7 +7291,10 @@ mod tests {
 
     // ---- PKCE (RFC 7636) unit tests --------------------------------------
 
-    use super::{pkce_request_allowed, pkce_validate_verifier, pkce_verify};
+    use super::{
+        pkce_request_allowed, pkce_validate_verifier, pkce_verify, unpushed_request_allowed,
+    };
+    use crate::domain::authentication::client_authentication::ClientProof;
     use crate::domain::authentication::value_objects::CodeChallengeMethod;
 
     /// RFC 7636 Appendix B: known S256 test vector.
@@ -7075,6 +7414,28 @@ mod tests {
         assert!(pkce_request_allowed(&strict, Some("c"), Some(&CodeChallengeMethod::S256)).is_ok());
     }
 
+    #[test]
+    fn an_unpushed_request_is_refused_when_the_client_or_the_realm_requires_par() {
+        let realm_id = RealmId::from(Uuid::new_v4());
+        let mut realm = RealmSetting::new(realm_id, None);
+        let mut client = confidential_client(Uuid::new_v4(), realm_id);
+
+        assert!(unpushed_request_allowed(&client, &realm).is_ok());
+
+        client.require_pushed_authorization_requests = true;
+        assert!(matches!(
+            unpushed_request_allowed(&client, &realm),
+            Err(CoreError::PushedAuthorizationRequired)
+        ));
+
+        client.require_pushed_authorization_requests = false;
+        realm.require_pushed_authorization_requests = true;
+        assert!(matches!(
+            unpushed_request_allowed(&client, &realm),
+            Err(CoreError::PushedAuthorizationRequired)
+        ));
+    }
+
     // ---- validate_authorization_code_request -----------------------------
 
     const REDIRECT_URI: &str = "https://client.example/callback";
@@ -7085,6 +7446,7 @@ mod tests {
             enabled: true,
             client_id: "app".to_string(),
             secret: Some(maskass::Masked::new("s3cr3t".to_string())),
+            previous_secret: None,
             realm_id,
             protocol: AuthProtocol::OpenIdConnect,
             public_client: false,
@@ -7093,6 +7455,7 @@ mod tests {
             oauth_device_code_grant_enabled: false,
             token_exchange_enabled: false,
             require_pkce: false,
+            require_pushed_authorization_requests: false,
             client_type: ClientType::Confidential,
             name: "app".to_string(),
             redirect_uris: None,
@@ -7109,6 +7472,9 @@ mod tests {
             backchannel_logout_session_required: true,
             consent_required: false,
             registration_source: crate::domain::client::entities::ClientRegistrationSource::Admin,
+            token_endpoint_auth_method: crate::domain::client::entities::auth_method::TokenEndpointAuthMethod::ClientSecretBasic,
+            jwks: None,
+            jwks_uri: None,
         }
     }
 
@@ -7141,7 +7507,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             )
             .is_ok()
@@ -7149,7 +7515,7 @@ mod tests {
     }
 
     #[test]
-    fn code_request_rejected_without_client_secret() {
+    fn code_request_rejected_without_client_authentication() {
         // The core of the CVE: a confidential client's code was redeemable with
         // no client authentication at all.
         let (session, client) = matching_pair();
@@ -7160,7 +7526,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                None,
+                ClientProof::None,
                 Utc::now(),
             ),
             Err(CoreError::ClientAuthenticationFailed)
@@ -7168,7 +7534,7 @@ mod tests {
     }
 
     #[test]
-    fn code_request_rejected_with_wrong_client_secret() {
+    fn code_request_rejected_with_a_proof_of_another_method() {
         let (session, client) = matching_pair();
 
         assert!(matches!(
@@ -7177,7 +7543,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                Some("wrong"),
+                ClientProof::PrivateKeyJwt,
                 Utc::now(),
             ),
             Err(CoreError::ClientAuthenticationFailed)
@@ -7197,7 +7563,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                None,
+                ClientProof::None,
                 Utc::now(),
             )
             .is_ok()
@@ -7216,7 +7582,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             ),
             Err(CoreError::InvalidAuthorizationCode)
@@ -7234,7 +7600,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             ),
             Err(CoreError::InvalidAuthorizationCode)
@@ -7254,7 +7620,7 @@ mod tests {
                 &client,
                 other_realm,
                 Some(REDIRECT_URI),
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             ),
             Err(CoreError::InvalidAuthorizationCode)
@@ -7271,7 +7637,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some("https://attacker.example/callback"),
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             ),
             Err(CoreError::InvalidAuthorizationCode)
@@ -7290,7 +7656,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 None,
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             ),
             Err(CoreError::InvalidAuthorizationCode)
@@ -7308,7 +7674,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             ),
             Err(CoreError::InvalidAuthorizationCode)
@@ -7326,7 +7692,7 @@ mod tests {
                 &client,
                 session.realm_id,
                 Some(REDIRECT_URI),
-                Some("s3cr3t"),
+                ClientProof::Secret,
                 Utc::now(),
             ),
             Err(CoreError::ClientAuthenticationFailed)
@@ -8103,8 +8469,9 @@ mod password_hash_tests {
 #[cfg(test)]
 mod bound_session_tests {
     use super::{
-        find_live_bound_session, open_or_reauthenticate_session, open_user_session,
-        revoke_session_and_its_tokens, revoke_tokens_unless_bound_session_survived,
+        NewSession, SessionOrigin, find_live_bound_session, open_or_reauthenticate_session,
+        open_user_session, revoke_session_and_its_tokens,
+        revoke_tokens_unless_bound_session_survived,
     };
     use crate::domain::common::entities::app_errors::CoreError;
     use crate::domain::seawatch::ports::MockSecurityEventRepository;
@@ -8270,8 +8637,11 @@ mod bound_session_tests {
             Some(session_id),
             user_id,
             &scope(realm_id),
-            3600,
-            true,
+            NewSession {
+                lifetime_seconds: 3600,
+                persistent: true,
+                origin: &SessionOrigin::default(),
+            },
         )
         .await
         .expect("re-authentication succeeds");
@@ -8311,8 +8681,11 @@ mod bound_session_tests {
             Some(session_id),
             Uuid::new_v4(),
             &scope(realm_id),
-            3600,
-            false,
+            NewSession {
+                lifetime_seconds: 3600,
+                persistent: false,
+                origin: &SessionOrigin::default(),
+            },
         )
         .await
         .expect("a new session opens");
@@ -8345,13 +8718,46 @@ mod bound_session_tests {
             Some(session_id),
             user_id,
             &scope(realm_id),
-            3600,
-            false,
+            NewSession {
+                lifetime_seconds: 3600,
+                persistent: false,
+                origin: &SessionOrigin::default(),
+            },
         )
         .await
         .expect("the login still completes into a new session");
 
         assert_ne!(opened.id, session_id);
+    }
+
+    #[tokio::test]
+    async fn an_opened_session_records_the_browser_it_was_opened_from() {
+        let mut sessions = MockUserSessionRepository::new();
+        sessions
+            .expect_create()
+            .withf(|session| {
+                session.user_agent.as_deref() == Some("Mozilla/5.0")
+                    && session.ip_address.as_deref() == Some("203.0.113.9")
+            })
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let origin = SessionOrigin {
+            user_agent: Some("Mozilla/5.0".to_string()),
+            ip_address: Some("203.0.113.9".to_string()),
+        };
+
+        open_user_session(
+            &sessions,
+            &quiet_events(),
+            Uuid::new_v4(),
+            RealmId::new(Uuid::new_v4()),
+            3600,
+            false,
+            &origin,
+        )
+        .await
+        .expect("the session opens");
     }
 
     #[tokio::test]
@@ -8377,6 +8783,7 @@ mod bound_session_tests {
             RealmId::new(realm_id),
             3600,
             false,
+            &SessionOrigin::default(),
         )
         .await;
 

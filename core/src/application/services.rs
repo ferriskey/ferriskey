@@ -1,11 +1,19 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use chrono::Utc;
+
 use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_migrate::{entities::MigrationReport, error::MigrationError};
 use sea_orm::DatabaseConnection;
 
-use crate::domain::authentication::client_authentication::{ClientGrant, authenticate_client};
+use crate::domain::authentication::client_authentication::{
+    ClientCredential, ClientGrant, authenticate_client,
+};
+use crate::domain::authentication::entities::AuthInput;
+use crate::domain::authentication::pushed_authorization::entities::{
+    AuthorizationParameters, PushAuthorizationRequestInput, PushedAuthorizationResponse,
+};
 use crate::domain::client::entities::Client;
 use crate::domain::jwt::entities::{Jwt, JwtClaim};
 use crate::domain::realm::entities::{RealmId, RealmScope};
@@ -70,6 +78,7 @@ use crate::{
         realm::{
             resource_owner_services::ResourceOwnerServiceImpl,
             services::{MailServiceImpl, RealmServiceImpl},
+            signing_key_services::SigningKeyServiceImpl,
         },
         role::services::RoleServiceImpl,
         saml::services::SamlServiceImpl,
@@ -433,6 +442,17 @@ type ApplicationMaintenanceService = MaintenanceServiceImpl<
     RealmMaintenanceWhitelistRepo,
 >;
 
+pub(crate) type ApplicationPushedAuthorizationService =
+    crate::domain::authentication::pushed_authorization::services::PushedAuthorizationServiceImpl<
+        crate::infrastructure::pushed_authorization::PostgresPushedAuthorizationRequestRepository,
+    >;
+
+pub(crate) type ApplicationClientAssertionVerifier =
+    crate::domain::authentication::client_assertion::services::ClientAssertionVerifierImpl<
+        crate::infrastructure::client_assertion::CachedClientJwksFetcher,
+        crate::infrastructure::client_assertion::PostgresClientAssertionReplayStore,
+    >;
+
 type ApplicationClientMetadataFetcher =
     crate::infrastructure::client_metadata::CachedClientMetadataFetcher<
         crate::infrastructure::client_metadata::ReqwestClientMetadataFetcher,
@@ -487,6 +507,7 @@ pub(crate) type ApplicationAuthService = AuthServiceImpl<
     LoginActionTokenRepo,
     ConsentDecisionRepo,
     ApplicationClientMetadataResolver,
+    ApplicationClientAssertionVerifier,
 >;
 
 type LoginActionTokenRepo = PostgresLoginActionTokenRepository;
@@ -546,6 +567,7 @@ type ApplicationTokenExchangeService = TokenExchangeServiceImpl<
     ApplicationAuthService,
     RealmRepo,
     ResourceOwnerRepo,
+    ApplicationClientAssertionVerifier,
 >;
 
 #[derive(Clone, Debug)]
@@ -576,6 +598,14 @@ pub struct ApplicationService {
     >,
     pub(crate) resource_owner_service:
         ResourceOwnerServiceImpl<RealmRepo, ClientRepo, ResourceOwnerRepo, UserRepo, UserRoleRepo>,
+    pub(crate) signing_key_service: SigningKeyServiceImpl<
+        RealmRepo,
+        ClientRepo,
+        KeystoreRepo,
+        SecurityEventRepo,
+        UserRepo,
+        UserRoleRepo,
+    >,
     pub(crate) mail_service:
         MailServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SmtpConfigRepo>,
     pub(crate) role_service: RoleServiceImpl<
@@ -604,6 +634,8 @@ pub struct ApplicationService {
     pub(crate) auth_service: ApplicationAuthService,
     pub(crate) device_flow_service: ApplicationDeviceFlowService,
     pub(crate) token_exchange_service: ApplicationTokenExchangeService,
+    pub(crate) client_assertion_verifier: std::sync::Arc<ApplicationClientAssertionVerifier>,
+    pub(crate) pushed_authorization_service: ApplicationPushedAuthorizationService,
     pub(crate) core_service: CoreServiceImpl<
         RealmRepo,
         KeystoreRepo,
@@ -748,6 +780,16 @@ impl crate::domain::device_session::ports::AccountChooserService for Application
     > {
         self.account_chooser_service
             .attach_session_to_device(device_token, scope, user_session_id)
+            .await
+    }
+
+    async fn device_session_id(
+        &self,
+        device_token: Option<&str>,
+        scope: &RealmScope,
+    ) -> Result<Option<uuid::Uuid>, CoreError> {
+        self.account_chooser_service
+            .device_session_id(device_token, scope)
             .await
     }
 
@@ -926,24 +968,14 @@ impl ApplicationService {
         .map_err(|_| DeviceFlowError::InvalidClient)?;
 
         let client = self
-            .client_service
-            .client_repository
-            .get_by_client_id(input.client_id, realm_scope.id())
+            .authenticate_client(
+                &realm_scope,
+                &input.client_id,
+                &input.client_credential,
+                ClientGrant::DeviceCode,
+            )
             .await
-            .map_err(|_| DeviceFlowError::InvalidClient)?
-            .in_realm(&realm_scope)
-            .map_err(|_| DeviceFlowError::InvalidClient)?
-            .into_inner();
-
-        authenticate_client(
-            &client,
-            input.client_secret.as_deref(),
-            ClientGrant::DeviceCode,
-        )
-        .map_err(|error| match error {
-            CoreError::UnauthorizedClient(_) => DeviceFlowError::UnauthorizedClient,
-            _ => DeviceFlowError::InvalidClient,
-        })?;
+            .map_err(device_flow_client_error)?;
 
         let scope = self
             .auth_service
@@ -989,24 +1021,14 @@ impl ApplicationService {
         .map_err(|_| DeviceFlowError::InvalidClient)?;
 
         let client = self
-            .client_service
-            .client_repository
-            .get_by_client_id(input.client_id, realm_scope.id())
+            .authenticate_client(
+                &realm_scope,
+                &input.client_id,
+                &input.client_credential,
+                ClientGrant::DeviceCode,
+            )
             .await
-            .map_err(|_| DeviceFlowError::InvalidClient)?
-            .in_realm(&realm_scope)
-            .map_err(|_| DeviceFlowError::InvalidClient)?
-            .into_inner();
-
-        authenticate_client(
-            &client,
-            input.client_secret.as_deref(),
-            ClientGrant::DeviceCode,
-        )
-        .map_err(|error| match error {
-            CoreError::UnauthorizedClient(_) => DeviceFlowError::UnauthorizedClient,
-            _ => DeviceFlowError::InvalidClient,
-        })?;
+            .map_err(device_flow_client_error)?;
 
         self.device_flow_service
             .poll(PollDeviceTokenParams {
@@ -1026,7 +1048,7 @@ impl ApplicationService {
         &self,
         realm_name: String,
         client_id: String,
-        client_secret: Option<String>,
+        client_credential: ClientCredential,
         input: TokenExchangeInput,
     ) -> Result<TokenExchangeOutput, TokenExchangeError> {
         // An unresolvable realm at the token endpoint is `invalid_client`.
@@ -1038,9 +1060,127 @@ impl ApplicationService {
             .exchange(TokenExchangeParams {
                 realm,
                 client_id,
-                client_secret,
+                client_credential,
                 input,
             })
+            .await
+    }
+
+    /// Authenticates the client `client_id` of `realm` with what it presented,
+    /// whatever its registered method, and checks it may use `grant`.
+    pub async fn authenticate_client(
+        &self,
+        realm: &RealmScope,
+        client_id: &str,
+        credential: &ClientCredential,
+        grant: ClientGrant,
+    ) -> Result<Client, CoreError> {
+        let client = self
+            .client_service
+            .client_repository
+            .get_by_client_id(client_id.to_string(), realm.id())
+            .await
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
+            .in_realm(realm)
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
+            .into_inner();
+
+        authenticate_client(
+            self.client_assertion_verifier.as_ref(),
+            &client,
+            credential,
+            grant,
+        )
+        .await?;
+
+        Ok(client)
+    }
+
+    /// PAR endpoint (RFC 9126 §2): authenticates the client like the token
+    /// endpoint, checks the parameters like `/auth`, then stores them.
+    pub async fn push_authorization_request(
+        &self,
+        input: PushAuthorizationRequestInput,
+    ) -> Result<PushedAuthorizationResponse, CoreError> {
+        let scope = RealmScope::resolve(
+            self.realm_service.realm_repository.as_ref(),
+            &input.realm_name,
+        )
+        .await
+        .map_err(|_| CoreError::ClientAuthenticationFailed)?;
+
+        let parameters = input.parameters;
+        self.auth_service
+            .resolve_metadata_client(
+                &scope,
+                &input.client_id,
+                &parameters.redirect_uri,
+                input.ip_address.as_deref(),
+            )
+            .await?;
+
+        let client = self
+            .authenticate_client(
+                &scope,
+                &input.client_id,
+                &input.client_credential,
+                ClientGrant::PushedAuthorization,
+            )
+            .await?;
+
+        let auth_input = AuthInput {
+            client_id: client.client_id.clone(),
+            realm_name: input.realm_name,
+            redirect_uri: parameters.redirect_uri.clone(),
+            response_type: parameters.response_type.clone(),
+            scope: parameters.scope.clone(),
+            state: parameters.state.clone(),
+            nonce: parameters.nonce.clone(),
+            code_challenge: parameters.code_challenge.clone(),
+            code_challenge_method: parameters.code_challenge_method.clone(),
+            ip_address: input.ip_address,
+            user_agent: input.user_agent,
+            prompt_consent: false,
+            issuer: input.issuer,
+            resource: parameters.resource.clone(),
+            max_age: None,
+            pushed: true,
+        };
+        self.auth_service
+            .resolve_scopes_for_client(client.id, parameters.scope.clone())
+            .await?;
+        self.auth_service
+            .validate_authorization_request(&scope, &auth_input)
+            .await?;
+
+        self.pushed_authorization_service
+            .push(scope.id(), client.id, parameters, Utc::now())
+            .await
+    }
+
+    /// Consumes the pushed request `client_id` sent to `/auth` as
+    /// `request_uri`.
+    pub async fn take_pushed_authorization_request(
+        &self,
+        realm_name: &str,
+        client_id: &str,
+        request_uri: &str,
+    ) -> Result<AuthorizationParameters, CoreError> {
+        let scope =
+            RealmScope::resolve(self.realm_service.realm_repository.as_ref(), realm_name).await?;
+
+        let client = self
+            .client_service
+            .client_repository
+            .get_by_client_id(client_id.to_string(), scope.id())
+            .await
+            .map_err(|_| CoreError::ClientNotFound)?
+            .in_realm(&scope)
+            .map_err(|_| CoreError::ClientNotFound)?
+            .into_inner();
+
+        self.pushed_authorization_service
+            .take(scope.id(), client.id, request_uri, Utc::now())
             .await
     }
 
@@ -1203,6 +1343,73 @@ impl ApplicationService {
         Ok(())
     }
 
+    /// The caller's own live sessions. The user is the caller's, never an
+    /// argument, so no permission is involved and none can widen the answer.
+    pub async fn list_own_sessions(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        mut request: PageRequest<SessionFilter, SessionSortField>,
+    ) -> Result<Page<UserSession>, CoreError> {
+        let user_id = Self::own_session_owner(&identity)?;
+        request.filter.active_only = true;
+
+        self.list_user_sessions(identity, realm_name, user_id, request)
+            .await
+    }
+
+    pub async fn revoke_own_session(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        session_id: uuid::Uuid,
+    ) -> Result<(), CoreError> {
+        let user_id = Self::own_session_owner(&identity)?;
+
+        self.revoke_user_session(identity, realm_name, user_id, session_id)
+            .await
+    }
+
+    /// Revokes every live session of the caller except `keep_session_id`, each
+    /// one through `revoke_user_session` so tokens, back-channel logout and the
+    /// audit trail behave as for a single revocation. Returns how many went.
+    pub async fn revoke_other_own_sessions(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        keep_session_id: uuid::Uuid,
+    ) -> Result<u64, CoreError> {
+        let user_id = Self::own_session_owner(&identity)?;
+
+        let sessions = self
+            .user_session_management_service
+            .list_other_sessions(identity.clone(), realm_name.clone(), keep_session_id)
+            .await?;
+
+        let mut revoked = 0;
+        for session in sessions {
+            match self
+                .revoke_user_session(identity.clone(), realm_name.clone(), user_id, session.id)
+                .await
+            {
+                Ok(()) => revoked += 1,
+                // Ended on its own between the listing and the revocation.
+                Err(CoreError::SessionNotFound) => {}
+                Err(error) => return Err(error),
+            }
+        }
+
+        Ok(revoked)
+    }
+
+    fn own_session_owner(identity: &Identity) -> Result<uuid::Uuid, CoreError> {
+        if !identity.is_regular_user() {
+            return Err(CoreError::Forbidden("is not user".to_string()));
+        }
+
+        Ok(identity.id())
+    }
+
     pub async fn run_data_migrations(&self) -> Result<MigrationReport, MigrationError> {
         let ctx = MigrationContext::new(
             self.realm_service.realm_repository.clone(),
@@ -1215,5 +1422,12 @@ impl ApplicationService {
         build_runner(PostgresMigrationRepository::new(self.db.clone()))
             .run(&ctx)
             .await
+    }
+}
+
+fn device_flow_client_error(error: CoreError) -> DeviceFlowError {
+    match error {
+        CoreError::UnauthorizedClient(_) => DeviceFlowError::UnauthorizedClient,
+        _ => DeviceFlowError::InvalidClient,
     }
 }

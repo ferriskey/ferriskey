@@ -8,7 +8,7 @@ export const useSetupOtp = ({ realm, enabled = true }: BaseQuery & { enabled?: b
     queryFn: async (): Promise<Schemas.SetupOtpResponse> => {
       return window.tanstackApi.client.get('/realms/{realm_name}/login-actions/setup-otp', {
         path: { realm_name: realm ?? 'master' },
-      } as never)
+      })
     },
     enabled,
   })
@@ -24,7 +24,7 @@ export const useVerifyOtp = () => {
       return window.tanstackApi.client.post('/realms/{realm_name}/login-actions/verify-otp', {
         path: { realm_name: realm ?? 'master' },
         body: data,
-      } as never) as Promise<Schemas.VerifyOtpResponse>
+      })
     },
   })
 }
@@ -42,7 +42,7 @@ export const useChallengeOtp = () => {
       return window.tanstackApi.client.post('/realms/{realm_name}/login-actions/challenge-otp', {
         path: { realm_name: realm ?? 'master' },
         body: data,
-      } as never) as Promise<Schemas.ChallengeOtpResponse>
+      })
     },
   })
 }
@@ -71,7 +71,7 @@ export const useUpdatePassword = () => {
       return window.tanstackApi.client.post('/realms/{realm_name}/login-actions/update-password', {
         path: { realm_name: realm ?? 'master' },
         body: data,
-      } as never) as Promise<Schemas.UpdatePasswordResponse>
+      })
     },
   })
 }

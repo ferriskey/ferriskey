@@ -8,6 +8,7 @@ use ferriskey_api_core::{
         response::Response,
     },
     app_state::AppState,
+    device_cookie::LoginDevice,
 };
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::ports::{
@@ -78,8 +79,13 @@ pub async fn webauthn_public_key_create(
     WebappUrl(webapp_url): WebappUrl,
     Extension(identity): Extension<Identity>,
     Extension(step): Extension<LoginActionStep>,
+    device: LoginDevice,
     ValidateJson(payload): ValidateJson<ValidatePublicKeyRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    let LoginDevice {
+        realm_name,
+        token: device,
+    } = device;
     let rp_info = webauthn_rp_info_from_webapp_url(&webapp_url);
 
     let input = WebAuthnValidatePublicKeyInput {
@@ -96,7 +102,10 @@ pub async fn webauthn_public_key_create(
         .await
         .map_err(ApiError::from)?;
 
-    let reply = LoginStepReply::new(result.progress, base_url.starts_with("https"))?;
+    let mut reply = LoginStepReply::new(result.progress, base_url.starts_with("https"))?;
+    reply
+        .attach_device(&state, &realm_name, device, base_url.starts_with("https"))
+        .await;
 
     Ok((
         reply.headers,

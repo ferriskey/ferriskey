@@ -147,6 +147,9 @@ pub enum FlowStepName {
     /// tokens for any grant.
     #[serde(rename = "subject_token_exchange")]
     SubjectTokenExchange,
+
+    #[serde(rename = "account_selection")]
+    AccountSelection,
 }
 
 impl Display for FlowStepName {
@@ -162,6 +165,7 @@ impl Display for FlowStepName {
             FlowStepName::SamlAuthnRequest => write!(f, "saml_authn_request"),
             FlowStepName::SamlAssertion => write!(f, "saml_assertion"),
             FlowStepName::SubjectTokenExchange => write!(f, "subject_token_exchange"),
+            FlowStepName::AccountSelection => write!(f, "account_selection"),
         }
     }
 }

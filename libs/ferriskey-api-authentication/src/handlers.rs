@@ -1,3 +1,4 @@
+pub mod accounts;
 pub mod auth;
 pub mod authentificate;
 pub mod authorization_server_metadata;
@@ -7,6 +8,7 @@ pub mod get_certs;
 pub mod introspect;
 pub mod logout;
 pub mod openid_configuration;
+pub mod pushed_authorization;
 pub mod registration;
 pub mod resend_verification_email;
 pub mod revoke;

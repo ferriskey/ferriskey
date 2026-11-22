@@ -30,6 +30,24 @@ login:
     title: Authentication error
     hint: Contact your administrator if this problem persists.
 
+account_chooser:
+  title: Choose an account
+  description: Continue with an account you already used on this device.
+  continue_to: to continue to <app>{{name}}</app>
+  remembered_one: '{{count}} account remembered on this device'
+  remembered_other: '{{count}} accounts remembered on this device'
+  loading: Loading your accounts
+  last_used: 'Last used {{when}}'
+  reauthentication: Confirm your password
+  signed_out: Signed out
+  continue_as: Continue as {{name}}
+  remove: Remove from this device
+  remove_named: Remove {{name}} from this device
+  use_another: Use another account
+  error:
+    select_failed: This account can't be used here anymore. Choose another account or sign in again.
+    remove_failed: We could not remove this account. Please try again.
+
 providers:
   separator: Or continue with
   continue_with: Continue with {{name}}
@@ -87,6 +105,8 @@ reset_password:
   invalid: This reset link is invalid or has expired.
   request_new: Request a new reset link
   failed: Could not reset your password.
+  changed_title: Password changed
+  changed: Your password has been changed. You can now sign in with it from your application.
 
 update_password:
   title: Update your password
@@ -280,3 +300,19 @@ validation:
   otp_pin_length: Pin must be at least 6 characters long
   device_name_required: Device name must be at least 1 character long
   device_code_format: Expected format XXXX-XXXX using the device code charset.
+
+document_title:
+  login: Sign in
+  register: Create account
+  totp: Verification code
+  forgot_password: Forgot password
+  reset_password: Reset password
+  magic_link_verify: Magic link sign-in
+  magic_link_request: Request a magic link
+  verify_email: Verify your email
+  email_verified: Email verified
+  totp_setup: Set up two-factor authentication
+  device_verify: Verify your device
+  device_verified: Device verified
+  consent: Authorize access
+  account_chooser: Choose an account

@@ -16,7 +16,10 @@ use super::handlers::{
     disable_own_otp::{__path_disable_own_otp, disable_own_otp},
     get_own_profile::{__path_get_own_profile, get_own_profile},
     list_own_credentials::{__path_list_own_credentials, list_own_credentials},
+    list_own_sessions::{__path_list_own_sessions, list_own_sessions},
     request_elevation::{__path_request_elevation, request_elevation},
+    revoke_other_own_sessions::{__path_revoke_other_own_sessions, revoke_other_own_sessions},
+    revoke_own_session::{__path_revoke_own_session, revoke_own_session},
     start_own_otp_enrollment::{__path_start_own_otp_enrollment, start_own_otp_enrollment},
     start_own_passkey_registration::{
         __path_start_own_passkey_registration, start_own_passkey_registration,
@@ -39,6 +42,9 @@ use super::handlers::{
     start_own_passkey_registration,
     confirm_own_passkey_registration,
     delete_own_passkey,
+    list_own_sessions,
+    revoke_own_session,
+    revoke_other_own_sessions,
 ))]
 pub struct AccountApiDoc;
 
@@ -83,6 +89,18 @@ pub fn account_routes(state: AppState) -> Router<AppState> {
         .route(
             &format!("{root}/realms/{{realm_name}}/users/me/passkeys/{{credential_id}}"),
             delete(delete_own_passkey),
+        )
+        .route(
+            &format!("{root}/realms/{{realm_name}}/users/me/sessions"),
+            get(list_own_sessions),
+        )
+        .route(
+            &format!("{root}/realms/{{realm_name}}/users/me/sessions/revoke-others"),
+            post(revoke_other_own_sessions),
+        )
+        .route(
+            &format!("{root}/realms/{{realm_name}}/users/me/sessions/{{session_id}}"),
+            delete(revoke_own_session),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

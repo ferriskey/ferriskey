@@ -14,6 +14,7 @@ use crate::domain::abyss::identity_provider::entities::IdentityProviderPresentat
 pub struct AuthorizationServerSettings {
     pub cimd_enabled: bool,
     pub dcr_enabled: bool,
+    pub require_pushed_authorization_requests: bool,
     pub scopes_supported: Vec<String>,
 }
 
@@ -29,6 +30,7 @@ pub struct RealmLoginSetting {
     pub magic_link_enabled: bool,
     pub magic_link_ttl: u32,
     pub passkey_enabled: bool,
+    pub account_chooser_enabled: bool,
     pub login_aliases: LoginAliases,
     pub default_locale: String,
     pub supported_locales: Vec<String>,
@@ -48,6 +50,7 @@ impl From<RealmSetting> for RealmLoginSetting {
             magic_link_enabled: value.magic_link_enabled,
             magic_link_ttl: value.magic_link_ttl,
             passkey_enabled: value.passkey_enabled,
+            account_chooser_enabled: value.account_chooser_enabled,
             login_aliases: value.login_aliases,
             default_locale: value.default_locale,
             supported_locales: value.supported_locales,

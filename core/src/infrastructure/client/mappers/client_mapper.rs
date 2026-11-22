@@ -4,6 +4,8 @@ use crate::{
     domain::authentication::entities::AuthProtocol,
     domain::client::entities::{
         Client, ClientRegistrationSource, ClientType, MaintenanceSessionStrategy,
+        PreviousClientSecret,
+        auth_method::{ClientJwks, TokenEndpointAuthMethod},
     },
     entity::clients::Model,
 };
@@ -26,12 +28,32 @@ impl From<Model> for Client {
                 AuthProtocol::OpenIdConnect
             });
 
+        let token_endpoint_auth_method = model
+            .token_endpoint_auth_method
+            .parse::<TokenEndpointAuthMethod>()
+            .unwrap_or_else(|reason| {
+                tracing::warn!(
+                    client_id = %model.client_id,
+                    %reason,
+                    "reading a client whose stored auth method is unknown, falling back to its default"
+                );
+
+                TokenEndpointAuthMethod::default_for(model.public_client)
+            });
+
         Client {
             id: model.id,
             realm_id: model.realm_id.into(),
             name: model.name,
             client_id: model.client_id,
             secret: model.secret.map(maskass::Masked::new),
+            previous_secret: model
+                .previous_secret
+                .zip(model.previous_secret_expires_at)
+                .map(|(secret, expires_at)| PreviousClientSecret {
+                    secret: maskass::Masked::new(secret),
+                    expires_at: Utc.from_utc_datetime(&expires_at),
+                }),
             enabled: model.enabled,
             protocol,
             public_client: model.public_client,
@@ -39,6 +61,7 @@ impl From<Model> for Client {
             direct_access_grants_enabled: model.direct_access_grants_enabled.unwrap_or(false),
             oauth_device_code_grant_enabled: model.oauth_device_code_grant_enabled.unwrap_or(false),
             require_pkce: model.require_pkce.unwrap_or(false),
+            require_pushed_authorization_requests: model.require_pushed_authorization_requests,
             token_exchange_enabled: model.token_exchange_enabled,
             client_type: model
                 .client_type
@@ -64,6 +87,9 @@ impl From<Model> for Client {
                 .registration_source
                 .parse::<ClientRegistrationSource>()
                 .unwrap_or_default(),
+            token_endpoint_auth_method,
+            jwks: model.jwks.map(ClientJwks),
+            jwks_uri: model.jwks_uri,
         }
     }
 }

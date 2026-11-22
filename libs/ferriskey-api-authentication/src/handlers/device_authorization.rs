@@ -1,5 +1,6 @@
 use super::auth::root_scoped_base_url;
-use crate::basic_auth::try_parse_basic_client_credentials;
+use super::authorization_server_metadata::realm_issuer;
+use crate::client_credentials::{ClientAuthParams, assertion_audiences, presented_client};
 use axum::{
     Form, Json,
     extract::{Path, State},
@@ -23,6 +24,10 @@ pub struct DeviceAuthorizationRequest {
     /// authenticates with HTTP Basic (confidential clients).
     pub client_id: Option<String>,
     pub client_secret: Option<String>,
+    /// `urn:ietf:params:oauth:client-assertion-type:jwt-bearer` with `client_assertion`.
+    pub client_assertion_type: Option<String>,
+    /// A signed JWT, for `client_secret_jwt` and `private_key_jwt` clients.
+    pub client_assertion: Option<String>,
     /// Space-delimited list of requested scopes.
     pub scope: Option<String>,
 }
@@ -58,13 +63,18 @@ pub async fn device_authorization(
 ) -> Result<impl IntoResponse, ApiError> {
     // Confidential clients authenticate via HTTP Basic (username = client_id);
     // public clients send `client_id` in the form body.
-    let (client_id, client_secret) = match try_parse_basic_client_credentials(&headers) {
-        Some((id, secret)) => (id, Some(secret)),
-        None => (
-            payload.client_id.clone().unwrap_or_default(),
-            payload.client_secret.clone(),
-        ),
-    };
+    let issuer = realm_issuer(&base_url, &state.args.server.root_path, &realm_name);
+    let presented = presented_client(
+        &headers,
+        ClientAuthParams {
+            client_id: payload.client_id.as_deref(),
+            client_secret: payload.client_secret.as_deref(),
+            client_assertion_type: payload.client_assertion_type.as_deref(),
+            client_assertion: payload.client_assertion.as_deref(),
+        },
+        || assertion_audiences(&issuer, "/protocol/openid-connect/auth/device"),
+    )?;
+    let client_id = presented.client_id;
 
     if client_id.is_empty() {
         return Err(ApiError::BadRequest("client_id is required".into()));
@@ -78,7 +88,7 @@ pub async fn device_authorization(
             InitiateDeviceFlowInput {
                 realm_name,
                 client_id: client_id.clone(),
-                client_secret,
+                client_credential: presented.credential,
                 scope: payload.scope,
             },
             base_url,

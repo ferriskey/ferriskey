@@ -62,6 +62,7 @@ pub struct AuthSession {
     pub prompt_consent: bool,
     pub issuer: Option<String>,
     pub resource: Option<String>,
+    pub max_age: Option<i64>,
 }
 
 impl RealmOwned for AuthSession {
@@ -91,6 +92,7 @@ pub struct AuthSessionParams {
     pub prompt_consent: bool,
     pub issuer: Option<String>,
     pub resource: Option<String>,
+    pub max_age: Option<i64>,
 }
 
 impl AuthSession {
@@ -125,6 +127,7 @@ impl AuthSession {
             prompt_consent: params.prompt_consent,
             issuer: params.issuer,
             resource: params.resource,
+            max_age: params.max_age.filter(|max_age| *max_age >= 0),
         }
     }
 }

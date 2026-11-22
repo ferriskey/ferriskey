@@ -105,6 +105,7 @@ fn model_to_domain(model: Model) -> Result<PortalTheme, CoreError> {
         device_verify: model.page_device_verify,
         device_verified: model.page_device_verified,
         consent: model.page_consent,
+        account_chooser: model.page_account_chooser,
     };
 
     Ok(PortalTheme {
@@ -134,6 +135,7 @@ fn page_column(page_type: PortalPageType) -> Column {
         PortalPageType::DeviceVerify => Column::PageDeviceVerify,
         PortalPageType::DeviceVerified => Column::PageDeviceVerified,
         PortalPageType::Consent => Column::PageConsent,
+        PortalPageType::AccountChooser => Column::PageAccountChooser,
     }
 }
 
@@ -591,6 +593,10 @@ mod listing_tests {
             "{sql}"
         );
         assert!(sql.contains(r#""portal_themes"."page_consent""#), "{sql}");
+        assert!(
+            sql.contains(r#""portal_themes"."page_account_chooser""#),
+            "{sql}"
+        );
         assert!(!sql.contains("NOT"), "{sql}");
     }
 

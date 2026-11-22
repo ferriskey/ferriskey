@@ -19,6 +19,7 @@ use ferriskey_api_core::{
         response::Response,
     },
     app_state::AppState,
+    device_cookie::device_token,
     login_step::LoginStepReply,
     url::{FullUrl, WebappUrl},
 };
@@ -78,7 +79,7 @@ pub async fn burn_recovery_code(
         .burn_recovery_code(
             identity,
             BurnRecoveryCodeInput {
-                realm_name,
+                realm_name: realm_name.clone(),
                 session_code,
                 webapp_base_url: webapp_url,
                 format: payload.recovery_code_format,
@@ -88,7 +89,15 @@ pub async fn burn_recovery_code(
         .await
         .map_err(ApiError::from)?;
 
-    let reply = LoginStepReply::new(result.progress, base_url.starts_with("https"))?;
+    let mut reply = LoginStepReply::new(result.progress, base_url.starts_with("https"))?;
+    reply
+        .attach_device(
+            &state,
+            &realm_name,
+            device_token(&cookie),
+            base_url.starts_with("https"),
+        )
+        .await;
 
     Ok((
         reply.headers,

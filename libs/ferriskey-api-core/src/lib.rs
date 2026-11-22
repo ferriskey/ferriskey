@@ -8,6 +8,7 @@ pub mod caller_session;
 pub mod config;
 pub mod cors;
 pub mod decoded_token;
+pub mod device_cookie;
 pub mod error;
 pub mod login_step;
 pub mod request_context;

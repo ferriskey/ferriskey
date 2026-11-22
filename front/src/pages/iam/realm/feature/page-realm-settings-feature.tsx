@@ -13,6 +13,11 @@ import {
 } from '@/api/realm.api'
 import { useGetClients } from '@/api/client.api'
 import { useGetResourceOwners, useUpdateResourceOwners } from '@/api/resource-owners.api'
+import {
+  useGetSigningKeys,
+  useRevokeSigningKey,
+  useRotateSigningKey,
+} from '@/api/signing-keys.api'
 import { useUserPicker } from '@/hooks/use-user-picker'
 import { useRolePicker } from '@/hooks/use-role-picker'
 import {
@@ -54,6 +59,7 @@ const REALM_TABS = [
   { key: 'mcp', labelKey: 'settings.tabs.mcp' },
   { key: 'password-policy', labelKey: 'settings.tabs.password_policy' },
   { key: 'maintenance', labelKey: 'settings.tabs.maintenance' },
+  { key: 'keys', labelKey: 'settings.tabs.keys' },
 ] as const
 
 const MASTER_REALM_OVERVIEW_URL = '/realms/master/overview'
@@ -71,6 +77,8 @@ const DEFAULT_LOGIN: LoginDraft = {
   passkey: false,
   magicLink: false,
   magicLinkTtl: 15,
+  accountChooser: false,
+  accountChooserShowEmail: false,
   loginAliases: ['username'],
 }
 
@@ -89,6 +97,7 @@ const DEFAULT_MCP: McpDraft = {
   cimdAllowedHosts: [],
   allowedResources: [],
   owners: {},
+  requirePushedAuthorizationRequests: false,
 }
 
 const DEFAULT_POLICY: PolicyDraft = {
@@ -131,6 +140,13 @@ export default function PageRealmSettingsFeature() {
   const { mutate: deleteRealm } = useDeleteRealm()
   const { mutate: addWhitelistEntry } = useAddRealmWhitelistEntry()
   const { mutate: removeWhitelistEntry } = useRemoveRealmWhitelistEntry()
+  const {
+    data: signingKeysData,
+    isLoading: signingKeysLoading,
+    isError: signingKeysError,
+  } = useGetSigningKeys({ realm })
+  const { mutate: rotateSigningKey, isPending: rotatingSigningKey } = useRotateSigningKey()
+  const { mutate: revokeSigningKey, isPending: revokingSigningKey } = useRevokeSigningKey()
 
   const translatedTabs = useMemo(
     () => REALM_TABS.map((item) => ({ key: item.key, label: t(item.labelKey) })),
@@ -156,6 +172,8 @@ export default function PageRealmSettingsFeature() {
         passkey: loginSettings.passkey_enabled,
         magicLink: loginSettings.magic_link_enabled,
         magicLinkTtl: loginSettings.magic_link_ttl,
+        accountChooser: settings?.account_chooser_enabled ?? loginSettings.account_chooser_enabled,
+        accountChooserShowEmail: settings?.account_chooser_show_email ?? false,
         loginAliases:
           loginSettings.login_aliases.length > 0
             ? loginSettings.login_aliases
@@ -187,6 +205,7 @@ export default function PageRealmSettingsFeature() {
         cimdAllowedHosts: settings.cimd_allowed_hosts,
         allowedResources: settings.allowed_resources,
         owners: ownersFromList(ownersData?.data ?? []),
+        requirePushedAuthorizationRequests: settings.require_pushed_authorization_requests,
       }
     : DEFAULT_MCP
   const mcp = useDraft(
@@ -263,6 +282,8 @@ export default function PageRealmSettingsFeature() {
     login.value.passkey !== pristineLogin.passkey ||
     login.value.magicLink !== pristineLogin.magicLink ||
     login.value.magicLinkTtl !== pristineLogin.magicLinkTtl ||
+    login.value.accountChooser !== pristineLogin.accountChooser ||
+    login.value.accountChooserShowEmail !== pristineLogin.accountChooserShowEmail ||
     login.value.loginAliases.join() !== pristineLogin.loginAliases.join()
   const tokensDirty =
     tokensDraft.value.accessTokenLifetime !== pristineTokens.accessTokenLifetime ||
@@ -273,7 +294,9 @@ export default function PageRealmSettingsFeature() {
     mcp.value.cimdEnabled !== pristineMcp.cimdEnabled ||
     mcp.value.dcrEnabled !== pristineMcp.dcrEnabled ||
     mcp.value.cimdAllowedHosts.join() !== pristineMcp.cimdAllowedHosts.join() ||
-    mcp.value.allowedResources.join() !== pristineMcp.allowedResources.join()
+    mcp.value.allowedResources.join() !== pristineMcp.allowedResources.join() ||
+    mcp.value.requirePushedAuthorizationRequests !==
+      pristineMcp.requirePushedAuthorizationRequests
   const mcpOwnersDirty = ownersChanged(
     pristineMcp.owners,
     mcp.value.owners,
@@ -342,6 +365,8 @@ export default function PageRealmSettingsFeature() {
                 passkey_enabled: login.value.passkey,
                 magic_link_enabled: login.value.magicLink,
                 magic_link_ttl: login.value.magicLinkTtl,
+                account_chooser_enabled: login.value.accountChooser,
+                account_chooser_show_email: login.value.accountChooserShowEmail,
                 login_aliases: login.value.loginAliases,
               }
             : {}),
@@ -359,6 +384,8 @@ export default function PageRealmSettingsFeature() {
                 dcr_enabled: mcp.value.dcrEnabled,
                 cimd_allowed_hosts: mcp.value.cimdAllowedHosts,
                 allowed_resources: mcp.value.allowedResources,
+                require_pushed_authorization_requests:
+                  mcp.value.requirePushedAuthorizationRequests,
               }
             : {}),
         },
@@ -411,6 +438,28 @@ export default function PageRealmSettingsFeature() {
     }
   }
 
+  const handleRotateKey = () => {
+    rotateSigningKey(
+      { realm },
+      {
+        onSuccess: () => toast.success(t('settings.toast.key_rotated')),
+        onError: (error: Error) =>
+          toast.error(apiErrorMessage(error, t('settings.toast.key_rotate_failed'))),
+      }
+    )
+  }
+
+  const handleRevokeKey = (kid: string) => {
+    revokeSigningKey(
+      { realm, kid },
+      {
+        onSuccess: () => toast.success(t('settings.toast.key_revoked')),
+        onError: (error: Error) =>
+          toast.error(apiErrorMessage(error, t('settings.toast.key_revoke_failed'))),
+      }
+    )
+  }
+
   return (
     <PageRealmSettings
       realm={realmData}
@@ -438,6 +487,15 @@ export default function PageRealmSettingsFeature() {
       isSearchingMaintenanceRoles={rolePicker.loading}
       whitelistedUserIds={whitelistedUserIds}
       whitelistedRoleIds={whitelistedRoleIds}
+      signingKeys={{
+        keys: signingKeysData?.data ?? [],
+        isLoading: signingKeysLoading,
+        isError: signingKeysError,
+        isRotating: rotatingSigningKey,
+        isRevoking: revokingSigningKey,
+        onRotate: handleRotateKey,
+        onRevoke: handleRevokeKey,
+      }}
       dirtyCount={dirtyCount}
       canSave={canSave}
       onDisplayNameChange={(v) => general.patch({ displayName: v })}

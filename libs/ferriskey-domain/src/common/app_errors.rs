@@ -61,6 +61,9 @@ pub enum CoreError {
     #[error("Invalid SAML configuration: {0}")]
     InvalidSamlConfig(String),
 
+    #[error("Invalid client authentication settings: {0}")]
+    InvalidClientAuthentication(String),
+
     #[error("No SAML attribute mapper is registered under this identifier")]
     SamlAttributeMapperNotFound,
 
@@ -378,6 +381,12 @@ pub enum CoreError {
     #[error("Invalid target resource")]
     InvalidTarget,
 
+    #[error("The request_uri is unknown, expired or already used")]
+    InvalidRequestUri,
+
+    #[error("This client must push its authorization requests")]
+    PushedAuthorizationRequired,
+
     #[error("User account is disabled")]
     UserDisabled,
 
@@ -446,6 +455,12 @@ pub enum CoreError {
 
     #[error("Authorization is not enabled for this realm")]
     AuthorizationNotEnabled,
+
+    #[error("Invalid client secret grace period: {0}")]
+    InvalidSecretGracePeriod(String),
+
+    #[error("This client has no secret to rotate")]
+    ClientHasNoSecret,
 }
 
 /// One problem a policy engine found in a realm's authorization rules.
@@ -482,6 +497,7 @@ impl CoreError {
             CoreError::TokenExchangePolicyAlreadyExists => "token_exchange_policy_already_exists",
             CoreError::SamlConfigNotFound => "saml_config_not_found",
             CoreError::InvalidSamlConfig(_) => "invalid_saml_config",
+            CoreError::InvalidClientAuthentication(_) => "invalid_client_authentication",
             CoreError::SamlAttributeMapperNotFound => "saml_attribute_mapper_not_found",
             CoreError::InvalidSamlAttributeMapper(_) => "invalid_saml_attribute_mapper",
             CoreError::InvalidClient => "invalid_client",
@@ -584,6 +600,8 @@ impl CoreError {
             CoreError::HintsNotFound => "hints_not_found",
             CoreError::InvalidScope(_) => "invalid_scope",
             CoreError::InvalidTarget => "invalid_target",
+            CoreError::InvalidRequestUri => "invalid_request_uri",
+            CoreError::PushedAuthorizationRequired => "pushed_authorization_required",
             CoreError::UserDisabled => "user_disabled",
             CoreError::AccountLocked => "account_locked",
             CoreError::ClientUnderMaintenance(_) => "client_under_maintenance",
@@ -609,6 +627,8 @@ impl CoreError {
             CoreError::AuthorizationTemplateInUse => "authorization_template_in_use",
             CoreError::InvalidAuthorizationRequest(_) => "invalid_authorization_request",
             CoreError::AuthorizationNotEnabled => "authorization_not_enabled",
+            CoreError::InvalidSecretGracePeriod(_) => "invalid_secret_grace_period",
+            CoreError::ClientHasNoSecret => "client_has_no_secret",
         }
     }
 }
@@ -678,6 +698,10 @@ mod tests {
             (
                 CoreError::InvalidSamlConfig(payload.clone()),
                 "invalid_saml_config",
+            ),
+            (
+                CoreError::InvalidClientAuthentication(payload.clone()),
+                "invalid_client_authentication",
             ),
             (
                 CoreError::SamlAttributeMapperNotFound,
@@ -903,6 +927,11 @@ mod tests {
             (CoreError::HintsNotFound, "hints_not_found"),
             (CoreError::InvalidScope(payload.clone()), "invalid_scope"),
             (CoreError::InvalidTarget, "invalid_target"),
+            (CoreError::InvalidRequestUri, "invalid_request_uri"),
+            (
+                CoreError::PushedAuthorizationRequired,
+                "pushed_authorization_required",
+            ),
             (CoreError::UserDisabled, "user_disabled"),
             (CoreError::AccountLocked, "account_locked"),
             (
@@ -971,6 +1000,11 @@ mod tests {
                 CoreError::AuthorizationNotEnabled,
                 "authorization_not_enabled",
             ),
+            (
+                CoreError::InvalidSecretGracePeriod(String::new()),
+                "invalid_secret_grace_period",
+            ),
+            (CoreError::ClientHasNoSecret, "client_has_no_secret"),
         ]
     }
 
@@ -1002,7 +1036,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 136);
+        assert_eq!(every_variant_with_expected_reason().len(), 141);
     }
 
     #[test]

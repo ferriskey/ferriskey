@@ -3,6 +3,7 @@ import PageLoginFeature from './feature/page-login-feature'
 import PageCallbackFeature from './feature/page-callback-feature'
 import PageRequiredActionFeature from './feature/page-required-action-feature'
 import PageOtpChallengeFeature from './feature/page-otp-challenge-feature'
+import PageAccountChooserFeature from './feature/page-account-chooser-feature'
 import PageRegisterFeature from './feature/page-register-feature'
 import PageForgotPasswordFeature from './feature/page-forgot-password-feature'
 import PageResetPasswordFeature from './feature/page-reset-password-feature'
@@ -25,7 +26,11 @@ function Portal({
   pageType: Schemas.PortalPageType
   children: ReactNode
 }) {
-  return <PortalLayoutWrapper pageType={pageType}>{children}</PortalLayoutWrapper>
+  return (
+    <PortalLayoutWrapper pageType={pageType}>
+      {children}
+    </PortalLayoutWrapper>
+  )
 }
 
 export default function PageAuthentication() {
@@ -38,6 +43,10 @@ export default function PageAuthentication() {
             <PageLoginFeature />
           </Portal>
         }
+      />
+      <Route
+        path='/account-chooser'
+        element={<PageAccountChooserFeature />}
       />
       <Route
         path='/register'

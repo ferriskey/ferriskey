@@ -19,6 +19,9 @@ pub struct Model {
     pub public_key: String,
     pub created_at: DateTime,
     pub certificate: Option<String>,
+    pub rotated_at: Option<DateTime>,
+    pub retire_at: Option<DateTime>,
+    pub revoked_at: Option<DateTime>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -29,6 +32,9 @@ pub enum Column {
     PublicKey,
     CreatedAt,
     Certificate,
+    RotatedAt,
+    RetireAt,
+    RevokedAt,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -58,6 +64,9 @@ impl ColumnTrait for Column {
             Self::PublicKey => ColumnType::Text.def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::Certificate => ColumnType::Text.def().null(),
+            Self::RotatedAt => ColumnType::DateTime.def().null(),
+            Self::RetireAt => ColumnType::DateTime.def().null(),
+            Self::RevokedAt => ColumnType::DateTime.def().null(),
         }
     }
 }

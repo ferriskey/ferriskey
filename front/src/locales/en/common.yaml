@@ -5,6 +5,7 @@ language:
   names:
     en: English
     zh-CN: 简体中文
+    fr: Français
 
 relative_time:
   just_now: just now
@@ -498,3 +499,10 @@ toast:
     attribute_map_failed: Could not map the attribute
     attribute_removed: Attribute mapping removed
     attribute_remove_failed: Could not remove the attribute mapping
+
+portal_input:
+  show_password: Show password
+  hide_password: Hide password
+
+toaster:
+  label: Notifications

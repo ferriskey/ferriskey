@@ -12,11 +12,14 @@ import { useSetupOtp } from '@/api/trident.api'
 import type { RouterParams } from '@/routes/router'
 import type { BuilderNode } from '@/lib/builder-core'
 import { generateBreakpointCss, treeToReactNode } from '@/lib/builder-portal'
+import { collectRenderedTypes } from '@/lib/builder-portal/rendered-types'
+import type { AccountChooserOptions } from '@/lib/builder-portal/components/account-list-block'
 import { mergeWithDefaults, themeToCssVars } from '@/lib/portal-theme/theme'
 import type { Schemas } from '@/api/api.client'
 import { useDevicePreview } from '@/api/device.api'
 import { toConsentScopeList, useGetConsentRequest } from '@/api/consent.api'
 import { authFlowSearch, hasAuthFlowClient } from '@/lib/auth-flow-query'
+import { usePortalDocumentTitle } from '../hooks/use-portal-document-title'
 import { usePortalPageSubmit } from '../hooks/use-portal-page-submit'
 import { usePasskeyAuth } from '../hooks/use-passkey-auth'
 import {
@@ -39,17 +42,10 @@ function parseTree(tree: unknown): BuilderNode[] {
   return []
 }
 
-function collectTypes(nodes: BuilderNode[], acc: Set<string>) {
-  for (const node of nodes) {
-    if (node && typeof node.type === 'string') acc.add(node.type)
-    if (Array.isArray(node?.children)) collectTypes(node.children, acc)
-  }
-}
-
 function hasAllRequiredBlocks(tree: BuilderNode[], required: string[]): boolean {
   if (required.length === 0) return true
   const present = new Set<string>()
-  collectTypes(tree, present)
+  collectRenderedTypes(tree, present)
   return required.every((type) => present.has(type))
 }
 
@@ -58,16 +54,21 @@ function hasAllRequiredBlocks(tree: BuilderNode[], required: string[]): boolean 
 // and fall back to the default hardcoded page.
 function layoutHasPageContent(tree: BuilderNode[]): boolean {
   const present = new Set<string>()
-  collectTypes(tree, present)
+  collectRenderedTypes(tree, present)
   return present.has('page-content')
 }
 
 interface Props {
   children: ReactNode
   pageType: Schemas.PortalPageType
+  accountChooser?: AccountChooserOptions
 }
 
-export function PortalLayoutWrapper({ children, pageType }: Props) {
+export function PortalLayoutWrapper({
+  children,
+  pageType,
+  accountChooser,
+}: Props) {
   const { realm_name } = useParams<RouterParams>()
   const realm = realm_name ?? 'master'
   const { search } = useLocation()
@@ -104,6 +105,10 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
   // identity providers available to the `identity_providers` block.
   const { data: loginSettings } = useGetLoginSettings({ realm })
   const identityProviders = loginSettings?.identity_providers ?? []
+  usePortalDocumentTitle(
+    pageType,
+    loginSettings ? { displayName: loginSettings.display_name, name: loginSettings.name } : null
+  )
 
   // TOTP setup: when the user is mid-enrolment we need to fetch the QR
   // code + secret from the backend's setup endpoint. Only run the query
@@ -490,7 +495,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
 
   const pageContent: ReactNode = (
     <form onSubmit={handleSubmit}>
-      {treeToReactNode(pageTree, { ...flowOptions, runtime: true, identityProviders, totpSetup, deviceConsent, consent, formError, isSubmitting })}
+      {treeToReactNode(pageTree, { ...flowOptions, runtime: true, identityProviders, totpSetup, deviceConsent, consent, accountChooser, formError, isSubmitting })}
     </form>
   )
 
@@ -508,7 +513,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
     <div style={pageSurface} onClick={handlePortalActionClick}>
       {responsiveStyle}
       {buttonInteractionStyle}
-      {treeToReactNode(layoutTree, { ...flowOptions, runtime: true, pageContent, identityProviders, totpSetup, deviceConsent, consent, formError, isSubmitting })}
+      {treeToReactNode(layoutTree, { ...flowOptions, runtime: true, pageContent, identityProviders, totpSetup, deviceConsent, consent, accountChooser, formError, isSubmitting })}
     </div>
   )
 }

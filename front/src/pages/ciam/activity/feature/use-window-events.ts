@@ -18,7 +18,7 @@ export interface WindowRange {
 }
 
 export interface WindowEvents {
-  events: Schemas.SecurityEvent[]
+  events: Schemas.Paginated_SecurityEvent['data'][number][]
   total: number
   range: WindowRange
   isLoading: boolean
@@ -79,7 +79,7 @@ const dayKey = (value: string) => {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
 }
 
-export const bucketPerDay = (events: Schemas.SecurityEvent[], days: number) => {
+export const bucketPerDay = (events: Schemas.Paginated_SecurityEvent['data'][number][], days: number) => {
   const today = new Date()
   return Array.from({ length: days }, (_, index) => {
     const day = new Date(today)

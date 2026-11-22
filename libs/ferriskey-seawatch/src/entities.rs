@@ -68,6 +68,14 @@ pub enum SecurityEventType {
     #[serde(rename = "client_secret_viewed")]
     ClientSecretViewed,
 
+    /// The previous secret of a client was cut short by an administrator.
+    #[serde(rename = "client_secret_revoked")]
+    ClientSecretRevoked,
+
+    /// The grace period of a client's previous secret ran out.
+    #[serde(rename = "client_secret_expired")]
+    ClientSecretExpired,
+
     #[serde(rename = "realm_config_changed")]
     RealmConfigChanged,
 
@@ -98,6 +106,21 @@ pub enum SecurityEventType {
     /// A client swapped a subject token for a new access token (RFC 8693).
     #[serde(rename = "token_exchanged")]
     TokenExchanged,
+
+    #[serde(rename = "account_selected")]
+    AccountSelected,
+
+    #[serde(rename = "account_selection_denied")]
+    AccountSelectionDenied,
+
+    #[serde(rename = "device_session_created")]
+    DeviceSessionCreated,
+
+    #[serde(rename = "signing_key_rotated")]
+    SigningKeyRotated,
+
+    #[serde(rename = "signing_key_revoked")]
+    SigningKeyRevoked,
 
     /// A row whose persisted `event_type` does not match any known variant —
     /// a typo, a variant removed in a refactor, or a row written by a newer
@@ -133,6 +156,8 @@ impl SecurityEventType {
             "client_deleted" => Self::ClientDeleted,
             "client_secret_rotated" => Self::ClientSecretRotated,
             "client_secret_viewed" => Self::ClientSecretViewed,
+            "client_secret_revoked" => Self::ClientSecretRevoked,
+            "client_secret_expired" => Self::ClientSecretExpired,
             "realm_config_changed" => Self::RealmConfigChanged,
             "email_not_sent" => Self::EmailNotSent,
             "email_sent" => Self::EmailSent,
@@ -143,6 +168,11 @@ impl SecurityEventType {
             "identity_provider_link_removed" => Self::IdentityProviderLinkRemoved,
             "webhook_delivery_exhausted" => Self::WebhookDeliveryExhausted,
             "token_exchanged" => Self::TokenExchanged,
+            "account_selected" => Self::AccountSelected,
+            "account_selection_denied" => Self::AccountSelectionDenied,
+            "device_session_created" => Self::DeviceSessionCreated,
+            "signing_key_rotated" => Self::SigningKeyRotated,
+            "signing_key_revoked" => Self::SigningKeyRevoked,
             _ => Self::Unknown,
         }
     }
@@ -170,6 +200,8 @@ impl Display for SecurityEventType {
             SecurityEventType::ClientDeleted => write!(f, "client_deleted"),
             SecurityEventType::ClientSecretRotated => write!(f, "client_secret_rotated"),
             SecurityEventType::ClientSecretViewed => write!(f, "client_secret_viewed"),
+            SecurityEventType::ClientSecretRevoked => write!(f, "client_secret_revoked"),
+            SecurityEventType::ClientSecretExpired => write!(f, "client_secret_expired"),
             SecurityEventType::RealmConfigChanged => write!(f, "realm_config_changed"),
             SecurityEventType::EmailNotSent => write!(f, "email_not_sent"),
             SecurityEventType::EmailSent => write!(f, "email_sent"),
@@ -188,6 +220,11 @@ impl Display for SecurityEventType {
                 write!(f, "webhook_delivery_exhausted")
             }
             SecurityEventType::TokenExchanged => write!(f, "token_exchanged"),
+            SecurityEventType::AccountSelected => write!(f, "account_selected"),
+            SecurityEventType::AccountSelectionDenied => write!(f, "account_selection_denied"),
+            SecurityEventType::DeviceSessionCreated => write!(f, "device_session_created"),
+            SecurityEventType::SigningKeyRotated => write!(f, "signing_key_rotated"),
+            SecurityEventType::SigningKeyRevoked => write!(f, "signing_key_revoked"),
             SecurityEventType::Unknown => write!(f, "unknown"),
         }
     }

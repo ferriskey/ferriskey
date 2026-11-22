@@ -30,16 +30,23 @@ event:
   client_deleted: Client deleted
   client_secret_rotated: Client secret rotated
   client_secret_viewed: Client secret viewed
+  client_secret_revoked: Previous client secret revoked
+  client_secret_expired: Previous client secret expired
   realm_config_changed: Realm configuration changed
   email_not_sent: Email delivery failed
   email_sent: Email delivered
   client_maintenance_enabled: Client maintenance enabled
   client_maintenance_disabled: Client maintenance disabled
+  signing_key_rotated: Signing key rotated
+  signing_key_revoked: Signing key revoked
   session_created: Session opened
   session_revoked: Session revoked
   webhook_delivery_exhausted: Webhook delivery gave up
   identity_provider_link_removed: Identity provider link removed
   token_exchanged: Token exchanged
+  account_selected: Account selected
+  account_selection_denied: Account selection refused
+  device_session_created: Device remembered
   unknown: Unrecognised event
 
 metrics:

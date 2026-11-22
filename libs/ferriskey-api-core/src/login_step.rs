@@ -5,7 +5,9 @@ use axum::{
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_core::domain::{trident::ports::LoginProgress, user::entities::RequiredAction};
 
-use crate::{api_entities::api_error::ApiError, sso_cookie};
+use crate::{
+    api_entities::api_error::ApiError, app_state::AppState, device_cookie::attach_login, sso_cookie,
+};
 
 pub const LOGIN_ACTION_COOKIE: &str = "FERRISKEY_LOGIN_ACTION";
 
@@ -52,9 +54,30 @@ pub struct LoginStepReply {
     pub continues: Option<Extension<LoginContinues>>,
     pub url: Option<String>,
     pub required_actions: Vec<RequiredAction>,
+    sso_secret: Option<String>,
 }
 
 impl LoginStepReply {
+    pub async fn attach_device(
+        &mut self,
+        state: &AppState,
+        realm_name: &str,
+        device: Option<String>,
+        is_secure: bool,
+    ) {
+        if let Some(secret) = self.sso_secret.take() {
+            attach_login(
+                state,
+                realm_name,
+                device,
+                &secret,
+                is_secure,
+                &mut self.headers,
+            )
+            .await;
+        }
+    }
+
     pub fn new(progress: LoginProgress, is_secure: bool) -> Result<Self, ApiError> {
         match progress {
             LoginProgress::ActionsPending(required_actions) => Ok(Self {
@@ -62,11 +85,13 @@ impl LoginStepReply {
                 continues: Some(Extension(LoginContinues)),
                 url: None,
                 required_actions,
+                sso_secret: None,
             }),
             LoginProgress::Completed {
                 login_url,
                 sso_session,
             } => Ok(Self {
+                sso_secret: sso_session.as_ref().map(|session| session.cookie.clone()),
                 headers: sso_cookie::headers(sso_session, is_secure)?,
                 continues: None,
                 url: Some(login_url),

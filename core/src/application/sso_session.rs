@@ -3,8 +3,8 @@ use std::sync::Arc;
 use ferriskey_domain::token_lifetime::TokenLifetimes;
 use uuid::Uuid;
 
-use crate::domain::authentication::ports::{OpenedSsoSession, SsoSessionPort};
-use crate::domain::authentication::services::open_or_reauthenticate_session;
+use crate::domain::authentication::ports::{OpenedSsoSession, SessionOrigin, SsoSessionPort};
+use crate::domain::authentication::services::{NewSession, open_or_reauthenticate_session};
 use crate::domain::client::ports::ClientRepository;
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::realm::entities::RealmScope;
@@ -88,8 +88,11 @@ where
             reauth_session_id,
             user_id,
             scope,
-            lifetimes.refresh_token,
-            remember_me && realm_settings.remember_me_enabled,
+            NewSession {
+                lifetime_seconds: lifetimes.refresh_token,
+                persistent: remember_me && realm_settings.remember_me_enabled,
+                origin: &SessionOrigin::default(),
+            },
         )
         .await?;
 

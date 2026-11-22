@@ -443,6 +443,7 @@ where
                 prompt_consent: false,
                 issuer: None,
                 resource: None,
+                max_age: None,
             }))
             .await;
 
@@ -490,18 +491,23 @@ where
         })
     }
 
-    async fn idp_signing_certificate(&self, realm_name: String) -> Result<String, CoreError> {
+    async fn idp_signing_certificates(&self, realm_name: String) -> Result<Vec<String>, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
-        let keypair = self
+        let key_set = self
             .keystore_repository
-            .get_or_generate_key(scope.id())
+            .get_key_set(scope.id())
             .await
             .map_err(|_| CoreError::RealmKeyNotFound)?;
 
-        keypair
-            .certificate_base64_der()
-            .map_err(|reason| CoreError::InvalidKey(reason.to_string()))
+        key_set
+            .published_at(Utc::now())
+            .map(|keypair| {
+                keypair
+                    .certificate_base64_der()
+                    .map_err(|reason| CoreError::InvalidKey(reason.to_string()))
+            })
+            .collect()
     }
 
     async fn finish_sso(&self, input: FinishSsoInput) -> Result<SamlAssertionDelivery, CoreError> {
@@ -595,6 +601,7 @@ pub(crate) mod tests {
     use crate::domain::client::entities::{Client, ClientType, MaintenanceSessionStrategy};
     use crate::domain::client::ports::MockClientRepository;
     use crate::domain::jwt::entities::JwtKeyPair;
+    use crate::domain::jwt::signing_keys::RealmKeySet;
     use crate::domain::realm::entities::{Realm, RealmId, Unscoped};
     use crate::domain::realm::ports::MockRealmRepository;
     use crate::domain::saml::entities::fixtures::{acs_url, sp_entity_id};
@@ -622,6 +629,10 @@ pub(crate) mod tests {
             _realm_id: RealmId,
         ) -> Result<JwtKeyPair, SecurityError> {
             Ok(self.keypair.clone())
+        }
+
+        async fn get_key_set(&self, _realm_id: RealmId) -> Result<Arc<RealmKeySet>, SecurityError> {
+            Ok(Arc::new(RealmKeySet::new(self.keypair.clone(), Vec::new())))
         }
     }
 
@@ -670,6 +681,7 @@ pub(crate) mod tests {
             enabled: true,
             client_id: "chatwoot".to_string(),
             secret: None,
+            previous_secret: None,
             realm_id,
             protocol: AuthProtocol::Saml,
             public_client: true,
@@ -678,6 +690,7 @@ pub(crate) mod tests {
             oauth_device_code_grant_enabled: false,
             token_exchange_enabled: false,
             require_pkce: false,
+            require_pushed_authorization_requests: false,
             client_type: ClientType::Public,
             name: "Chatwoot".to_string(),
             redirect_uris: None,
@@ -694,6 +707,10 @@ pub(crate) mod tests {
             backchannel_logout_session_required: true,
             consent_required: false,
             registration_source: crate::domain::client::entities::ClientRegistrationSource::Admin,
+            token_endpoint_auth_method:
+                crate::domain::client::entities::auth_method::TokenEndpointAuthMethod::None,
+            jwks: None,
+            jwks_uri: None,
         }
     }
 
@@ -754,6 +771,7 @@ pub(crate) mod tests {
             prompt_consent: false,
             issuer: None,
             resource: None,
+            max_age: None,
         }
     }
 

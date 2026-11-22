@@ -418,6 +418,27 @@ function consentCard(): BuilderNode[] {
   ]
 }
 
+function accountChooserCard(): BuilderNode[] {
+  return [
+    node('card', {
+      props: { maxWidth: '440px', align: 'center' },
+      children: [
+        node('card-header', {
+          props: { textAlign: 'center', gap: '6px' },
+          children: [
+            node('heading', { content: 'Choose an account' }),
+            node('text', { content: 'Pick the account you want to continue with.' }),
+          ],
+        }),
+        node('card-content', {
+          props: { gap: '16px' },
+          children: [node('account_list')],
+        }),
+      ],
+    }),
+  ]
+}
+
 function emailVerifiedCard(): BuilderNode[] {
   return [
     node('card', {
@@ -624,6 +645,13 @@ export const PORTAL_PRESETS: PortalPreset[] = [
     description:
       'Card with the requested scopes + allow / deny buttons. For the Consent page.',
     factory: consentCard,
+  },
+  {
+    id: 'account-chooser-card',
+    label: 'Account chooser card',
+    description:
+      'Card with the remembered accounts + a "use another account" row. For the Account chooser page.',
+    factory: accountChooserCard,
   },
   {
     id: 'passwordless-card',

@@ -1,4 +1,8 @@
-use axum::{Extension, extract::State, response::IntoResponse};
+use axum::{
+    Extension,
+    extract::{Path, State},
+    response::IntoResponse,
+};
 use axum_cookie::CookieManager;
 use ferriskey_api_core::{
     api_entities::{
@@ -6,6 +10,7 @@ use ferriskey_api_core::{
         response::Response,
     },
     app_state::AppState,
+    device_cookie::device_token,
     login_step::LoginStepReply,
     url::{FullUrl, WebappUrl},
 };
@@ -49,6 +54,7 @@ pub struct ChallengeOtpResponse {
     )
 )]
 pub async fn challenge_otp(
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     FullUrl(_, base_url): FullUrl,
@@ -75,7 +81,15 @@ pub async fn challenge_otp(
         .await
         .map_err(|e| ApiError::InternalServerError(e.to_string().into()))?;
 
-    let reply = LoginStepReply::new(result.progress, base_url.starts_with("https"))?;
+    let mut reply = LoginStepReply::new(result.progress, base_url.starts_with("https"))?;
+    reply
+        .attach_device(
+            &state,
+            &realm_name,
+            device_token(&cookie),
+            base_url.starts_with("https"),
+        )
+        .await;
 
     Ok((
         reply.headers,

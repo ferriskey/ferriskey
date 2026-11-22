@@ -87,6 +87,11 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidSamlConfig(detail) => {
                 Self::BadRequest(CoreError::InvalidSamlConfig(detail).to_string().into())
             }
+            CoreError::InvalidClientAuthentication(detail) => Self::BadRequest(
+                CoreError::InvalidClientAuthentication(detail)
+                    .to_string()
+                    .into(),
+            ),
             CoreError::SamlAttributeMapperNotFound => Self::NotFound(
                 "No SAML attribute mapper is registered under this identifier".into(),
             ),
@@ -323,6 +328,14 @@ impl From<CoreError> for ApiError {
                 error: "invalid_target".into(),
                 error_description: "The requested resource is not allowed for this realm.".into(),
             },
+            CoreError::InvalidRequestUri => Self::OAuthError {
+                error: "invalid_request_uri".into(),
+                error_description: "The request_uri is unknown, expired or already used.".into(),
+            },
+            CoreError::PushedAuthorizationRequired => Self::OAuthError {
+                error: "invalid_request".into(),
+                error_description: "This client must use pushed authorization requests.".into(),
+            },
             CoreError::UserDisabled => Self::Forbidden("User account is disabled".into()),
             CoreError::AccountLocked => Self::Unauthorized(
                 "Account is temporarily locked due to too many failed login attempts".into(),
@@ -420,6 +433,13 @@ impl From<CoreError> for ApiError {
             }
             CoreError::AuthorizationNotEnabled => Self::NotFound(ApiErrorBody::new(
                 "Authorization is not enabled for this realm",
+                reason,
+            )),
+            CoreError::InvalidSecretGracePeriod(message) => {
+                Self::BadRequest(ApiErrorBody::new(message, reason))
+            }
+            CoreError::ClientHasNoSecret => Self::BadRequest(ApiErrorBody::new(
+                "This client has no secret to rotate",
                 reason,
             )),
             CoreError::PasswordCredentialAlreadyExists => {

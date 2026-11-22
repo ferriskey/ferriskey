@@ -37,16 +37,23 @@ event:
   client_deleted: 客户端已删除
   client_secret_rotated: 客户端密钥已轮换
   client_secret_viewed: 客户端密钥已被查看
+  client_secret_revoked: 旧客户端密钥已被撤销
+  client_secret_expired: 旧客户端密钥已过期
   realm_config_changed: 域配置已更改
   email_not_sent: 邮件投递失败
   email_sent: 邮件已投递
   client_maintenance_enabled: 客户端维护模式已启用
   client_maintenance_disabled: 客户端维护模式已禁用
+  signing_key_rotated: 签名密钥已轮换
+  signing_key_revoked: 签名密钥已撤销
   session_created: 会话已开启
   session_revoked: 会话已撤销
   webhook_delivery_exhausted: Webhook 投递已放弃
   identity_provider_link_removed: 身份提供商关联已移除
   token_exchanged: 令牌已交换
+  account_selected: 已选择账户
+  account_selection_denied: 账户选择被拒绝
+  device_session_created: 已记住设备
   unknown: 无法识别的事件
 
 metrics:

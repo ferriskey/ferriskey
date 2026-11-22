@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { BaseQuery } from '.'
 import type { Endpoints } from './api.client'
+import { invalidateEndpoint } from './api.tanstack'
 import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 export type WebhooksQuery = NonNullable<Endpoints.get_Fetch_webhooks['parameters']['query']>
@@ -169,12 +170,7 @@ export const useRetryWebhookDelivery = () => {
       '/realms/{realm_name}/webhooks/{webhook_id}/deliveries/{delivery_id}/retry'
     ).mutationOptions,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        predicate: (query) => {
-          const key = query.queryKey[0] as { _id?: string } | undefined
-          return key?._id === '/realms/{realm_name}/webhooks/{webhook_id}/deliveries'
-        },
-      })
+      await invalidateEndpoint(queryClient, '/realms/{realm_name}/webhooks/{webhook_id}/deliveries')
     },
   })
 }

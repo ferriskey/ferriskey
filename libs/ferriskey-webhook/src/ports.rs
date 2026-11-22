@@ -101,7 +101,17 @@ pub trait WebhookRepository: Send + Sync {
         subscriber: WebhookTrigger,
     ) -> impl Future<Output = Result<Vec<Webhook>, CoreError>> + Send;
 
+    /// Reads a webhook for management. Its `secret` is left empty, so a signing
+    /// secret that cannot be opened never blocks listing, editing or deleting it.
     fn get_webhook_by_id(
+        &self,
+        webhook_id: Uuid,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Option<Webhook>, CoreError>> + Send;
+
+    /// Reads a webhook with its signing secret opened, for a delivery. Fails with
+    /// `CoreError::Configuration` when the secret cannot be opened.
+    fn get_deliverable_webhook(
         &self,
         webhook_id: Uuid,
         realm_id: RealmId,

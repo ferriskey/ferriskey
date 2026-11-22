@@ -21,6 +21,7 @@ use ferriskey_api_core::{
     },
     app_state::AppState,
     authentication::{AuthenticateResponse, AuthenticationStatus},
+    device_cookie::{attach_login, device_token},
     request_context::RequestContext,
     sso_cookie,
     url::FullUrl,
@@ -119,6 +120,7 @@ pub async fn send_magic_link(
     )
 )]
 pub async fn verify_magic_link(
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
     WebappUrl(webapp_url): WebappUrl,
@@ -150,9 +152,23 @@ pub async fn verify_magic_link(
         message: Some("Magic link authentication successful".to_string()),
     };
 
+    let is_secure = base_url.starts_with("https");
+    let mut headers = sso_cookie::headers(verified.sso_session.clone(), is_secure)?;
+    if let Some(session) = &verified.sso_session {
+        attach_login(
+            &state,
+            &realm_name,
+            device_token(&cookie),
+            &session.cookie,
+            is_secure,
+            &mut headers,
+        )
+        .await;
+    }
+
     Ok((
         StatusCode::OK,
-        sso_cookie::headers(verified.sso_session, base_url.starts_with("https"))?,
+        headers,
         [(header::REFERRER_POLICY, "no-referrer")],
         axum::Json(response),
     )

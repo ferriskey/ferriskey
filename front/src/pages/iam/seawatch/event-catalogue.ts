@@ -3,7 +3,7 @@ export { formatRelative, formatTimestamp } from '@/utils/format-date'
 import { translate } from '@/lib/i18n'
 import type { Schemas } from '@/api/api.client'
 
-type SecurityEvent = Schemas.SecurityEvent
+type SecurityEvent = Schemas.Paginated_SecurityEvent['data'][number]
 type SecurityEventType = Schemas.SecurityEventType
 
 export const catalogedEventTypes: Record<SecurityEventType, true> = {
@@ -26,16 +26,23 @@ export const catalogedEventTypes: Record<SecurityEventType, true> = {
   client_deleted: true,
   client_secret_rotated: true,
   client_secret_viewed: true,
+  client_secret_revoked: true,
+  client_secret_expired: true,
   realm_config_changed: true,
   email_not_sent: true,
   email_sent: true,
   client_maintenance_enabled: true,
   client_maintenance_disabled: true,
+  signing_key_rotated: true,
+  signing_key_revoked: true,
   session_created: true,
   session_revoked: true,
   webhook_delivery_exhausted: true,
   identity_provider_link_removed: true,
   token_exchanged: true,
+  account_selected: true,
+  account_selection_denied: true,
+  device_session_created: true,
   unknown: true,
 }
 
@@ -51,6 +58,9 @@ const authenticationEvents: SecurityEventType[] = [
   'session_revoked',
   'identity_provider_link_removed',
   'token_exchanged',
+  'account_selected',
+  'account_selection_denied',
+  'device_session_created',
 ]
 
 const credentialEvents: SecurityEventType[] = [
@@ -74,9 +84,13 @@ const administrationEvents: SecurityEventType[] = [
   'client_deleted',
   'client_secret_rotated',
   'client_secret_viewed',
+  'client_secret_revoked',
+  'client_secret_expired',
   'realm_config_changed',
   'client_maintenance_enabled',
   'client_maintenance_disabled',
+  'signing_key_rotated',
+  'signing_key_revoked',
 ]
 
 export const isAuthenticationEvent = (event: SecurityEvent) =>

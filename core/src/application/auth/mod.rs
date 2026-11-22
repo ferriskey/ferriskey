@@ -7,7 +7,7 @@ use crate::{
                 AuthorizeRequestInput, AuthorizeRequestOutput, ExchangeTokenInput, JwtToken,
                 TokenIntrospectionResponse,
             },
-            ports::{AuthService, LoginActionGrant},
+            ports::{AuthService, LoginActionGrant, SessionOrigin},
             value_objects::{
                 EndSessionInput, EndSessionOutput, GenerateTokensForUserInput, GetUserInfoInput,
                 Identity, IntrospectTokenInput, RegisterUserInput, RegisterUserOutput,
@@ -30,6 +30,14 @@ impl AuthService for ApplicationService {
         input: AuthenticateInput,
     ) -> Result<AuthenticateOutput, CoreError> {
         self.auth_service.authenticate(input).await
+    }
+
+    async fn authenticate_from(
+        &self,
+        input: AuthenticateInput,
+        origin: SessionOrigin,
+    ) -> Result<AuthenticateOutput, CoreError> {
+        self.auth_service.authenticate_from(input, origin).await
     }
 
     async fn authorize_request(

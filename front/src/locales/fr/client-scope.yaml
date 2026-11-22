@@ -1,0 +1,417 @@
+# STATUS: traduit, en attente de relecture native.
+scope_type:
+  DEFAULT: par défaut
+  OPTIONAL: optionnel
+  NONE: aucun
+
+scope:
+  # Identifiant affiché quand un scope n'a pas de description. "scope_id" est le nom du champ de l'API, à conserver tel quel.
+  identifier: 'scope_id : {{id}}'
+  mapper_count_one: '{{count}} mapper'
+  mapper_count_many: '{{count}} de mappers'
+  mapper_count_other: '{{count}} mappers'
+
+scope_form:
+  name:
+    label: Nom
+    description: Demandé tel quel par un client dans le paramètre scope d'une requête d'autorisation.
+  description:
+    label: Description
+    description: Lue uniquement par les administrateurs — elle n'atteint jamais un jeton émis.
+  protocol:
+    label: Protocole
+    description: 'Défini à la création : seul OpenID Connect est pris en charge aujourd''hui, et il détermine quels mappers de protocole ce scope peut porter.'
+  type:
+    label: Type
+    description: Détermine comment ce scope est rattaché aux clients du realm.
+    placeholder: Sélectionner un type
+    options:
+      optional: Optionnel
+      default: Par défaut
+    hint:
+      default: Rattaché à chaque nouveau client et émis sans que le client ne le demande.
+      optional: Proposé aux clients, mais émis uniquement lorsqu'ils le demandent par son nom.
+  dynamic:
+    label: Disponible pour les clients dynamiques (CIMD, DCR)
+    description: Permet aux clients qui s'enregistrent eux-mêmes, via un document de métadonnées ou l'enregistrement dynamique, de demander ce scope.
+
+list:
+  title: Scopes client
+  description: Ensembles réutilisables de claims que les clients de ce realm demandent par leur nom.
+  create: Nouveau scope client
+  dynamic_badge: Clients dynamiques
+  row_delete: Supprimer {{name}}
+  count_one: '{{count}} scope'
+  count_many: '{{count}} de scopes'
+  count_other: '{{count}} scopes'
+  columns:
+    name: Scope
+    description: Description
+    type: Attribution
+    protocol: Protocole
+    mappers: Mappers
+    created: Créé
+    updated: Mis à jour
+  search_placeholder: Rechercher par nom ou description…
+  filter_fields:
+    created: Créé
+    protocol: Protocole
+    default_scope_type: Attribution
+    has_protocol_mappers: Avec mappers
+  metrics:
+    total:
+      label: Total
+      hint: scopes
+    default:
+      label: Scopes par défaut
+      hint: '{{percent}} % du total'
+      empty_hint: aucun scope par défaut
+    optional:
+      label: Scopes optionnels
+      hint: accordés à la demande
+    mappers:
+      label: Avec mappers
+      hint: écrivent au moins un claim
+  alerts:
+    without_mappers:
+      title_one: '{{count}} scope n''écrit aucun claim'
+      title_many: '{{count}} de scopes n''écrivent aucun claim'
+      title_other: '{{count}} scopes n''écrivent aucun claim'
+      detail: '{{names}} — ne porte aucun mapper de protocole.'
+      action: Examiner
+  card:
+    # Toujours au pluriel par conception : le pied de carte affiche un total brut, jamais une ligne au singulier.
+    footer_mappers: '{{count}} mappers'
+    flags:
+      default: Accordé par défaut à chaque client
+      has_mappers: Écrit au moins un claim
+  empty:
+    label: Aucun scope client
+    hint: Un scope client regroupe les claims qu'un client peut demander dans ses jetons.
+  delete:
+    title: Supprimer le scope client
+    description: Cette action supprimera définitivement « {{name}} » ainsi que tous ses mappers de protocole et associations de clients.
+
+create:
+  back: Scopes client
+  title: Nouveau scope client
+  subtitle: Un scope client regroupe les claims qu'un client peut demander dans ses jetons.
+  section:
+    title: Détails du scope client
+    description: Identité du scope, et manière dont les clients l'obtiennent.
+  save_bar:
+    title: Créer le scope client
+    description: Le scope est créé vide — ses mappers de protocole sont ajoutés ensuite.
+    submit: Créer
+    submitting: Création…
+
+detail:
+  back: Scopes client
+  not_found:
+    title: Scope client introuvable
+    description: Il a peut-être été supprimé, ou il appartient à un autre realm.
+  meta:
+    created_label: Créé le
+    created: Créé le {{date}}
+    updated_label: Mis à jour le
+    updated: Mis à jour le {{date}}
+    identifier_label: Identifiant
+  tabs:
+    details: Paramètres
+    mappers: Mappers de protocole
+  save_bar:
+    title_one: '{{count}} modification non enregistrée'
+    title_many: '{{count}} de modifications non enregistrées'
+    title_other: '{{count}} modifications non enregistrées'
+    description: Vérifiez le scope client avant d'appliquer les modifications.
+    cancel: Abandonner
+    submit: Enregistrer les modifications
+    submitting: Enregistrement…
+  settings:
+    general:
+      title: Informations générales
+      description: Identité du scope, et manière dont les clients l'obtiennent.
+    none_warning: Ce scope est stocké avec la valeur none. L'API accepte uniquement optional ou default, donc l'enregistrement le remplace par la valeur sélectionnée ci-dessus.
+    attributes:
+      title: Attributs
+      description: Attributs de ce scope client, tels que l'API les renvoie.
+      empty: Aucun attribut configuré.
+    danger:
+      label: Supprimer ce scope client
+      description: Une fois supprimés, tous les mappers de protocole et associations de clients liés seront définitivement retirés.
+      button: Supprimer le scope
+      confirm_title: Supprimer le scope client
+      confirm_description: Cette action supprimera définitivement le scope « {{name}} » ainsi que tous ses mappers de protocole et associations de clients.
+  mappers:
+    title: Mappers de protocole
+    description: Ce que ce scope écrit dans les jetons lorsqu'un client le demande.
+    add: Ajouter un mapper
+    configure: Configurer
+    delete_mapper: Supprimer {{name}}
+    empty: 'Aucun mapper de protocole configuré : ce scope n''écrit aucun claim, il ouvre seulement un droit.'
+    metrics:
+      share: '{{percent}} % du total'
+      total:
+        label: Total des mappers
+        hint: configurés sur ce scope
+      role:
+        label: Mappers de rôle
+        empty_hint: aucun mapper de rôle
+      identity:
+        label: Mappers d'identité
+        empty_hint: aucun mapper d'identité
+    delete:
+      title: Supprimer le mapper de protocole
+      description: Voulez-vous vraiment supprimer « {{name}} » ? Cette action est irréversible.
+
+mapper_picker:
+  title: Ajouter un mapper de protocole
+  description: Le modèle renseigne le type de mapper et les champs attendus. Le mapper personnalisé laisse tout à saisir.
+  quick_start:
+    label: Démarrage rapide
+    hint: Mappers préconfigurés pour les claims usuels — nommez-le et c'est parti.
+  catalog:
+    label: Par configuration
+    hint: Choisissez n'importe quel type de mapper et renseignez chaque champ vous-même.
+
+mapper_form:
+  name:
+    label: Nom
+    description: Nom administratif du mapper — ce n'est pas le claim qu'il écrit.
+  type:
+    label: Type de mapper
+    description:
+      create: Identifiant de l'implémentation du mapper que le serveur exécute à l'émission du jeton.
+      settings: 'Défini à la création : changer l''implémentation invaliderait la configuration ci-dessous.'
+  config:
+    label: Configuration
+    description: Objet JSON brut, exactement comme le mapper l'attend.
+
+mapper_create:
+  back: Mappers de protocole
+  identity:
+    title: Identité
+    description: Comment ce mapper est nommé sur le scope.
+  settings:
+    title: Paramètres
+    description: Configuration transmise au mapper lors de l'émission d'un jeton.
+  save_bar:
+    title: Créer le mapper de protocole
+    description: Le mapper est ajouté immédiatement à ce scope client.
+    submit: Créer le mapper
+    submitting: Création…
+
+mapper_settings:
+  back: Mappers de protocole
+  not_found:
+    title: Mapper de protocole introuvable
+    description: Il a peut-être été supprimé, ou il appartient à un autre scope client.
+  meta:
+    created_label: Créé le
+    created: Créé le {{date}}
+    identifier_label: Identifiant
+  general:
+    title: Général
+    description: Comment ce mapper est nommé sur le scope.
+  settings:
+    title: Paramètres
+    description: Configuration transmise au mapper lors de l'émission d'un jeton.
+  raw:
+    title: Configuration (JSON)
+    description: Aucun modèle ne correspond à ce type de mapper, sa configuration est donc modifiée en brut.
+  save_bar:
+    title: Modifications non enregistrées
+    description: Vérifiez le mapper avant d'appliquer les modifications.
+    cancel: Abandonner
+    submit: Enregistrer les modifications
+    submitting: Enregistrement…
+
+mapper_entity:
+  # Badge sur un sélecteur dont la valeur stockée ne correspond plus à aucun client ni rôle.
+  unknown: inconnu
+  clear: Effacer
+  client:
+    placeholder: Sélectionner un client…
+    search_placeholder: Rechercher un client…
+    empty: Aucun client trouvé.
+  role:
+    placeholder: Sélectionner un rôle…
+    search_placeholder: Rechercher un rôle…
+    empty: Aucun rôle trouvé.
+    realm_role: rôle de realm
+
+mapper_category:
+  role: rôle
+  audience: audience
+  hardcoded: codé en dur
+  attribute: attribut
+  organization: organisation
+  identity: identité
+  custom: personnalisé
+
+mapper_template:
+  qs-email:
+    name: E-mail
+    description: Associe l'adresse e-mail de l'utilisateur au claim email du jeton
+  qs-username:
+    name: Nom d'utilisateur
+    description: Associe le nom d'utilisateur au claim preferred_username
+  qs-full-name:
+    name: Nom complet
+    description: Associe le nom complet de l'utilisateur au claim name
+  qs-realm-roles:
+    name: Rôles de realm
+    description: Ajoute tous les rôles de realm comme claim de jeton à valeurs multiples
+  qs-audience:
+    name: Audience
+    description: Ajoute une valeur d'audience personnalisée au jeton
+  qs-org-membership:
+    name: Appartenance à une organisation
+    description: 'Ajoute toutes les organisations auxquelles l''utilisateur appartient sous forme de tableau JSON (prend en charge le domaine et les attributs)'
+  qs-org-role:
+    name: Rôles d'organisation
+    description: 'Ajoute les rôles qu''un utilisateur détient dans chaque organisation (rôles de realm et de client) sous organizations.<alias>'
+  qs-org-detail:
+    name: Détail d'une organisation
+    description: Ajoute au jeton des informations détaillées sur une seule organisation
+  cat-role-name:
+    name: Mapper de nom de rôle
+    description: Renomme un rôle avant son injection dans le jeton
+  cat-user-attribute:
+    name: Attribut utilisateur
+    description: Associe n'importe quel attribut utilisateur à un claim de jeton
+  cat-user-property:
+    name: Propriété utilisateur
+    description: Associe une propriété utilisateur intégrée (e-mail, nom d'utilisateur…) à un claim de jeton
+  cat-user-client-role:
+    name: Rôle client de l'utilisateur
+    description: Associe les rôles au niveau d'un client donné à un claim de jeton
+  cat-realm-role:
+    name: Rôle de realm
+    description: Associe les rôles au niveau du realm à un claim de jeton avec un contrôle complet
+  cat-group-membership:
+    name: Appartenance à un groupe
+    description: Associe les appartenances de l'utilisateur à des groupes à un claim de jeton
+  cat-audience:
+    name: Audience
+    description: Ajoute au jeton un client ou une valeur d'audience personnalisée
+  cat-hardcoded-claim:
+    name: Claim codé en dur
+    description: Injecte dans le jeton une valeur statique fixe sous forme de claim nommé
+  cat-hardcoded-role:
+    name: Rôle codé en dur
+    description: Attribue toujours un rôle précis au jeton, quel que soit l'utilisateur
+  cat-address:
+    name: Adresse
+    description: Associe les attributs d'adresse de l'utilisateur au claim address
+  cat-org-membership:
+    name: Appartenance à une organisation
+    description: Injecte toutes les organisations auxquelles l'utilisateur appartient sous forme de tableau JSON — fonctionne pour les utilisateurs multi-organisations
+  cat-org-role:
+    name: Rôles d'organisation
+    description: 'Injecte les rôles qu''un utilisateur détient dans chaque organisation — rôles de realm sous organizations.<alias>.roles et rôles de client sous organizations.<alias>.clients.<client_id>.roles'
+  cat-org-detail:
+    name: Détail d'une organisation
+    description: Injecte dans le jeton des informations détaillées sur une seule organisation
+  cat-custom:
+    name: Mapper personnalisé
+    description: Saisissez manuellement un type de mapper et une configuration JSON brute
+
+mapper_field:
+  claim_value_type:
+    label: Type JSON du claim
+    options:
+      string: Chaîne
+      json: JSON
+      long: Long
+      int: Entier
+      boolean: Booléen
+  id_token_claim:
+    label: Ajouter au jeton d'ID
+  access_token_claim:
+    label: Ajouter au jeton d'accès
+  userinfo_token_claim:
+    label: Ajouter à userinfo
+  introspection_token_claim:
+    label: Ajouter à l'introspection du jeton
+  user_property:
+    label: Propriété utilisateur
+  user_property_builtin:
+    label: Propriété
+    description: Nom de la propriété intégrée sur l'objet utilisateur.
+  user_attribute:
+    label: Attribut utilisateur
+    description: Le nom de l'attribut utilisateur à associer.
+  token_claim_name:
+    label: Nom du claim de jeton
+    description_nested: Nom du claim tel qu'il apparaîtra dans le jeton. Utilisez la notation par points (p. ex. custom.team) pour les claims imbriqués.
+  claim_name:
+    label: Nom du claim
+    description_organization_list: Nom du claim de jeton qui contiendra la liste des organisations.
+    description_organization_root: Claim racine contenant les objets par organisation (indexés par alias). Fusion en profondeur avec le mapper Appartenance à une organisation lorsque les deux sont activés.
+    description_organization_object: Nom du claim de jeton qui contiendra l'objet organisation.
+  claim_value:
+    label: Valeur du claim
+  multivalued:
+    label: Multivalué
+    description_attribute: Indique si l'attribut prend en charge plusieurs valeurs.
+    description_roles: Les rôles sont toujours multivalués.
+  aggregate_attrs:
+    label: Agréger les valeurs d'attribut
+    description: Fusionne les valeurs de l'utilisateur et de toutes ses appartenances à des groupes.
+  role:
+    label: Rôle
+    description_rename: Le rôle à renommer. Utilisez « roleName » pour les rôles de realm, « clientId.roleName » pour les rôles de client.
+    description_hardcoded: Le rôle à toujours injecter. Utilisez « roleName » ou « clientId.roleName ».
+  new_role_name:
+    label: Nouveau nom du rôle
+    description: La valeur que ce rôle aura dans le jeton.
+  client_id:
+    label: ID client
+    description: Laissez vide pour inclure les rôles de tous les clients.
+  membership:
+    label: Appartenance
+    description: Effective ajoute chaque groupe parent (correspond aux rôles hérités). Directe n'émet que les groupes auxquels l'utilisateur appartient directement (compatible Keycloak, jetons plus petits).
+    options:
+      effective: Effective (directe + groupes parents)
+      direct: Directe uniquement
+  full_path:
+    label: Chemin complet du groupe
+    description: Inclut le chemin complet (p. ex. /parent/child) plutôt que le seul nom du groupe.
+  prefix_org:
+    label: Préfixer avec l'organisation
+    description: Ajoute l'alias de l'organisation au début du chemin (p. ex. /acme/parent/child) pour distinguer les groupes de différentes organisations. S'applique uniquement aux chemins complets.
+  client_audience:
+    label: Audience client
+    description: Client dont l'audience doit être ajoutée. Laissez vide si vous utilisez une valeur personnalisée.
+  custom_audience:
+    label: Audience personnalisée
+    description: Une chaîne d'audience personnalisée à injecter.
+  include_domain:
+    label: Inclure le domaine
+    description: Ajoute le champ domaine à chaque entrée d'organisation (null si non défini).
+  include_attributes:
+    label: Inclure les attributs
+    description_claim: Lorsque cette option est activée, les attributs personnalisés de l'organisation sont ajoutés au claim.
+    description_entry: Ajoute les attributs personnalisés de l'organisation à chaque entrée.
+  organization_alias:
+    label: Filtre par alias d'organisation
+    description_short: Laissez vide pour utiliser la première organisation à laquelle l'utilisateur appartient.
+    description_long: Alias de l'organisation à émettre. Laissez vide pour utiliser la première organisation à laquelle l'utilisateur appartient.
+  address_formatted:
+    label: Attribut d'adresse formatée
+  address_street:
+    label: Attribut de rue
+  address_locality:
+    label: Attribut de localité (ville)
+  address_region:
+    label: Attribut de région
+  address_postal_code:
+    label: Attribut de code postal
+  address_country:
+    label: Attribut de pays
+
+validation:
+  scope_name_required: Le nom du scope client est requis
+  mapper_name_required: Le nom est requis
+  mapper_config_invalid_json: La configuration doit être un JSON valide

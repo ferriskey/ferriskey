@@ -1,0 +1,126 @@
+# STATUS : traduit, en attente de relecture native.
+header:
+  greeting: Bon retour, {{name}} 👋
+  realm: Realm {{realm}}
+
+metrics:
+  users:
+    label: Utilisateurs
+    hint: '{{percent}} % d''e-mails vérifiés'
+    empty_hint: aucun utilisateur pour le moment
+  clients:
+    label: Clients
+    # Nombre brut de clients activés, jamais accordé — le libellé qui suit reste « actifs ».
+    hint: '{{active}} actifs'
+    empty_hint: aucun client pour le moment
+  roles:
+    label: Rôles
+    hint: permissions et politiques
+  flows:
+    label: Flux d'authentification
+    hint: '{{percent}} % de réussite'
+    empty_hint: aucune trace pour le moment
+
+alerts:
+  failed_flows:
+    title_one: '{{count}} flux d''authentification a échoué'
+    title_many: '{{count}} de flux d''authentification ont échoué'
+    title_other: '{{count}} flux d''authentification ont échoué'
+    detail: '{{failed}} flux tracés sur {{total}} n''ont jamais émis de jeton.'
+    action: Examiner
+  disabled_clients:
+    title_one: '{{count}} client est désactivé'
+    title_many: '{{count}} de clients sont désactivés'
+    title_other: '{{count}} clients sont désactivés'
+    detail_one: '{{names}} — aucun compte ne peut s''authentifier par ce client.'
+    detail_many: '{{names}} — aucun compte ne peut s''authentifier par ces clients.'
+    detail_other: '{{names}} — aucun compte ne peut s''authentifier par ces clients.'
+    action: Vérifier
+  unverified_users:
+    title_one: '{{count}} compte a un e-mail non vérifié'
+    title_many: '{{count}} de comptes ont un e-mail non vérifié'
+    title_other: '{{count}} comptes ont un e-mail non vérifié'
+    detail: La vérification de l'e-mail est obligatoire sur ce realm, ces comptes restent donc incomplets.
+    action: Vérifier
+  compass_off:
+    title: Le traçage Compass est désactivé
+    detail: Les flux d'authentification ne sont pas enregistrés, cette page n'a donc aucune activité à afficher.
+    action: Activer
+
+activity:
+  title: Activité d'authentification
+  description: Connexions et échecs enregistrés au cours des {{days}} derniers jours.
+  # Toujours au pluriel par conception : la légende du graphique affiche un total sur la période, jamais une ligne au singulier.
+  logins: '<num>{{total}}</num> connexions'
+  failures: '<num>{{total}}</num> échecs'
+  empty: Aucun flux d'authentification enregistré sur cette période.
+  empty_compass_off: Le traçage Compass est désactivé — aucune activité n'est enregistrée pour ce realm.
+
+capabilities:
+  title: Fonctionnalités
+  description: Fonctionnalités d'authentification que ce realm propose à ses comptes.
+  ratio: '{{enabled}}/{{total}}'
+  state:
+    enabled: 'activé'
+    disabled: 'désactivé'
+  passkey:
+    label: Clé d'accès
+    description: Sans mot de passe avec WebAuthn
+  magic_link:
+    label: Liens magiques
+    description: Connexion par e-mail
+  registration:
+    label: Inscription libre
+    description: Inscription publique
+  forgot_password:
+    label: Réinitialisation du mot de passe
+    description: Flux de mot de passe oublié
+  remember_me:
+    label: Se souvenir de moi
+    description: Sessions persistantes
+  compass:
+    label: Traçage Compass
+    description: Analyse des flux d'authentification
+
+events:
+  title: Flux d'authentification récents
+  description: Les dernières traces enregistrées par Compass pour ce realm.
+  link: Compass
+  empty: Aucun flux tracé pour le moment.
+  empty_compass_off: Le traçage Compass est désactivé — aucun flux n'est tracé pour ce realm.
+  columns:
+    status: Statut
+    grant: Type d'autorisation
+    client: Client
+    account: Compte
+    duration: Durée
+    started: Démarré
+  no_client: aucun client
+  not_identified: non identifié
+  not_measured: non mesuré
+  duration:
+    milliseconds: '{{value}} ms'
+    seconds: '{{value}} s'
+
+# Indexé sur le statut de flux renvoyé par l'API. Traduire le libellé, jamais la clé.
+event_status:
+  pending: en attente
+  success: réussi
+  failure: échoué
+  expired: expiré
+
+quick_links:
+  title: Pour commencer
+  description: Accédez à un espace de travail de ce realm.
+  users:
+    label: Utilisateurs
+    description: Inviter, modifier et auditer les comptes
+  clients:
+    label: Clients
+    description: Configurer les applications OAuth
+  roles:
+    label: Rôles
+    description: Définir les permissions
+  compass:
+    label: Compass
+    description: Tracer les flux d'authentification

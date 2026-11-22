@@ -230,12 +230,37 @@ mod tests {
         let login_body: Value = login_settings.json();
         assert_eq!(login_body["theme"]["colors"]["primaryButton"], "#222222");
 
+        // Page requirements need no token.
+        // The login page reads them before sign-in.
+        let requirements = server
+            .get(&format!("/realms/{}/portal/page-requirements", realm_name))
+            .await;
+        assert_eq!(
+            requirements.status_code(),
+            200,
+            "page requirements must not require a token"
+        );
+        let requirements_body: Value = requirements.json();
+        let login_requirements = requirements_body["data"]
+            .as_array()
+            .expect("requirements array")
+            .iter()
+            .find(|entry| entry["page_type"] == "login")
+            .expect("login page requirements");
+        assert!(
+            login_requirements["required_blocks"]
+                .as_array()
+                .expect("required blocks")
+                .contains(&json!("password_input"))
+        );
+
         // --- OpenAPI exposes the admin endpoint.
         let openapi_response = server.get("/api-docs/openapi.json").await;
         assert_eq!(openapi_response.status_code(), 200);
         let openapi_body: Value = openapi_response.json();
         let paths = &openapi_body["paths"];
         assert!(paths["/realms/{realm_name}/portal/theme"].is_object());
+        assert!(paths["/realms/{realm_name}/portal/page-requirements"]["get"].is_object());
 
         // --- Cleanup.
         let drop_schema = format!("DROP SCHEMA IF EXISTS \"{}\" CASCADE", schema);

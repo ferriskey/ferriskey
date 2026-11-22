@@ -47,6 +47,23 @@ login:
     title: 认证错误
     hint: 如果问题持续存在，请联系您的管理员。
 
+account_chooser:
+  title: 选择账户
+  description: 使用您已在此设备上登录过的账户继续。
+  continue_to: 以继续访问 <app>{{name}}</app>
+  remembered_other: '此设备上已记住 {{count}} 个账户'
+  loading: 正在加载您的账户
+  last_used: '上次使用：{{when}}'
+  reauthentication: 请确认您的密码
+  signed_out: 已退出登录
+  continue_as: 以 {{name}} 的身份继续
+  remove: 从此设备移除
+  remove_named: 将 {{name}} 从此设备移除
+  use_another: 使用其他账户
+  error:
+    select_failed: 此账户已无法在此处使用。请选择其他账户或重新登录。
+    remove_failed: 无法移除此账户，请重试。
+
 providers:
   separator: 或使用以下方式继续
   continue_with: 使用 {{name}} 继续
@@ -104,6 +121,8 @@ reset_password:
   invalid: 此重置链接无效或已过期。
   request_new: 申请新的重置链接
   failed: 无法重置您的密码。
+  changed_title: 密码已更改
+  changed: 您的密码已更改。现在可以在您的应用程序中使用新密码登录。
 
 update_password:
   title: 更新您的密码
@@ -311,3 +330,19 @@ validation:
   # TRANSLATOR NOTE: "device code charset" is implementation vocabulary — an end user cannot act
   # on it. Translated literally; the English should name the allowed characters instead.
   device_code_format: 格式应为 XXXX-XXXX，使用设备代码字符集。
+
+document_title:
+  login: 登录
+  register: 创建账户
+  totp: 验证码
+  forgot_password: 忘记密码
+  reset_password: 重置密码
+  magic_link_verify: 魔法链接登录
+  magic_link_request: 获取魔法链接
+  verify_email: 验证邮箱
+  email_verified: 邮箱已验证
+  totp_setup: 设置多因素认证
+  device_verify: 验证设备
+  device_verified: 设备已验证
+  consent: 授权访问
+  account_chooser: 选择账户

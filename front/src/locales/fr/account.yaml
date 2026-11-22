@@ -1,0 +1,144 @@
+# Catalogue français de l'espace libre-service du compte.
+#
+# STATUS : traduit, en attente de relecture native.
+tabs:
+  overview: Informations personnelles
+  security: Sécurité
+  sessions: Sessions
+
+unavailable:
+  title: Profil indisponible
+  description: Votre compte n'a pas pu être chargé pour ce realm. Reconnectez-vous, puis réessayez.
+
+header:
+  email_verified: e-mail vérifié
+  email_unverified: e-mail non vérifié
+  username_locked: nom d'utilisateur verrouillé
+  member_since_label: Membre depuis
+  member_since: Membre depuis le {{date}}
+  identifier_label: Identifiant
+
+profile:
+  title: Informations personnelles
+  description: Ce que voient les autres membres de ce realm, et l'adresse où vos notifications sont envoyées.
+  username:
+    label: Nom d'utilisateur
+    description: Identifiant de connexion unique de votre compte.
+    locked_description: Votre administrateur a désactivé la modification du nom d'utilisateur pour ce realm.
+  email:
+    label: E-mail
+    description: Adresse de contact utilisée pour les notifications et la récupération du mot de passe.
+  name:
+    label: Prénom et nom
+    description: Facultatif — affiché dans la console et dans les jetons émis pour vous.
+    firstname_placeholder: Prénom
+    lastname_placeholder: Nom
+  save_bar:
+    title_one: '{{count}} modification non enregistrée'
+    title_many: '{{count}} de modifications non enregistrées'
+    title_other: '{{count}} modifications non enregistrées'
+    description: Vérifiez votre profil avant d'appliquer les modifications.
+    cancel: Annuler
+    submit: Enregistrer les modifications
+  toast:
+    updated: Votre profil a été mis à jour
+
+sessions:
+  # Total simple dans un titre, il ne s'accorde jamais.
+  title: Sessions actives ({{total}})
+  description: Les endroits où vous êtes connecté. Déconnectez-vous de celles que vous ne reconnaissez pas.
+  empty: Aucune session active.
+  unknown_device: Appareil inconnu
+  # Remplace le nom de l'appareil dans une phrase, comme dans « déconnecter la session sur cet appareil ».
+  this_device: cet appareil
+  unknown_ip: IP inconnue
+  never: jamais
+  current: actuelle
+  columns:
+    device: Appareil
+    ip_address: Adresse IP
+    persistent: Mémorisée
+    last_seen_at: Dernière activité
+    expires_at: Expire le
+    created_at: Connexion
+  persistent_state:
+    remembered: mémorisée
+    browser: session de navigateur
+  revoke: Révoquer
+  revoke_label: Révoquer la session sur {{device}}
+  revoke_others: Déconnecter les autres sessions
+  confirm:
+    title: Révoquer la session ?
+    description: La session sur {{device}} sera immédiatement déconnectée.
+  confirm_others:
+    title: Déconnecter toutes les autres sessions ?
+    description: Toutes les sessions, sauf celle-ci, sont immédiatement déconnectées. Cet appareil reste connecté.
+  toast:
+    revoked: Session révoquée
+    others_revoked: Autres sessions déconnectées
+
+validation:
+  username_required: Le nom d'utilisateur est obligatoire
+  email_invalid: Adresse e-mail invalide
+
+reauth:
+  title: Confirmez que c'est bien vous
+  description: Saisissez votre mot de passe, ou un code de votre application d'authentification, pour continuer.
+  # Affiché lorsque l'opération touche un identifiant, où un code seul ne suffit pas.
+  description_password: Saisissez votre mot de passe pour continuer. Cette opération modifie votre façon de vous connecter, donc un code de votre application d'authentification ne suffit pas à lui seul.
+  password_label: Mot de passe
+  otp_label: Code d'authentification
+  switch_to_otp: Utiliser plutôt un code de mon application d'authentification
+  switch_to_password: Utiliser plutôt mon mot de passe
+  cancel: Annuler
+  submit: Confirmer
+
+security:
+  pills:
+    otp_on: application d'authentification activée
+    otp_off: aucune application d'authentification
+    passkeys_one: '{{count}} clé d''accès'
+    passkeys_many: '{{count}} de clés d''accès'
+    passkeys_other: '{{count}} clés d''accès'
+  password:
+    title: Mot de passe
+    description: Le modifier vous déconnecte partout ailleurs. Cet appareil reste connecté.
+    current_label: Mot de passe actuel
+    new_label: Nouveau mot de passe
+    confirm_label: Confirmer le nouveau mot de passe
+    submit: Modifier le mot de passe
+    mismatch: Les deux nouveaux mots de passe ne correspondent pas.
+    required: Renseignez votre mot de passe actuel et le nouveau.
+    toast: Votre mot de passe a été modifié
+    federated_title: Votre mot de passe est géré ailleurs
+    # « annuaire » plutôt que « LDAP » : la personne qui lit ceci n'a pas choisi l'intégration.
+    federated_description: Vous vous connectez via l'annuaire de votre organisation ; votre mot de passe y est géré et ne peut pas être modifié ici.
+  otp:
+    title: Application d'authentification
+    description: Un code à six chiffres généré par une application sur votre téléphone, demandé après votre mot de passe.
+    enable: Configurer une application d'authentification
+    disable: Retirer
+    enabled: Une application d'authentification est configurée pour ce compte.
+    disabled: Aucune application d'authentification n'est configurée pour ce compte.
+    scan_hint: Scannez ceci avec votre application d'authentification, puis saisissez le code qu'elle affiche.
+    code_label: Code de l'application
+    confirm: L'activer
+    cancel: Annuler
+    toast_enabled: Votre application d'authentification est configurée
+    toast_disabled: Votre application d'authentification a été retirée
+  passkeys:
+    title: Clés d'accès
+    description: Connectez-vous avec votre empreinte digitale, votre visage ou une clé de sécurité, au lieu d'un mot de passe.
+    add: Ajouter une clé d'accès
+    unnamed: Clé d'accès sans nom
+    added: Ajoutée le {{date}}
+    remove: Retirer cette clé d'accès
+    empty_title: Aucune clé d'accès pour le moment
+    empty_description: Ajoutez-en une pour vous connecter sans saisir votre mot de passe.
+    unsupported_title: Ce navigateur ne peut pas utiliser les clés d'accès
+    unsupported_description: Ouvrez cette page dans un navigateur compatible WebAuthn pour en ajouter une.
+    confirm:
+      title: Retirer cette clé d'accès ?
+      description: '{{name}} ne vous connectera plus. Vous ne pouvez pas annuler cette action.'
+    toast_added: Votre clé d'accès a été ajoutée
+    toast_removed: Votre clé d'accès a été retirée

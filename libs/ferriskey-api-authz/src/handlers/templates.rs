@@ -41,6 +41,7 @@ pub async fn list_templates(
     post,
     path = "/authz/templates",
     tag = "authz",
+    operation_id = "create_policy_template",
     summary = "Create a policy template",
     description = "Requires manage_authorization.",
     params(("realm_name" = String, Path, description = "Realm name")),
@@ -69,6 +70,7 @@ pub async fn create_template(
     get,
     path = "/authz/templates/{template_id}",
     tag = "authz",
+    operation_id = "get_policy_template",
     summary = "Get a policy template",
     description = "Requires view_authorization.",
     params(
@@ -101,6 +103,7 @@ pub async fn get_template(
     put,
     path = "/authz/templates/{template_id}",
     tag = "authz",
+    operation_id = "update_policy_template",
     summary = "Replace a policy template",
     description = "Policies linked to the template are validated again. Requires manage_authorization.",
     params(
@@ -132,6 +135,7 @@ pub async fn update_template(
     delete,
     path = "/authz/templates/{template_id}",
     tag = "authz",
+    operation_id = "delete_policy_template",
     summary = "Delete a policy template",
     description = "Refused while a policy links it. Requires manage_authorization.",
     params(

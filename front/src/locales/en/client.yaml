@@ -232,6 +232,9 @@ settings:
       description_public: 'Rejects authorization requests that carry no S256 code challenge (RFC 7636). The plain method is refused when this is on. Strongly recommended: this client cannot keep a secret safe.'
       required: Required
       optional: Optional
+    par:
+      label: Require pushed authorization requests
+      description: Refuses authorization requests that were not pushed to the PAR endpoint first (RFC 9126). The authorization parameters are then sent to the PAR endpoint instead of the browser URL.
   access:
     title: Access
     description: Addresses this client may be redirected to, and origins it may call from.
@@ -303,6 +306,7 @@ credentials:
   title: Client credentials
   description: What this client presents to prove who it is.
   copy: Copy
+  copy_failed: The value could not be copied. Check the clipboard permission of this site.
   client_id:
     label: Client ID
     description: The unique identifier used to authenticate this client.
@@ -315,7 +319,56 @@ credentials:
     hide_label: Hide client secret
     forbidden: You need the manage-clients permission to reveal this secret. Ask a realm administrator for access.
     failed: The secret could not be revealed. Please try again.
-    rotation_hint: Rotating the secret is not exposed by the administration API yet.
+    rotation_hint: Rotating replaces this secret. Choose how long the current one keeps working so every deployment can switch over. Rotating again ends any earlier previous secret at once.
+  authentication:
+    title: Client authentication
+    description: How this client proves who it is at the token, introspection and revocation endpoints.
+    method:
+      label: Method
+      options:
+        client_secret_basic: Client secret (HTTP Basic)
+        client_secret_post: Client secret (form body)
+        client_secret_jwt: JWT signed with the client secret
+        private_key_jwt: JWT signed with a private key
+      hint:
+        client_secret_basic: The client sends its secret. HTTP Basic and the form body are both accepted.
+        client_secret_post: The client sends its secret. HTTP Basic and the form body are both accepted.
+        client_secret_jwt: The client signs a short-lived JWT with its secret (HS256, HS384 or HS512). The secret never travels.
+        private_key_jwt: The client signs a short-lived JWT with its private key. FerrisKey only stores the public keys.
+    keys:
+      label: Public keys
+      description: A JWKS URL is fetched and cached, and fetched again when an assertion names an unknown key. An inline key set must only hold public keys.
+      uri: JWKS URL
+      inline: Inline JWKS
+      uri_required: Enter the URL where the client publishes its keys.
+      invalid_json: 'The key set must be a JSON object such as { "keys": [ … ] }.'
+  rotate:
+    action: Rotate secret
+    title: Rotate the client secret?
+    description: A new secret is generated. Applications still using the current one keep working for the grace period you choose, then stop.
+    grace:
+      label: Keep the current secret working for
+      none: Not at all, replace it now
+      one_hour: 1 hour
+      one_day: 24 hours
+      one_week: 7 days
+      thirty_days: 30 days
+    replaces_previous: The previous secret still in its grace period stops working now, before its expiry.
+    confirm: Rotate
+    cancel: Cancel
+    toast:
+      rotated: Client secret rotated.
+  previous:
+    label: Previous secret
+    description: Still accepted until it expires. It can be revoked before then.
+    expires: Expires {{date}}
+    revoke:
+      action: Revoke now
+      title: Revoke the previous secret?
+      description: Applications still using it will be refused immediately.
+      confirm: Revoke
+    toast:
+      revoked: Previous client secret revoked.
 
 roles:
   title: Client roles

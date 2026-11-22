@@ -138,6 +138,8 @@ mod tests {
                 client_name: None,
                 redirect_uris: vec![],
                 token_endpoint_auth_method: None,
+                jwks: None,
+                jwks_uri: None,
             },
             max_age,
         })

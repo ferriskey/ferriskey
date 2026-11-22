@@ -64,10 +64,11 @@ pub enum PortalPageType {
     /// valid page — no required blocks.
     DeviceVerified,
     Consent,
+    AccountChooser,
 }
 
 impl PortalPageType {
-    pub const ALL: [PortalPageType; 13] = [
+    pub const ALL: [PortalPageType; 14] = [
         PortalPageType::Login,
         PortalPageType::Register,
         PortalPageType::Totp,
@@ -81,6 +82,7 @@ impl PortalPageType {
         PortalPageType::DeviceVerify,
         PortalPageType::DeviceVerified,
         PortalPageType::Consent,
+        PortalPageType::AccountChooser,
     ];
 }
 
@@ -100,6 +102,7 @@ pub struct PortalThemePages {
     pub device_verify: serde_json::Value,
     pub device_verified: serde_json::Value,
     pub consent: serde_json::Value,
+    pub account_chooser: serde_json::Value,
 }
 
 impl PortalThemePages {
@@ -118,6 +121,7 @@ impl PortalThemePages {
             PortalPageType::DeviceVerify => &self.device_verify,
             PortalPageType::DeviceVerified => &self.device_verified,
             PortalPageType::Consent => &self.consent,
+            PortalPageType::AccountChooser => &self.account_chooser,
         }
     }
 }

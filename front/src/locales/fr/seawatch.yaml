@@ -1,0 +1,161 @@
+# « Sea Watch » est le nom du module d'audit de FerrisKey : nom de produit, non traduit.
+#
+# STATUS: traduit, en attente de relecture native. Voir le glossaire français dans GLOSSARY.md.
+page:
+  title: Sea Watch
+  # {{days}} est la largeur de la fenêtre d'observation. L'écran la fixe à 7, donc elle ne s'accorde
+  # jamais ; rédiger la phrase pour un pluriel.
+  description: 'Événements de sécurité enregistrés pour ce realm, du plus récent au plus ancien. Les chiffres ci-dessus couvrent les {{days}} derniers jours.'
+
+# Libellés des valeurs SecurityEventType envoyées par l'API, indexés sur la valeur de l'énumération.
+# La valeur brute reste affichée à l'écran en police à chasse fixe juste à côté du libellé : le
+# libellé n'a donc pas à répéter l'identifiant, il doit dire ce qui s'est passé. Ils servent à
+# reconstituer un incident : préférer l'action littérale à une formule plus fluide, et distinguer
+# « échec » de « non envoyé ».
+event:
+  login_success: Connexion réussie
+  login_failure: Échec de la connexion
+  password_reset: Mot de passe réinitialisé
+  password_reset_requested: Réinitialisation du mot de passe demandée
+  password_reset_completed: Réinitialisation du mot de passe terminée
+  password_imported: Empreinte de mot de passe importée
+  user_created: Utilisateur créé
+  user_email_verified: Adresse e-mail vérifiée
+  user_deleted: Utilisateur supprimé
+  role_assigned: Rôle attribué
+  role_unassigned: Rôle retiré
+  role_created: Rôle créé
+  role_removed: Rôle supprimé
+  role_updated: Rôle mis à jour
+  role_permission_updated: Permissions du rôle mises à jour
+  client_created: Client créé
+  client_deleted: Client supprimé
+  client_secret_rotated: Secret client renouvelé
+  client_secret_viewed: Secret client consulté
+  client_secret_revoked: Ancien secret client révoqué
+  client_secret_expired: Ancien secret client expiré
+  realm_config_changed: Configuration du realm modifiée
+  email_not_sent: Échec de l'envoi de l'e-mail
+  email_sent: E-mail envoyé
+  client_maintenance_enabled: Maintenance du client activée
+  client_maintenance_disabled: Maintenance du client désactivée
+  signing_key_rotated: Clé de signature renouvelée
+  signing_key_revoked: Clé de signature révoquée
+  session_created: Session ouverte
+  session_revoked: Session révoquée
+  webhook_delivery_exhausted: Livraison du webhook abandonnée
+  identity_provider_link_removed: Lien du fournisseur d'identité retiré
+  token_exchanged: Jeton échangé
+  account_selected: Compte sélectionné
+  account_selection_denied: Sélection du compte refusée
+  device_session_created: Appareil mémorisé
+  unknown: Événement non reconnu
+
+metrics:
+  # Compteur brut affiché seul. Le formateur « number » applique le groupement des chiffres de la
+  # langue active : ne pas le remplacer par un {{total}} nu.
+  value: '{{total, number}}'
+  total:
+    label: Événements
+    hint_latest: 'dernier {{timestamp}}'
+    hint_window: '{{days}} derniers jours'
+  failures:
+    label: Échecs
+    hint_none: aucun échec enregistré
+  rate:
+    label: Taux de réussite
+    value: '{{total}} %'
+    hint: '{{total, number}} réussis'
+  actors:
+    label: Acteurs distincts
+    hint: 'sur les {{days}} derniers jours'
+
+activity:
+  title: Trafic d'authentification
+  description: 'Connexions et échecs tracés par Compass sur les {{days}} derniers jours.'
+  # Le nombre est dans son propre élément pour être affiché avec des chiffres tabulaires. Garder
+  # <value> autour du nombre, et rien d'autre.
+  logins_one: '<value>{{count}}</value> connexion'
+  logins_many: '<value>{{count}}</value> de connexions'
+  logins_other: '<value>{{count}}</value> connexions'
+  failures_one: '<value>{{count}}</value> échec'
+  failures_many: '<value>{{count}}</value> d''échecs'
+  failures_other: '<value>{{count}}</value> échecs'
+
+stream:
+  description: Les filtres et le tri sont appliqués par le serveur à chaque événement enregistré.
+  search_placeholder: Rechercher par adresse IP…
+  filter_fields:
+    event_types: Événement
+    status: Résultat
+    target_type: Type de cible
+    actor_id: Acteur
+  status_options:
+    success: Réussite
+    failure: Échec
+  target_types:
+    user: Utilisateur
+    client: Client
+    session: Session
+    webhook: Webhook
+    identity_provider_link: Lien de fournisseur d'identité
+  columns:
+    event: Événement
+    status: Résultat
+    actor: Acteur
+    target: Cible
+    ip_address: Adresse IP
+    timestamp: Quand
+  filters:
+    authentication: Authentification
+    credentials: Identifiants
+    administration: Administration
+  actor:
+    unattributed: non attribué
+    unknown_type: type inconnu
+  target:
+    none: aucune
+    unknown_type: type inconnu
+  ip:
+    not_recorded: non enregistrée
+  card:
+    no_detail: aucun détail supplémentaire
+    flags:
+      actor: Acteur identifié
+      target: Cible enregistrée
+      origin: Origine enregistrée
+  aggregates:
+    events_one: '{{count}} événement'
+    events_many: '{{count}} d''événements'
+    events_other: '{{count}} événements'
+    # Ne s'accorde jamais : le nom qu'il qualifie est l'en-tête de colonne, pas un mot de cette chaîne.
+    failures: '{{total}} en échec'
+  empty:
+    label: Aucun événement de sécurité
+    hint: 'Sea Watch enregistre chaque action liée à la sécurité effectuée dans ce realm : connexions, changements d''identifiants et opérations d''administration. Rien n''a encore été enregistré.'
+
+alerts:
+  unavailable:
+    title: Événements de sécurité indisponibles
+    detail: Nous n'avons pas pu récupérer les derniers événements. Veuillez réessayer plus tard.
+  capped:
+    # {{limit}} est un plafond fixe de plusieurs centaines : cela se lit donc comme un pluriel dans tous les cas.
+    title: 'Limité à {{limit}} événements'
+    detail: 'Le realm en a enregistré davantage sur les {{days}} derniers jours ; les acteurs distincts, les tendances quotidiennes et la répartition des échecs ne couvrent que les {{limit}} plus récents.'
+  failures:
+    title_one: '{{count}} événement en échec sur les {{days}} derniers jours'
+    title_many: '{{count}} d''événements en échec sur les {{days}} derniers jours'
+    title_other: '{{count}} événements en échec sur les {{days}} derniers jours'
+    # {{label}} est un libellé d'événement du catalogue ci-dessus ; {{total}} est le nombre d'occurrences.
+    share: '{{label}} représente {{total}}'
+    # {{code}} est un code d'erreur du serveur. Il n'est jamais traduit.
+    error_code: 'surtout {{code}}'
+    resource: 'sur {{resource}}'
+  actor:
+    unknown: Acteur inconnu
+    # {{actor}} est un identifiant d'utilisateur ou, à défaut, le libellé ci-dessus. Il n'est jamais traduit.
+    title_one: '{{actor}} — {{count}} échec'
+    title_many: '{{actor}} — {{count}} d''échecs'
+    title_other: '{{actor}} — {{count}} échecs'
+    detail_with_ip: 'Dernière activité depuis {{ip}} le {{timestamp}}.'
+    detail_without_ip: 'Dernière activité le {{timestamp}}, origine non enregistrée.'

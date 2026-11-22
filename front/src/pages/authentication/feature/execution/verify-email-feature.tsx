@@ -8,6 +8,7 @@ import { useParams } from 'react-router'
 import { toast } from 'sonner'
 import { apiErrorMessage } from '@/lib/api-error'
 import { AUTH_NAMESPACE } from '../../constants'
+import AuthShell from '../../components/auth-shell'
 import { storeVerifyEmailContext } from './verify-email-context'
 
 const RESEND_COOLDOWN_SECONDS = 60
@@ -57,24 +58,16 @@ export default function VerifyEmailFeature() {
   }
 
   return (
-    <div className='flex flex-col items-center justify-center min-h-screen p-4'>
-      <div className='max-w-md w-full space-y-6 text-center'>
-        <div className='mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center'>
-          <Mail className='w-8 h-8 text-blue-600' />
+    <AuthShell title={t('verify_email.title')} description={t('verify_email.description')}>
+      <div className='space-y-6 text-center'>
+        <div className='mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100'>
+          <Mail className='h-8 w-8 text-blue-600' />
         </div>
-
-        <h1 className='text-2xl font-bold'>{t('verify_email.title')}</h1>
-
-        <p className='text-muted-foreground'>{t('verify_email.description')}</p>
 
         <p className='text-sm text-muted-foreground'>{t('verify_email.spam_hint')}</p>
 
         <div className='pt-4'>
-          <Button
-            variant='outline'
-            onClick={handleResend}
-            disabled={isPending || cooldown > 0}
-          >
+          <Button variant='outline' onClick={handleResend} disabled={isPending || cooldown > 0}>
             {isPending ? (
               <>
                 <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
@@ -91,6 +84,6 @@ export default function VerifyEmailFeature() {
           </Button>
         </div>
       </div>
-    </div>
+    </AuthShell>
   )
 }

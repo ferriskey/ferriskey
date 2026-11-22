@@ -17,6 +17,7 @@ use crate::domain::{
     user::entities::User,
 };
 use ferriskey_domain::realm::LoginAliases;
+use ferriskey_security::jwt::signing_keys::SigningKey;
 
 pub trait RealmService: Send + Sync {
     fn list_user_realms(
@@ -94,6 +95,27 @@ pub trait ResourceOwnerService: Send + Sync {
         identity: Identity,
         input: ReplaceResourceOwnersInput,
     ) -> impl Future<Output = Result<Vec<ResourceOwner>, CoreError>> + Send;
+}
+
+pub trait SigningKeyService: Send + Sync {
+    fn list_signing_keys(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> impl Future<Output = Result<Vec<SigningKey>, CoreError>> + Send;
+
+    fn rotate_signing_key(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> impl Future<Output = Result<SigningKey, CoreError>> + Send;
+
+    fn revoke_signing_key(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        kid: Uuid,
+    ) -> impl Future<Output = Result<SigningKey, CoreError>> + Send;
 }
 
 pub trait MailService: Send + Sync {
@@ -195,6 +217,9 @@ pub struct UpdateRealmSettingInput {
     pub dcr_enabled: Option<bool>,
     pub cimd_allowed_hosts: Option<Vec<String>>,
     pub allowed_resources: Option<Vec<String>>,
+    pub account_chooser_enabled: Option<bool>,
+    pub account_chooser_show_email: Option<bool>,
+    pub require_pushed_authorization_requests: Option<bool>,
 }
 
 pub struct DeleteRealmInput {

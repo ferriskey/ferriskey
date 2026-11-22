@@ -70,6 +70,7 @@ impl TryFrom<crate::entity::auth_sessions::Model> for AuthSession {
             prompt_consent: model.prompt_consent,
             issuer: model.issuer,
             resource: model.resource,
+            max_age: model.max_age,
         })
     }
 }
@@ -119,6 +120,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             reauth_session_id: Set(session.reauth_session_id),
             issuer: Set(session.issuer.clone()),
             resource: Set(session.resource.clone()),
+            max_age: Set(session.max_age),
         };
 
         let t = model
@@ -685,6 +687,7 @@ mod tests {
             prompt_consent: false,
             issuer: None,
             resource: None,
+            max_age: None,
         })
     }
 

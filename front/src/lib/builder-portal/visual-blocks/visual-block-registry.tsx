@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { Ban, KeyRound, LayoutTemplate, Mail } from 'lucide-react'
 import type { BuilderNode, ComponentDefinition } from '../../builder-core'
 import { useBuilderContext } from '../../builder-core'
+import { AccountListBlock } from '../components/account-list-block'
 import { PortalInput } from '../components/portal-input'
 import {
   buttonStyle,
@@ -184,6 +185,12 @@ export function renderVisualBlock(
       return (
         <div style={chromeStyle(isSelected)}>
           <ConsentScopesBlock node={node} options={{}} />
+        </div>
+      )
+    case 'account_list':
+      return (
+        <div style={chromeStyle(isSelected)}>
+          <AccountListBlock node={node} orderStyle={orderStyle(node)} />
         </div>
       )
     case 'identity_providers':

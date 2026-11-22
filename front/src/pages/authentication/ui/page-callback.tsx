@@ -1,6 +1,7 @@
 import LoaderSpinner from '@/components/ui/loader-spinner'
 import { XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { AuthShellCenter } from '../components/auth-shell'
 import { AUTH_NAMESPACE } from '../constants'
 
 export interface PageCallbackProps {
@@ -21,9 +22,9 @@ export default function PageCallback({ code, setup, errorMessage }: PageCallback
   }
 
   return (
-    <div className='flex min-h-svh items-center justify-center'>
+    <AuthShellCenter>
       <LoaderSpinner />
-    </div>
+    </AuthShellCenter>
   )
 }
 
@@ -31,8 +32,8 @@ function ErrorState({ message }: { message: string }) {
   const { t } = useTranslation(AUTH_NAMESPACE)
 
   return (
-    <div className='flex min-h-svh items-center justify-center px-6'>
-      <div className='w-full max-w-md rounded-md border border-destructive/30 bg-destructive/10 p-4 text-destructive'>
+    <AuthShellCenter>
+      <div className='relative z-10 w-full max-w-md rounded-md border border-destructive/30 bg-destructive/10 p-4 text-destructive'>
         <div className='flex gap-3'>
           <div className='shrink-0 pt-0.5'>
             <XCircle aria-hidden='true' className='size-5' />
@@ -43,6 +44,6 @@ function ErrorState({ message }: { message: string }) {
           </div>
         </div>
       </div>
-    </div>
+    </AuthShellCenter>
   )
 }

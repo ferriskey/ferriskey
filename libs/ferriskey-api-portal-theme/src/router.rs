@@ -29,14 +29,13 @@ use utoipa::OpenApi;
     delete_theme,
     update_theme_page,
     activate_theme,
-    get_page_requirements,
     import_theme,
     export_theme,
 ))]
 pub struct PortalThemeApiDoc;
 
 #[derive(OpenApi)]
-#[openapi(paths(get_active_theme))]
+#[openapi(paths(get_active_theme, get_page_requirements))]
 pub struct PortalThemePublicApiDoc;
 
 pub fn portal_theme_routes(state: AppState) -> Router<AppState> {
@@ -94,22 +93,26 @@ pub fn portal_theme_routes(state: AppState) -> Router<AppState> {
             ),
             put(update_theme_page),
         )
+        .layer(middleware::from_fn_with_state(state.clone(), auth));
+
+    // The portal renderer calls both routes before sign-in.
+    // `/portal/active` gives the theme to draw.
+    // `/portal/page-requirements` says if its tree is complete.
+    let public_routes = Router::new()
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/portal/active",
+                state.args.server.root_path
+            ),
+            get(get_active_theme),
+        )
         .route(
             &format!(
                 "{}/realms/{{realm_name}}/portal/page-requirements",
                 state.args.server.root_path
             ),
             get(get_page_requirements),
-        )
-        .layer(middleware::from_fn_with_state(state.clone(), auth));
-
-    let public_routes = Router::new().route(
-        &format!(
-            "{}/realms/{{realm_name}}/portal/active",
-            state.args.server.root_path
-        ),
-        get(get_active_theme),
-    );
+        );
 
     admin_routes.merge(public_routes)
 }
