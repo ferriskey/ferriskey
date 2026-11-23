@@ -125,6 +125,8 @@ mod tests {
         SecurityEventType::DeviceSessionCreated,
         SecurityEventType::SigningKeyRotated,
         SecurityEventType::SigningKeyRevoked,
+        SecurityEventType::RealmExported,
+        SecurityEventType::RealmImported,
         SecurityEventType::Unknown,
     ];
 
@@ -194,6 +196,8 @@ mod tests {
                 | SecurityEventType::DeviceSessionCreated
                 | SecurityEventType::SigningKeyRotated
                 | SecurityEventType::SigningKeyRevoked
+                | SecurityEventType::RealmExported
+                | SecurityEventType::RealmImported
                 | SecurityEventType::Unknown => true,
             };
 
