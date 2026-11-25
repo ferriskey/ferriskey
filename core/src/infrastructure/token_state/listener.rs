@@ -16,8 +16,31 @@ const SILENCE_LIMIT: Duration = Duration::from_secs(45);
 const ANNOUNCE_TIMEOUT: Duration = Duration::from_secs(5);
 const FIRST_RETRY: Duration = Duration::from_secs(1);
 const LONGEST_RETRY: Duration = Duration::from_secs(30);
+const MAX_IDENTIFIER_BYTES: usize = 63;
 
-pub fn spawn_token_state_sync(pool: &PgPool, state: Arc<TokenState>, feed: ChangeFeed) {
+/// The spaces PostgreSQL skips around a listed name.
+/// Unicode spaces stay in the name.
+const SEARCH_PATH_SPACES: [char; 6] = [' ', '\t', '\n', '\r', '\x0b', '\x0c'];
+
+/// Keeps `state` in step with replicas of its schema.
+///
+/// NOTIFY reaches every session of the database.
+/// An announcement names its replica, then its schema: `<replica>/<schema>`.
+/// A schema list names no schema.
+/// Nor does a name PostgreSQL would cut at 63 bytes.
+/// Nor does `$user`, the schema of the role.
+/// Nor does a name with a backslash.
+/// A schema can start with `ping:`, like a heartbeat.
+/// So the replica comes first.
+/// No change can then look like a heartbeat.
+/// The schema is named as PostgreSQL resolves it.
+/// A replica ignores announcements of another named schema.
+pub fn spawn_token_state_sync(
+    pool: &PgPool,
+    schema: &str,
+    state: Arc<TokenState>,
+    feed: ChangeFeed,
+) {
     let options = pool.connect_options().as_ref().clone();
     let announcing = PgPoolOptions::new()
         .max_connections(1)
@@ -26,7 +49,7 @@ pub fn spawn_token_state_sync(pool: &PgPool, state: Arc<TokenState>, feed: Chang
     let listening = PgPoolOptions::new()
         .max_connections(1)
         .connect_lazy_with(options);
-    let origin = Uuid::new_v4().to_string();
+    let origin = new_origin(schema);
 
     tokio::spawn(publish(announcing, origin.clone(), feed));
     tokio::spawn(listen(listening, origin, state));
@@ -137,7 +160,65 @@ fn react(payload: &str, origin: &str, state: &TokenState) {
         return;
     }
 
+    // A replica announces no schema when legacy or unnameable.
+    // Its announcement empties every cache.
+    // It empties its own on every announcement.
+    // Ignoring either serves revoked sessions until expiry.
+    if let (Some(theirs), Some(ours)) = (schema_of(payload), schema_of(origin))
+        && theirs != ours
+    {
+        return;
+    }
+
     state.changed_elsewhere();
+}
+
+/// A comma marks a `search_path` list.
+/// A quoted name holding one counts too, to be safe.
+/// A list or an overlong name names no schema.
+/// So do a backslash and `$user`.
+fn new_origin(schema: &str) -> String {
+    let replica = Uuid::new_v4();
+    let canonical = canonical_schema(schema);
+
+    // PostgreSQL reads a backslash as an escape.
+    // So `pub\lic` can reach `public`.
+    let marked = schema.contains([',', '\\']);
+
+    // PostgreSQL cuts a name at 63 bytes.
+    // So a longer name can reach a 63-byte schema.
+    let unnameable = marked || canonical.len() > MAX_IDENTIFIER_BYTES;
+
+    // `$user` names the schema of the role.
+    // Another replica may spell that name out.
+    if unnameable || canonical == "$user" {
+        return replica.to_string();
+    }
+
+    format!("{replica}/{canonical}")
+}
+
+/// The schema an announcement names, if any.
+fn schema_of(announcement: &str) -> Option<&str> {
+    announcement.split_once('/').map(|(_, schema)| schema)
+}
+
+/// The schema as PostgreSQL resolves it.
+///
+/// ASCII spaces around a name are ignored.
+/// An unquoted name is lowercased.
+/// A quoted name keeps its case.
+/// Inside, `""` is one quote.
+fn canonical_schema(schema: &str) -> String {
+    let schema = schema.trim_matches(SEARCH_PATH_SPACES);
+
+    match schema
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+    {
+        Some(quoted) => quoted.replace("\"\"", "\""),
+        None => schema.to_ascii_lowercase(),
+    }
 }
 
 #[cfg(test)]
@@ -171,10 +252,200 @@ mod tests {
         assert_eq!(state.generation(), 0);
     }
 
-    async fn replica(pool: &PgPool) -> Arc<TokenState> {
+    #[test]
+    fn an_announcement_of_another_schema_leaves_the_caches_alone() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+        react(
+            "another-replica/oidc_other",
+            "this-replica/oidc_mine",
+            &state,
+        );
+
+        assert_eq!(state.generation(), 0);
+    }
+
+    #[test]
+    fn an_announcement_of_the_same_schema_or_without_one_empties_the_caches() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+        react(
+            "another-replica/oidc_mine",
+            "this-replica/oidc_mine",
+            &state,
+        );
+        react("another-replica", "this-replica/oidc_mine", &state);
+
+        assert_eq!(state.generation(), 2);
+    }
+
+    #[test]
+    fn an_unquoted_schema_is_folded_to_lowercase_as_postgresql_does() {
+        assert_eq!(canonical_schema("PUBLIC"), canonical_schema("public"));
+        assert_eq!(canonical_schema("Oidc_Mine"), "oidc_mine");
+    }
+
+    #[test]
+    fn a_quoted_schema_keeps_its_case() {
+        assert_eq!(canonical_schema("\"Public\""), "Public");
+        assert_ne!(canonical_schema("\"Public\""), canonical_schema("public"));
+        assert_eq!(canonical_schema("\"a\"\"B\""), "a\"B");
+        assert_eq!(canonical_schema("\"public\""), canonical_schema("PUBLIC"));
+    }
+
+    #[test]
+    fn announcements_of_two_spellings_of_one_schema_empty_the_caches() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+        react(&new_origin("PUBLIC"), &new_origin("public"), &state);
+
+        assert_eq!(state.generation(), 1);
+    }
+
+    #[test]
+    fn a_change_from_a_schema_named_like_a_heartbeat_empties_the_caches() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+        react(
+            &new_origin("\"ping:tenant\""),
+            &new_origin("\"ping:tenant\""),
+            &state,
+        );
+
+        assert_eq!(state.generation(), 1);
+    }
+
+    #[test]
+    fn a_heartbeat_is_ignored_whatever_the_schema_of_its_replica() {
+        let schemas = ["public", "other", "\"ping:tenant\"", "public,public"];
+
+        let emptied: Vec<_> = schemas
+            .into_iter()
+            .filter(|schema| {
+                let (state, _feed) = TokenState::new(Duration::from_secs(60));
+                react(
+                    &format!("{HEARTBEAT_PREFIX}{}", new_origin(schema)),
+                    &new_origin(schema),
+                    &state,
+                );
+                state.generation() > 0
+            })
+            .collect();
+
+        assert!(
+            emptied.is_empty(),
+            "a heartbeat emptied the caches: {emptied:?}"
+        );
+    }
+
+    #[test]
+    fn a_schema_with_a_slash_is_compared_whole() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+        react(&new_origin("\"a/b\""), &new_origin("\"a\""), &state);
+        assert_eq!(state.generation(), 0);
+
+        react(&new_origin("\"a/b\""), &new_origin("\"a/b\""), &state);
+        assert_eq!(state.generation(), 1);
+    }
+
+    #[test]
+    fn a_schema_list_and_a_single_schema_empty_each_other() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+        react(&new_origin("public,public"), &new_origin("public"), &state);
+        react(&new_origin("public"), &new_origin("public,public"), &state);
+        react(
+            &new_origin("public,public"),
+            &new_origin("public,public"),
+            &state,
+        );
+
+        assert_eq!(state.generation(), 3);
+    }
+
+    #[test]
+    fn a_quoted_name_holding_a_comma_is_taken_for_a_list() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+        react(&new_origin("\"a,b\""), &new_origin("other"), &state);
+
+        assert_eq!(state.generation(), 1);
+    }
+
+    #[test]
+    fn a_name_over_63_bytes_names_no_schema() {
+        assert!(schema_of(&new_origin(&"a".repeat(64))).is_none());
+        assert!(schema_of(&new_origin(&"é".repeat(32))).is_none());
+    }
+
+    #[test]
+    fn a_name_of_63_bytes_keeps_its_schema() {
+        let quoted_63 = format!("\"{}\"", "a".repeat(63));
+        let multibyte_63 = format!("{}a", "é".repeat(31));
+
+        assert!(schema_of(&new_origin(&"a".repeat(63))).is_some());
+        assert!(schema_of(&new_origin(&quoted_63)).is_some());
+        assert!(schema_of(&new_origin(&multibyte_63)).is_some());
+    }
+
+    #[test]
+    fn spaces_around_a_name_are_ignored() {
+        assert_eq!(canonical_schema(" public "), "public");
+        assert_eq!(canonical_schema("  PUBLIC "), canonical_schema("public"));
+        assert_eq!(canonical_schema(" \"Public\" "), "Public");
+        assert_eq!(canonical_schema(" \" a \" "), " a ");
+
+        for space in [' ', '\t', '\n', '\r', '\x0b', '\x0c'] {
+            assert_eq!(canonical_schema(&format!("{space}public{space}")), "public");
+        }
+    }
+
+    #[test]
+    fn a_name_with_a_backslash_names_no_schema() {
+        assert!(schema_of(&new_origin("pub\\lic")).is_none());
+        assert!(schema_of(&new_origin("public")).is_some());
+    }
+
+    #[test]
+    fn the_user_placeholder_names_no_schema() {
+        assert!(schema_of(&new_origin("$user")).is_none());
+        assert!(schema_of(&new_origin("\"$user\"")).is_none());
+    }
+
+    #[test]
+    fn a_unicode_space_stays_part_of_the_name() {
+        for space in ['\u{a0}', '\u{85}', '\u{3000}'] {
+            let (state, _feed) = TokenState::new(Duration::from_secs(60));
+
+            react(
+                &new_origin(&format!("public{space}")),
+                &new_origin(&format!("\"public{space}\"")),
+                &state,
+            );
+
+            assert_eq!(state.generation(), 1, "U+{:04X} was trimmed", space as u32);
+        }
+    }
+
+    #[test]
+    fn two_spellings_of_one_overlong_name_empty_the_caches() {
+        let (state, _feed) = TokenState::new(Duration::from_secs(60));
+        let kept = "a".repeat(63);
+        let spelled_longer = format!("{kept}b");
+
+        react(&new_origin(&spelled_longer), &new_origin(&kept), &state);
+        react(&new_origin(&kept), &new_origin(&spelled_longer), &state);
+
+        assert_eq!(state.generation(), 2);
+    }
+
+    // A schema-less announcement empties every replica of the database.
+    // A database test sending one would empty its neighbours' caches.
+    async fn replica(pool: &PgPool, schema: &str) -> Arc<TokenState> {
         let (state, feed) = TokenState::new(Duration::from_secs(60));
         let mut ready = state.subscribe();
-        spawn_token_state_sync(pool, Arc::clone(&state), feed);
+        spawn_token_state_sync(pool, schema, Arc::clone(&state), feed);
 
         wait_past(&mut ready, 0).await;
         state
@@ -199,8 +470,8 @@ mod tests {
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn a_change_on_one_replica_empties_the_other() {
         let pool = pool().await;
-        let first = replica(&pool).await;
-        let second = replica(&pool).await;
+        let first = replica(&pool, "public").await;
+        let second = replica(&pool, "public").await;
         let mut watching = second.subscribe();
         let seen = second.generation();
 
@@ -208,6 +479,65 @@ mod tests {
 
         wait_past(&mut watching, seen).await;
         assert!(second.synced());
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_change_reaches_a_replica_whose_schema_is_spelled_in_another_case() {
+        let pool = pool().await;
+        let schema = format!("token_state_{}", Uuid::new_v4().simple());
+        let first = replica(&pool, &schema).await;
+        let second = replica(&pool, &schema.to_uppercase()).await;
+        let mut watching = second.subscribe();
+        let seen = second.generation();
+
+        first.changed();
+
+        wait_past(&mut watching, seen).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_change_reaches_a_replica_whose_schema_is_named_like_a_heartbeat() {
+        let pool = pool().await;
+        let schema = format!("\"ping:tenant_{}\"", Uuid::new_v4().simple());
+        let first = replica(&pool, &schema).await;
+        let second = replica(&pool, &schema).await;
+        let mut watching = second.subscribe();
+        let seen = second.generation();
+
+        first.changed();
+
+        wait_past(&mut watching, seen).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_change_in_one_schema_leaves_the_replicas_of_another_schema_alone() {
+        let pool = pool().await;
+        let mine = format!("token_state_{}", Uuid::new_v4().simple());
+        let theirs = format!("token_state_{}", Uuid::new_v4().simple());
+        let first = replica(&pool, &mine).await;
+        let sibling = replica(&pool, &mine).await;
+        let stranger = replica(&pool, &theirs).await;
+        let (mut sibling_moves, sibling_seen) = (sibling.subscribe(), sibling.generation());
+        let (mut stranger_moves, stranger_seen) = (stranger.subscribe(), stranger.generation());
+
+        first.changed();
+
+        // The sibling hearing the change proves it was sent.
+        // The stranger shares the channel, so it heard it too.
+        wait_past(&mut sibling_moves, sibling_seen).await;
+        let stranger_moved = tokio::time::timeout(
+            Duration::from_secs(1),
+            stranger_moves.wait_for(|now| *now > stranger_seen),
+        )
+        .await
+        .is_ok();
+        assert!(
+            !stranger_moved,
+            "a change in another schema emptied the caches"
+        );
     }
 
     #[tokio::test]
