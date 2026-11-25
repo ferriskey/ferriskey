@@ -1406,6 +1406,7 @@ function resolveDisplay(node: BuilderNode): string {
 export function divStyle(node: BuilderNode): CSSProperties {
   const z = (node.props.zIndex as string) || ''
   const order = (node.props.order as string) || ''
+  const grow = node.props.flexGrow
   const display = resolveDisplay(node)
 
   const base: CSSProperties = {
@@ -1431,6 +1432,10 @@ export function divStyle(node: BuilderNode): CSSProperties {
     // `order` only takes effect when this node is the child of a flex or
     // grid container — ignored otherwise, so it's safe to always emit.
     order: order ? Number(order) : undefined,
+    // Same switch as the Container's "Fill page height".
+    // The Div then takes the height its siblings leave.
+    // Unset stays undefined, so stored trees render unchanged.
+    flexGrow: typeof grow === 'string' && grow !== '' ? Number(grow) : undefined,
   }
 
   if (display === 'flex') {
