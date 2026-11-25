@@ -8,6 +8,8 @@ ignore = [
     { id = "RUSTSEC-2026-0543", reason = "chrono is unmaintained with no safe release; it is the workspace date type and also comes through cedar-policy-core, so moving to jiff or time is its own migration" },
     { id = "RUSTSEC-2026-0542", reason = "humantime is unmaintained, pulled only by cucumber as a dev-dependency of ferriskey-api" },
     { id = "RUSTSEC-2024-0449", reason = "unsafe-libyaml is unmaintained, pulled only by serde_yaml in ferriskey-operator for the crdgen binary and the CRD tests; kube 4 moved to serde-saphyr" },
+    { id = "RUSTSEC-2026-0543", reason = "chrono is unmaintained with no patched release; it is a direct dependency of 39 workspace crates and is pulled by sqlx-core, sqlx-postgres, sea-orm, sea-query, sea-query-binder, cedar-policy-core and expect-json, so moving to jiff or time is a migration of its own" },
+    { id = "RUSTSEC-2026-0542", reason = "humantime is unmaintained with no patched release, pulled only by cucumber 0.23.0, a dev-dependency of ferriskey-api for the BDD tests; the latest cucumber still requires humantime" },
 ]
 
 [licenses]
