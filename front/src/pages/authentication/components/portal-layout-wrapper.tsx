@@ -11,10 +11,22 @@ import { useGetLoginSettings } from '@/api/realm.api'
 import { useSetupOtp } from '@/api/trident.api'
 import type { RouterParams } from '@/routes/router'
 import type { BuilderNode } from '@/lib/builder-core'
-import { generateBreakpointCss, treeToReactNode } from '@/lib/builder-portal'
+import {
+  BREAKPOINT_WIDTHS,
+  generateBreakpointCss,
+  treeToReactNode,
+} from '@/lib/builder-portal'
 import { collectRenderedTypes } from '@/lib/builder-portal/rendered-types'
 import type { AccountChooserOptions } from '@/lib/builder-portal/components/account-list-block'
-import { mergeWithDefaults, themeToCssVars } from '@/lib/portal-theme/theme'
+import {
+  darkPaletteCssVars,
+  mergeWithDefaults,
+  ownSurfaceCss,
+  ownSurfaceTheme,
+  themeToCssVars,
+  withDarkPalette,
+} from '@/lib/portal-theme/theme'
+import { useMediaQuery } from '@/hooks/use-media-query'
 import type { Schemas } from '@/api/api.client'
 import { useDevicePreview } from '@/api/device.api'
 import { toConsentScopeList, useGetConsentRequest } from '@/api/consent.api'
@@ -181,7 +193,13 @@ export function PortalLayoutWrapper({
   // applies the vars to `:root` before the browser paints, killing the
   // last ~50ms of flash that survived the React-side fallback alone.
   const cachedVars = useMemo(() => readCachedCssVars(realm), [realm])
-  const tokens = activeData?.design_tokens
+  const isDarkScheme = useMediaQuery('(prefers-color-scheme: dark)')
+  const tokens = useMemo(
+    () =>
+      activeData &&
+      (isDarkScheme ? withDarkPalette(activeData.design_tokens) : activeData.design_tokens),
+    [activeData, isDarkScheme],
+  )
   const cssVars = useMemo(() => {
     if (tokens) {
       return themeToCssVars(mergeWithDefaults(tokens)) as unknown as CSSProperties
@@ -191,6 +209,19 @@ export function PortalLayoutWrapper({
     }
     return themeToCssVars(mergeWithDefaults(undefined)) as CSSProperties
   }, [tokens, cachedVars])
+  const hasDarkPalette = activeData ? Boolean(activeData.design_tokens.darkColors) : false
+  // A dark palette draws outlines in its text colour.
+  // Blocks with their own surface keep the light palette.
+  const darkPalette = useMemo(() => {
+    if (!isDarkScheme || !hasDarkPalette || !activeData) {
+      return { vars: {}, own: { apply: '', release: '' } }
+    }
+    const own = ownSurfaceTheme(mergeWithDefaults(activeData.design_tokens))
+    return {
+      vars: { ...darkPaletteCssVars(mergeWithDefaults(tokens)), ...own.vars },
+      own,
+    }
+  }, [isDarkScheme, hasDarkPalette, activeData, tokens])
   useEffect(() => {
     if (activeData?.design_tokens) {
       writeCachedCssVars(
@@ -326,7 +357,14 @@ export function PortalLayoutWrapper({
     // but visually hidden: its effects (the redirect) still run, the user just
     // never sees the fallback form flash.
     return (
-      <div style={{ ...cssVars, minHeight: '100vh', background: 'var(--fk-color-page-bg)' }}>
+      <div
+        style={{
+          ...cssVars,
+          ...darkPalette.vars,
+          minHeight: '100vh',
+          background: 'var(--fk-color-page-bg)',
+        }}
+      >
         <div
           aria-hidden
           style={{
@@ -355,10 +393,12 @@ export function PortalLayoutWrapper({
 
   // Collect responsive overrides from both the page tree and the layout tree
   // (each node's id is unique across them) into a single <style> block.
-  const breakpointCss = [
-    generateBreakpointCss(pageTree),
-    generateBreakpointCss(layoutTree),
-  ]
+  // The light palette follows each block's background across widths.
+  const treeCss = (tree: BuilderNode[]): string =>
+    [generateBreakpointCss(tree), ownSurfaceCss(tree, darkPalette.own, BREAKPOINT_WIDTHS)]
+      .filter(Boolean)
+      .join('\n')
+  const breakpointCss = [treeCss(pageTree), treeCss(layoutTree)]
     .filter(Boolean)
     .join('\n')
 
@@ -422,6 +462,7 @@ export function PortalLayoutWrapper({
    */
   const pageSurface: CSSProperties = {
     ...cssVars,
+    ...darkPalette.vars,
     minHeight: '100vh',
     background: 'var(--fk-color-page-bg)',
     display: 'flex',
@@ -447,10 +488,7 @@ export function PortalLayoutWrapper({
         runtime: true,
         identityProviders,
       })
-      const verifiedStyleCss = [
-        generateBreakpointCss(verifiedTree),
-        generateBreakpointCss(layoutTree),
-      ]
+      const verifiedStyleCss = [treeCss(verifiedTree), treeCss(layoutTree)]
         .filter(Boolean)
         .join('\n')
       const verifiedStyle = verifiedStyleCss ? (

@@ -17,6 +17,7 @@ import ProviderIcon, {
 } from '@/components/provider-icon'
 import type { BuilderNode } from '../builder-core'
 import { withAuthFlow } from '@/lib/auth-flow-query'
+import { outlineColor } from '@/lib/portal-theme/theme'
 import { PortalInput } from './components/portal-input'
 import { AccountListBlock, type AccountChooserOptions } from './components/account-list-block'
 
@@ -1234,7 +1235,9 @@ export function cardStyle(node: BuilderNode): CSSProperties {
     // is actually perceptible against the widget background. With the
     // previous value the edge melted into the page even on a white card.
     border: `var(--fk-border-widget, 1px) solid ${
-      (node.props.borderColor as string) || 'rgba(0,0,0,0.12)'
+      typeof node.props.borderColor === 'string' && node.props.borderColor !== ''
+        ? node.props.borderColor
+        : outlineColor('card')
     }`,
     boxShadow:
       (node.props.boxShadow as string) ||
@@ -1666,7 +1669,7 @@ function TotpSlot({ char, isActive, hasFakeCaret, placeholderChar }: SlotProps) 
         borderStyle: 'solid',
         borderColor: isActive
           ? 'var(--fk-color-primary-button, #635dff)'
-          : 'rgba(0,0,0,0.15)',
+          : outlineColor('field'),
         background: 'var(--fk-color-widget-bg, #ffffff)',
         color: 'var(--fk-color-body-text, #111827)',
         fontSize: 'calc(var(--fk-font-base-size, 16px) * 1.1)',
@@ -1772,10 +1775,10 @@ export function inputFieldStyle(): CSSProperties {
     // should read as a faint outline, not as the body text color. Using
     // `--fk-color-body-text` here made the border render as the dark body
     // color set by the theme, instead of the grey we show in the preview.
-    border: 'var(--fk-border-input, 1px) solid rgba(0,0,0,0.15)',
+    border: `var(--fk-border-input, 1px) solid ${outlineColor('field')}`,
     borderRadius: 'var(--fk-radius-input, 6px)',
     fontSize: 'var(--fk-font-base-size, 14px)',
-    backgroundColor: '#fff',
+    backgroundColor: 'var(--fk-color-widget-bg, #ffffff)',
     color: 'var(--fk-color-body-text, #111827)',
   }
 }

@@ -130,6 +130,12 @@ impl PortalThemePages {
 #[serde(default, rename_all = "camelCase")]
 pub struct PortalThemeConfig {
     pub colors: ThemeColors,
+    /// Palette for a dark system scheme (`prefers-color-scheme: dark`).
+    /// `None` keeps `colors` in both schemes.
+    /// Themes saved before this field render as before.
+    /// Missing tokens take the `ThemeColors` defaults.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dark_colors: Option<ThemeColors>,
     pub fonts: ThemeFonts,
     pub borders: ThemeBorders,
     pub spacing: ThemeSpacing,
@@ -393,6 +399,30 @@ mod tests {
         assert!(json.get("colors").unwrap().get("primaryButton").is_some());
         assert!(json.get("borders").unwrap().get("buttonRadius").is_some());
         assert!(json.get("fonts").unwrap().get("baseSize").is_some());
+    }
+
+    #[test]
+    fn dark_colors_are_absent_until_set() {
+        let parsed: PortalThemeConfig =
+            serde_json::from_str(r##"{ "colors": { "bodyText": "#000000" } }"##)
+                .expect("deserialize");
+        assert_eq!(parsed.dark_colors, None);
+        let json = serde_json::to_value(&parsed).expect("to_value");
+        assert!(json.get("darkColors").is_none());
+    }
+
+    #[test]
+    fn dark_colors_round_trip_and_fill_with_defaults() {
+        let json = r##"{ "darkColors": { "pageBackground": "#0a0a0a", "bodyText": "#f5fafc" } }"##;
+        let parsed: PortalThemeConfig = serde_json::from_str(json).expect("deserialize");
+        let dark = parsed.dark_colors.clone().expect("dark palette");
+        assert_eq!(dark.page_background, "#0a0a0a");
+        assert_eq!(dark.body_text, "#f5fafc");
+        assert_eq!(dark.links, ThemeColors::default().links);
+        let again: PortalThemeConfig =
+            serde_json::from_value(serde_json::to_value(&parsed).expect("to_value"))
+                .expect("from_value");
+        assert_eq!(again, parsed);
     }
 
     #[test]
