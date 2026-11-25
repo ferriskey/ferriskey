@@ -15,6 +15,7 @@ use ferriskey_api_core::{
     url::{FullUrl, WebappUrl},
 };
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use ferriskey_core::domain::trident::ports::{ChallengeOtpInput, TridentService};
 use ferriskey_core::domain::user::entities::RequiredAction;
 use serde::{Deserialize, Serialize};
@@ -36,6 +37,13 @@ pub struct ChallengeOtpResponse {
     pub required_actions: Vec<RequiredAction>,
 }
 
+fn challenge_error(error: CoreError) -> ApiError {
+    match error {
+        CoreError::TotpVerificationFailed(_) => ApiError::BadRequest("Invalid OTP code".into()),
+        other => ApiError::from(other),
+    }
+}
+
 #[utoipa::path(
     post,
     path = "/login-actions/challenge-otp",
@@ -49,7 +57,7 @@ pub struct ChallengeOtpResponse {
     responses(
         (status = 200, description = "Successfully challenged OTP", body = ChallengeOtpResponse),
         (status = 400, description = "Invalid request payload", body = ApiErrorResponse),
-        (status = 401, description = "Missing or invalid session cookie", body = ApiErrorResponse),
+        (status = 401, description = "Missing or invalid session cookie, or account locked", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
@@ -79,7 +87,7 @@ pub async fn challenge_otp(
             },
         )
         .await
-        .map_err(|e| ApiError::InternalServerError(e.to_string().into()))?;
+        .map_err(challenge_error)?;
 
     let mut reply = LoginStepReply::new(result.progress, base_url.starts_with("https"))?;
     reply
@@ -99,4 +107,39 @@ pub async fn challenge_otp(
             required_actions: reply.required_actions,
         }),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::StatusCode;
+
+    fn status_of(error: CoreError) -> StatusCode {
+        challenge_error(error).into_response().status()
+    }
+
+    #[test]
+    fn a_wrong_code_is_a_bad_request() {
+        let status = status_of(CoreError::TotpVerificationFailed(
+            "failed to verify OTP".into(),
+        ));
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn a_locked_account_is_a_client_error() {
+        assert_eq!(
+            status_of(CoreError::AccountLocked),
+            StatusCode::UNAUTHORIZED
+        );
+    }
+
+    #[test]
+    fn an_unexpected_failure_stays_a_server_error() {
+        assert_eq!(
+            status_of(CoreError::InternalServerError),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+    }
 }
