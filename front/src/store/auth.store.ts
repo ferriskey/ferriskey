@@ -25,6 +25,7 @@ export const authStore = create<AuthState>()(
         setTokens: (accessToken: string | null, refreshToken: string | null, idToken: string | null) =>
           set({ accessToken, refreshToken, idToken }),
         setSessionRealm: (sessionRealm: string | null) => set({ sessionRealm }),
+        forgetSessionRealm: () => set({ sessionRealm: null }),
       }),
       {
         name: AUTH_STORAGE_KEY,

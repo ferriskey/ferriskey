@@ -49,4 +49,6 @@ export interface AuthState {
     idToken: string | null
   ) => void
   setSessionRealm: (realm: string | null) => void
+  /** Drops the realm of a session the user ended, so the next sign-in goes to the browsed realm. */
+  forgetSessionRealm: () => void
 }
