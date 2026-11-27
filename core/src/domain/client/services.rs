@@ -168,9 +168,9 @@ where
         }
     }
 
-    // A client secret is the credential of the client's service account, so
-    // handing it over hands that account over: the subject must hold what
-    // the account holds, as for a password reset.
+    // A client's secret or signing key is the credential of its service
+    // account, so handing either over hands that account over: the subject
+    // must hold what the account holds, as for a password reset.
     async fn ensure_covers_service_account(
         &self,
         identity: &Identity,
@@ -195,10 +195,10 @@ where
         warn!(
             %client_id,
             action,
-            "Refused to hand over the secret of a client whose service account holds permissions the subject does not hold"
+            "Refused to hand over a client whose service account holds permissions the subject does not hold"
         );
         Err(CoreError::Forbidden(format!(
-            "cannot {action} the secret of a client holding permissions you do not hold"
+            "cannot {action} a client holding permissions you do not hold"
         )))
     }
 }
@@ -951,8 +951,13 @@ where
             .map_err(|_| CoreError::NotFound)?
             .in_realm(&scope)?;
 
-        self.ensure_covers_service_account(&identity, &realm, client.get().id, "reveal")
-            .await?;
+        self.ensure_covers_service_account(
+            &identity,
+            &realm,
+            client.get().id,
+            "reveal the secret of",
+        )
+        .await?;
 
         self.security_event_repository
             .store_event(
@@ -1007,8 +1012,13 @@ where
             return Err(CoreError::ClientHasNoSecret);
         }
 
-        self.ensure_covers_service_account(&identity, &realm, client.get().id, "rotate")
-            .await?;
+        self.ensure_covers_service_account(
+            &identity,
+            &realm,
+            client.get().id,
+            "rotate the secret of",
+        )
+        .await?;
 
         let new_secret = generate_random_string();
 
@@ -1223,6 +1233,13 @@ where
         ensure_update_allowed_for_source(target.get(), &input.payload)?;
 
         if input.payload.touches_authentication() {
+            self.ensure_covers_service_account(
+                &identity,
+                &realm,
+                target.get().id,
+                "change the authentication of",
+            )
+            .await?;
             input
                 .payload
                 .merged_auth(target.get())
@@ -1821,7 +1838,7 @@ mod tests {
 
         const SECRET: &str = "s3cret";
 
-        fn client_with_secret(realm: &Realm) -> Client {
+        pub(super) fn client_with_secret(realm: &Realm) -> Client {
             let mut client = stored_client(realm, false);
             client.secret = Some(Masked::new(SECRET.to_string()));
             client
@@ -1849,7 +1866,7 @@ mod tests {
             }
         }
 
-        fn expect_client(mocks: &mut Mocks, client: &Client) {
+        pub(super) fn expect_client(mocks: &mut Mocks, client: &Client) {
             let client = client.clone();
             mocks.client.expect_get_by_id().returning(move |_, _| {
                 let client = client.clone();
@@ -1973,6 +1990,162 @@ mod tests {
                 .expect("there is no account to hand over");
 
             assert_eq!(secret.client_secret.as_deref(), Some(SECRET));
+        }
+    }
+
+    mod update_client_authentication {
+        use super::*;
+        use crate::domain::client::entities::UpdateClientInput;
+        use ferriskey_domain::client::value_objects::UpdateClientRequest;
+
+        fn auth_update(client: &Client) -> UpdateClientInput {
+            UpdateClientInput {
+                realm_name: "acme".to_string(),
+                client_id: client.id,
+                payload: UpdateClientRequest {
+                    token_endpoint_auth_method: Some(TokenEndpointAuthMethod::ClientSecretPost),
+                    ..empty_update()
+                },
+            }
+        }
+
+        fn plain_update(client: &Client) -> UpdateClientInput {
+            UpdateClientInput {
+                realm_name: "acme".to_string(),
+                client_id: client.id,
+                payload: UpdateClientRequest {
+                    name: Some("renamed".to_string()),
+                    ..empty_update()
+                },
+            }
+        }
+
+        fn empty_update() -> UpdateClientRequest {
+            UpdateClientRequest {
+                name: None,
+                client_id: None,
+                enabled: None,
+                direct_access_grants_enabled: None,
+                oauth_device_code_grant_enabled: None,
+                token_exchange_enabled: None,
+                require_pkce: None,
+                require_pushed_authorization_requests: None,
+                backchannel_logout_uri: None,
+                backchannel_logout_session_required: None,
+                access_token_lifetime: None,
+                refresh_token_lifetime: None,
+                id_token_lifetime: None,
+                temporary_token_lifetime: None,
+                maintenance_enabled: None,
+                maintenance_reason: None,
+                maintenance_session_strategy: None,
+                consent_required: None,
+                token_endpoint_auth_method: None,
+                jwks: None,
+                jwks_uri: None,
+            }
+        }
+
+        fn expect_update(mocks: &mut Mocks, client: &Client) {
+            let client = client.clone();
+            mocks
+                .client
+                .expect_update_client()
+                .times(1)
+                .returning(move |_, _| {
+                    let client = client.clone();
+                    Box::pin(async move { Ok(client) })
+                });
+        }
+
+        #[tokio::test]
+        async fn refuses_to_change_the_authentication_of_a_service_account_the_caller_does_not_cover()
+         {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = super::reveal_client_secret::client_with_secret(&realm);
+            super::reveal_client_secret::expect_client(&mut mocks, &client);
+            super::reveal_client_secret::expect_service_account_holding(
+                &mut mocks,
+                &realm,
+                Permissions::ManageRealm,
+            );
+            mocks.client.expect_update_client().never();
+
+            let result = mocks
+                .build()
+                .update_client(identity, auth_update(&client))
+                .await;
+
+            assert!(
+                matches!(result, Err(CoreError::Forbidden(_))),
+                "got {:?}",
+                result.err()
+            );
+        }
+
+        #[tokio::test]
+        async fn changes_the_authentication_of_a_service_account_the_caller_covers() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = super::reveal_client_secret::client_with_secret(&realm);
+            super::reveal_client_secret::expect_client(&mut mocks, &client);
+            super::reveal_client_secret::expect_service_account_holding(
+                &mut mocks,
+                &realm,
+                Permissions::ManageClients,
+            );
+            expect_update(&mut mocks, &client);
+
+            mocks
+                .build()
+                .update_client(identity, auth_update(&client))
+                .await
+                .expect("the caller holds what the service account holds");
+        }
+
+        #[tokio::test]
+        async fn fails_closed_when_the_service_account_lookup_fails() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = super::reveal_client_secret::client_with_secret(&realm);
+            super::reveal_client_secret::expect_client(&mut mocks, &client);
+            mocks
+                .user
+                .expect_get_by_client_id()
+                .returning(|_| Box::pin(async { Err(CoreError::InternalServerError) }));
+            mocks.client.expect_update_client().never();
+
+            let result = mocks
+                .build()
+                .update_client(identity, auth_update(&client))
+                .await;
+
+            assert!(
+                matches!(result, Err(CoreError::InternalServerError)),
+                "got {:?}",
+                result.err()
+            );
+        }
+
+        #[tokio::test]
+        async fn an_update_that_leaves_authentication_alone_does_not_look_at_the_service_account() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = super::reveal_client_secret::client_with_secret(&realm);
+            super::reveal_client_secret::expect_client(&mut mocks, &client);
+            mocks.user.expect_get_by_client_id().never();
+            expect_update(&mut mocks, &client);
+
+            mocks
+                .build()
+                .update_client(identity, plain_update(&client))
+                .await
+                .expect("a rename hands nothing over");
         }
     }
 
