@@ -69,3 +69,21 @@ test('clearing the tokens leaves nothing usable in storage', () => {
   assert.equal(persisted.state.refreshToken, null)
   assert.equal(persisted.state.idToken, null)
 })
+
+test('clearing the tokens keeps the realm that issued the session', () => {
+  authStore.getState().setSessionRealm('acme')
+  authStore.getState().setTokens('access', 'refresh', 'id')
+  authStore.getState().setTokens(null, null, null)
+
+  const persisted = JSON.parse(session.getItem('auth') ?? '{}')
+  assert.equal(persisted.state.sessionRealm, 'acme')
+})
+
+test('signing out forgets the realm of the previous session', () => {
+  authStore.getState().setSessionRealm('acme')
+  authStore.getState().forgetSessionRealm()
+
+  const persisted = JSON.parse(session.getItem('auth') ?? '{}')
+  assert.equal(authStore.getState().sessionRealm, null)
+  assert.equal(persisted.state.sessionRealm, null)
+})

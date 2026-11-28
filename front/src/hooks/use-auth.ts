@@ -86,6 +86,7 @@ export function useAuth() {
     sessionRealm: storedSessionRealm,
     setTokens,
     setSessionRealm,
+    forgetSessionRealm,
   } = authStore()
   // The realm that issued the session. It differs from `realm_name` while an
   // admin signed in to one realm (usually master) browses another, and every
@@ -210,6 +211,7 @@ export function useAuth() {
       console.error('Failed to clear server-side session cookies during logout:', error)
     } finally {
       clearAuthState(true)
+      forgetSessionRealm()
     }
   }
 
